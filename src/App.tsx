@@ -24,6 +24,7 @@ import { seedGroups } from "./data/seed";
 import { LiveChatPage } from "./features/chat/LiveChatPage";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
 import { GruposPage } from "./features/operacao/GruposPage";
+import { PeoplePage } from "./features/people/PeoplePage";
 import {
   CampanhasPage,
   IndicadoresPage,
@@ -60,6 +61,7 @@ const navItems: NavItem[] = [
   { id: "conexoes", label: "Conexões e dados", icon: Plug },
   { id: "grupos", label: "Grupos", icon: Users },
   { id: "agente", label: "Conversa com Maia", icon: Bot },
+  { id: "pessoas", label: "Pessoas", icon: Users },
 ];
 
 const pageNames: Record<PageId, string> = Object.fromEntries(navItems.map((item) => [item.id, item.label])) as Record<PageId, string>;
@@ -413,6 +415,7 @@ export default function App() {
       case "conexoes": return <ConnectionsPage />;
       case "grupos": return <GruposPage />;
       case "agente": return <LiveChatPage />;
+      case "pessoas": return <PeoplePage />;
     }
   }
 
