@@ -1,0 +1,38 @@
+# Instruções para Claude Code
+
+Leia `plan.md`, `TODO.md`, `README.md` e `docs/analise-da-referencia.md` antes de alterar o projeto.
+
+## Limites inegociáveis desta versão
+
+- Este projeto roda localmente, no computador do owner. O painel mostra dados reais de Gmail, Meta Ads e Google Sheets, lidos pelo Agent SDK com as conexões MCP desta conta. Decisão explícita do owner (opção 1): a atualização é periódica (30 min) e somente leitura, com ferramentas listadas por fonte em `server/refreshJob.ts` e modelo Haiku. Nenhuma escrita sem aprovação do aprovador.
+- O painel e as rotas `/api/snapshot`, `/api/refresh` e `/api/maia` aceitam pedidos só de `localhost`/`127.0.0.1`. O servidor do `pnpm dev` também fica em `127.0.0.1`.
+- Dados ficam no Supabase (projeto Agent Maia, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no `.env`), com RLS ligado e sem políticas: só o servidor acessa. Guardam metadados de eventos, decisões de aprovação, resultados das consultas e a fila `inbox`. O texto das conversas com a Maia (WhatsApp e painel) fica na tabela `messages`, só do owner e da Maia. Mensagens de outros números nunca têm o texto guardado. A fila `inbox` apaga o texto após 24 horas (`purge_inbox_payloads`). Decisão de produção sem ambiente de teste: os testes que dependiam do banco foram removidos.
+- Conexões: a Maia usa somente os conectores do claude.ai (Gmail, Meta Ads, Drive/Sheets, Agenda etc.). O Agent SDK roda com `settingSources: []`, então servidores MCP locais do computador (como o "meta-ads" local) não são carregados. Não adicionar servidores locais.
+- Não adicionar chamadas de rede, SDKs de provedores, credenciais, rotas de webhook, envio de mensagens, alterações de CRM, publicações, gastos ou agendamentos externos sem uma decisão futura explícita do owner.
+- Exceção decidida pelo owner: o Claude Code via Agent SDK (`@anthropic-ai/claude-agent-sdk`) redige as respostas do chat, apenas no `pnpm dev`, a partir de `server/maiaAgent.ts` e da rota `/api/maia` em `vite.config.ts`. Essa chamada não recebe ferramentas, não executa ações e não altera o estado da demo; a decisão de autorização continua local. A autenticação usa o login local do Claude Code (conta claude.ai), sem chave de API no projeto. Uso pessoal e local apenas: não expor a rota a outras pessoas nem usar esse login para servir terceiros.
+- Exceção local (webhook Evolution): `server/webhookServer.ts` roda em `pnpm webhook` (porta 3100, só `/webhook`, protegido por `EVOLUTION_WEBHOOK_SECRET` via query ou header `x-webhook-token`). Somente esse endereço vai para o túnel do Cloudflare; `/api/maia` nunca. Eventos são triados (conexão, voto de enquete, mensagem, desconhecido) e registrados sem conteúdo. Nenhum evento dispara envio. Roteamento por remetente: a conversa vem só de `EVOLUTION_OWNER_NUMBER` (5585998372658); a aprovação de escrita vem só de `EVOLUTION_APPROVER_NUMBER` (5585992494552), aceitando apenas SIM ou NÃO, válido para uma ação. Pedidos de aprovação são enviados ao aprovador. Registro da configuração: `scripts/register-evolution-webhook.ts` (dry-run por padrão, `--apply` envia). Credenciais ficam só em `.env`. Áudio do dono: o arquivo é baixado pela mesma instância da Evolution (`server/evolutionSend.ts`, `downloadAudio`), só em memória e só quando o remetente é `EVOLUTION_OWNER_NUMBER`. A transcrição (`server/transcribe.ts`) só ganha provedor com decisão explícita do owner.
+- Não copiar logo, dados privados, textos proprietários ou código de servidor da referência.
+- Mantenha aviso de demo e a afirmação de que nenhum sistema externo é chamado visíveis na interface.
+
+## Comportamento da Maia
+
+- Para cada solicitação, validar grupo, membro, permissão e escopo antes de propor simulação.
+- Se a permissão faltar ou a ação for sensível, bloquear e encaminhar uma solicitação pontual ao canal de Herickson Maia. Não executar antes de decisão explícita.
+- Aprovação é válida para uma única ação; nunca promove permissão permanente.
+- Registrar a regra, decisão, solicitante e resultado na auditoria. Revalidar permissões ao confirmar ações.
+- Nunca mostrar dados pessoais reais; agregados de exemplo devem ser identificados como fictícios.
+
+## Desenvolvimento
+
+- Stack atual: React + TypeScript + Vite, pnpm 11.25.0.
+- Instalação: `pnpm install`; execução: `pnpm dev`; qualidade: `pnpm typecheck`, `pnpm test`, `pnpm build`.
+- Mantenha a regra de autorização em `src/lib/authorization.ts`, independente de componentes.
+- Seeds fictícios vivem em `src/data/seed.ts`; persistência demonstrativa em `src/lib/persistence.ts`.
+- Prefira módulos pequenos e acessíveis. Adicione testes às regras de permissão, escalonamento, aprovação pontual e reset.
+- Não marque um resultado como real se veio de simulação.
+- Registro de mudanças: a cada alteração no código, atualize `CHANGELOG.md` (entrada com data no topo: o que mudou, bugs com sintoma e causa, pendências). Não crie outro arquivo de histórico.
+- Launcher: `Iniciar Maia.bat` ou `pnpm start` sobem webhook, túnel, registro na Evolution e app (`127.0.0.1:3000`).
+
+## Integrações futuras
+
+Os nomes previstos são Evolution API/WhatsApp, Kommo, Instagram, Google Agenda, Google Sheets/Forms e Meta Ads. Nesta versão, cada adaptador é apenas uma entrada visual desligada. Qualquer conexão futura deve ser feita no servidor, com escopos mínimos, credenciais por secret manager, trilha de auditoria e modo somente leitura inicial. Não solicitar que alguém cole segredos no código ou no chat.

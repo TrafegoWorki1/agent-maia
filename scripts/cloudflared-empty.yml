@@ -1,0 +1,1 @@
+# Config vazio de propósito: impede o ~/.cloudflared/config.yml global de sobrescrever o --url.
