@@ -1,3 +1,4 @@
+import { supabase } from "./supabaseBrowser";
 // Contrato do painel com o servidor local (/api/snapshot e /api/refresh). Só existe no `pnpm dev`.
 
 export interface SourceResult<T> {
@@ -72,9 +73,16 @@ export interface Scorecard {
   criticalCap: number;
 }
 
+// Envia o login de quem está no painel. Na Vercel, a rota só responde ao proprietário.
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+  return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+}
+
 export async function fetchSnapshot(): Promise<Snapshot> {
-  const response = await fetch("/api/snapshot", { cache: "no-store" });
-  if (!response.ok) throw new Error(`Painel local respondeu HTTP ${response.status}`);
+  const response = await fetch("/api/snapshot", { cache: "no-store", headers: await authHeaders() });
+  if (response.status === 401 || response.status === 403) throw new Error("Sem permissão para ver o painel. Entre com a conta do proprietário.");
+  if (!response.ok) throw new Error(`O painel não respondeu (HTTP ${response.status}).`);
   return (await response.json()) as Snapshot;
 }
 

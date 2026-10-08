@@ -15,6 +15,14 @@ bug, qual era o sintoma e a causa.
 - **Motivo de parada registrado:** Ctrl+C, janela fechada, erro não tratado, webhook ou túnel saindo com código e sinal.
 - Pasta `logs/` ignorada pelo git.
 
+### Alterado (launcher abre a Vercel)
+- Ao iniciar, o launcher abre `https://agent-maia.vercel.app` em vez de `localhost:3000`. O painel local continua disponível em `localhost:3000` quando o Vite está rodando.
+
+### Alterado (números do dono e do aprovador trocados)
+- **Dono:** 5585992494552 (conversa com a Maia). **Aprovador:** 5585998372658 (SIM/NÃO das ações de escrita).
+- Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
+- **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
+
 ### Adicionado (worker da fila: processa o que a Vercel grava)
 - **`server/inboxWorker.ts`** (`pnpm worker`): roda no computador da Maia. Reserva lotes da fila `inbox` com `claim_inbox`, processa e marca cada item como concluído ou falho. Limpa o texto vencido a cada 10 minutos. Ao iniciar, itens presos em "processando" viram falhos (não são reexecutados).
 - **`server/ownerRouter.ts`**: comandos do dono (criar grupo, tarefa, conversa) e áudio saíram do webhook local e passaram a ser usados pelos dois.

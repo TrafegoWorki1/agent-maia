@@ -170,7 +170,8 @@ async function onTunnelOutput(buffer: Buffer): Promise<void> {
       startApp();
       log("launcher", `App (só neste PC): http://localhost:${APP_PORT}`);
       log("launcher", "Maia ativa. Feche esta janela (ou Ctrl+C) para desligar.");
-      spawn("cmd", ["/c", "start", "", `http://localhost:${APP_PORT}`], { stdio: "ignore" });
+      // Abre o painel publicado na Vercel. O painel local continua em localhost:3000, sem abrir sozinho.
+      spawn("cmd", ["/c", "start", "", "https://agent-maia.vercel.app"], { stdio: "ignore" });
     }
   } catch (error) {
     registered = false;
