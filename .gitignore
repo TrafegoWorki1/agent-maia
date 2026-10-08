@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Banco local da Maia e backups
+/data/
+
+# Registros do launcher (saída do webhook, painel e túnel)
+logs/
