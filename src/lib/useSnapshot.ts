@@ -4,7 +4,8 @@ import { fetchSnapshot, type Snapshot } from "./snapshotApi";
 const POLL_MS = 30_000;
 
 // Lê o snapshot do servidor local a cada 30 segundos. Mantém o último dado bom se uma leitura falhar.
-export function useSnapshot(): { snapshot: Snapshot | null; error: string | null; reload: () => Promise<void> } {
+// enabled=false: não consulta o servidor local (usado na Vercel).
+export function useSnapshot(enabled = true): { snapshot: Snapshot | null; error: string | null; reload: () => Promise<void> } {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,10 +19,11 @@ export function useSnapshot(): { snapshot: Snapshot | null; error: string | null
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     void reload();
     const timer = setInterval(() => void reload(), POLL_MS);
     return () => clearInterval(timer);
-  }, [reload]);
+  }, [reload, enabled]);
 
   return { snapshot, error, reload };
 }
