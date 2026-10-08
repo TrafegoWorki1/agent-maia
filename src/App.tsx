@@ -65,11 +65,14 @@ const navItems: NavItem[] = [
 ];
 
 const pageNames: Record<PageId, string> = Object.fromEntries(navItems.map((item) => [item.id, item.label])) as Record<PageId, string>;
-const validPageIds = new Set<string>(navItems.map((item) => item.id));
+// Publicado na Vercel (VITE_MAIA_HOSTED=1): só a página Pessoas, porque as outras dependem do computador.
+const HOSTED_ONLY = import.meta.env.VITE_MAIA_HOSTED === "1";
+const visibleNavItems = HOSTED_ONLY ? navItems.filter((item) => item.id === "pessoas") : navItems;
+const validPageIds = new Set<string>(visibleNavItems.map((item) => item.id));
 
 function pageFromHash(): PageId {
   const value = window.location.hash.replace(/^#/, "");
-  return validPageIds.has(value) ? (value as PageId) : "resumo";
+  return validPageIds.has(value) ? (value as PageId) : HOSTED_ONLY ? "pessoas" : "resumo";
 }
 
 function makeId(prefix: string): string {
@@ -92,7 +95,7 @@ function groupName(id: GroupId): string {
 export default function App() {
   const [state, setState] = useState(loadDemoState);
   const [activePage, setActivePage] = useState<PageId>(pageFromHash);
-  const live = useSnapshot();
+  const live = useSnapshot(!HOSTED_ONLY);
   const liveConnections = connectionSummary(live.snapshot);
   const [memberId, setMemberId] = useState("alex");
   const [groupId, setGroupId] = useState<GroupId>("trafego");
@@ -432,7 +435,7 @@ export default function App() {
         </div>
         <div className="workspace-switcher"><span className="workspace-icon"><Building2 size={16} /></span><span><strong>Operação Maia</strong><small>Painel local</small></span><ChevronDown size={14} /></div>
         <div className="nav-section-label">WORKSPACE</div>
-        <nav className="primary-nav" aria-label="Navegação principal">{navItems.map((item) => {
+        <nav className="primary-nav" aria-label="Navegação principal">{visibleNavItems.map((item) => {
           const Icon = item.icon;
           return <button key={item.id} type="button" className={`nav-link ${activePage === item.id ? "nav-link-active" : ""} ${item.id === "agente" ? "nav-link-agent" : ""}`} onClick={() => navigate(item.id)} aria-current={activePage === item.id ? "page" : undefined}>
             <Icon size={17} strokeWidth={activePage === item.id ? 2.2 : 1.8} /><span>{item.label}</span>{item.id === "agente" && pendingApprovalCount > 0 && <span className="nav-badge">{pendingApprovalCount}</span>}
