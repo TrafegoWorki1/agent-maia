@@ -43,7 +43,7 @@ describe("triagem do webhook para a fila", () => {
 
   it("mensagem de grupo vira atividade, sem texto", () => {
     const group = { event: "messages.upsert", instance: "wt_test", data: { key: { id: "G1", remoteJid: "120363@g.us", fromMe: false }, message: { conversation: "oi" } } };
-    expect(toInboxRow(group, OWNER, APPROVER)).toEqual({ kind: "event", sender: "group", key_id: "G1", payload: null });
+    expect(toInboxRow(group, OWNER, APPROVER)).toEqual({ kind: "event", sender: "group", key_id: "G1", payload: "120363@g.us" });
   });
 
   it("mensagem enviada pela própria conta não entra como conversa", () => {

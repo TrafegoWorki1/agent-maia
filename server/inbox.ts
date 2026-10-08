@@ -26,7 +26,8 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
   if (event.kind !== "message") return { kind: "event", sender: "none", key_id: keyId, payload: null };
 
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
-  if (remoteJid.endsWith("@g.us")) return { kind: "event", sender: "group", key_id: keyId, payload: null };
+  // O endereço do grupo (não o texto) vai no payload, para o worker contar a atividade.
+  if (remoteJid.endsWith("@g.us")) return { kind: "event", sender: "group", key_id: keyId, payload: remoteJid };
 
   const text = incomingText(body);
   if (text) {
