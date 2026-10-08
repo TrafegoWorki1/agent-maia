@@ -15,6 +15,16 @@ bug, qual era o sintoma e a causa.
 - **Motivo de parada registrado:** Ctrl+C, janela fechada, erro não tratado, webhook ou túnel saindo com código e sinal.
 - Pasta `logs/` ignorada pelo git.
 
+### Adicionado (login e permissões por pessoa)
+- **Login por e-mail e senha** no painel (`src/features/auth/AuthGate.tsx`). Sem cadastro público: o proprietário convida.
+- **Página Pessoas** (`src/features/people/PeoplePage.tsx`): cadastrar pessoa, adicionar e remover números, ativar ou desativar e marcar permissões. Só o proprietário altera.
+- **Banco** (migração `maia_people_permissions_v1`): `permission_catalog` (11 permissões atuais), `people`, `person_numbers` (várias por pessoa) e `person_permissions`. Função `is_owner()`. RLS: escrita só do proprietário; cada pessoa lê a própria linha.
+- **Chave pública no painel** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`). A service role não vai para o navegador.
+- **Verificado:** typecheck, build e 41 testes. Advisor de segurança: só avisos informativos e `is_owner()` intencional.
+- **Pendente:** vincular o login ao proprietário (convite por e-mail). Sem isso, ninguém altera as permissões.
+- **Pendente:** desligar o cadastro público no painel do Supabase (Authentication). Não dá para fazer por aqui.
+- **Pendente:** o worker ainda não consulta `person_permissions`. A regra vale no banco; a checagem no processamento vem com o worker.
+
 ### Adicionado (rota do webhook na Vercel e preparo para publicar)
 - **Rota `api/webhook.ts`** (`/api/webhook`): valida o token, faz a triagem e grava uma linha na fila `inbox` do Supabase. Não chama o Claude, não envia mensagem e não lê o banco. Responde 200 depois de gravar; reenvio do mesmo evento responde 200 com `duplicate`.
 - **Triagem** (`server/inbox.ts`, função pura): texto e áudio só do dono e do aprovador; grupo vira atividade sem texto; outros números viram evento sem conteúdo.
