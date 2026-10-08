@@ -1,13 +1,11 @@
 import { createServer } from "node:http";
 import { loadLocalEnv } from "./loadEnv.ts";
 import { audioFrom, incomingText, normalizeEvent, recordEvent, recentEvents, samePhone, tokenFromRequest, tokenMatches, type AudioRef } from "./evolutionWebhook.ts";
-import { downloadAudio } from "./evolutionSend.ts";
-import { transcriberFromEnv } from "./transcribe.ts";
-import { handleOwnerMessage, resolveApprovalFromText } from "./maiaOwnerAgent.ts";
-import { hasPendingGroupAction, parseCreateGroup, parseOwnerTask, requestCreateGroup, resolveGroupActionFromText } from "./groups.ts";
-import { sendOwnerText } from "./evolutionSend.ts";
+import { resolveApprovalFromText } from "./maiaOwnerAgent.ts";
+import { hasPendingGroupAction, resolveGroupActionFromText } from "./groups.ts";
+import { notifyOwner, routeOwnerText, handleOwnerAudio } from "./ownerRouter.ts";
 import { runProactive } from "./proactive.ts";
-import { createOwnerTask, getDb, markMessageSeen, recordEvent as persistEvent, recordGroupActivity, recordMessage, recoverStaleTasks, type Sender } from "./store.ts";
+import { getDb, markMessageSeen, recordEvent as persistEvent, recordGroupActivity, recordMessage, recoverStaleTasks, type Sender } from "./store.ts";
 
 // Servidor separado do `pnpm dev`: expõe somente /webhook, para ser o único endereço
 // publicado no túnel. Não expõe /api/maia nem a interface.
@@ -15,59 +13,6 @@ loadLocalEnv();
 
 const PORT = Number(process.env.WEBHOOK_PORT ?? 3100);
 const MAX_BODY_BYTES = 64_000;
-
-// Envia um aviso ao dono pelo WhatsApp e registra na conversa.
-async function notifyOwner(text: string): Promise<void> {
-  const owner = process.env.EVOLUTION_OWNER_NUMBER;
-  if (!owner) return;
-  await sendOwnerText(owner, text);
-  await recordMessage(getDb(), { channel: "whatsapp", author: "maia", text });
-}
-
-// Comandos do dono: criar grupo (com aprovação), tarefa (com ou sem grupo) ou conversa com a Maia.
-async function routeOwnerText(text: string): Promise<void> {
-  const db = getDb();
-  const deps = { db, notifyOwner };
-  const groupRequest = parseCreateGroup(text);
-  if (groupRequest) {
-    const reply = await requestCreateGroup(deps, groupRequest.name, groupRequest.participants);
-    await notifyOwner(reply);
-    return;
-  }
-  const task = parseOwnerTask(text);
-  if (task) {
-    const taskId = await createOwnerTask(db, { title: task.title, groupName: task.groupName });
-    await notifyOwner(`Tarefa #${taskId} criada: ${task.title}${task.groupName ? ` (grupo ${task.groupName})` : ""}.`);
-    return;
-  }
-  await handleOwnerMessage(text);
-}
-
-const AUDIO_UNAVAILABLE = "Recebi seu áudio, mas ainda não consigo transcrever áudios nesta Maia. Pode mandar em texto por enquanto.";
-
-// Áudio do dono: baixa pela Evolution, transcreve e trata o texto como um comando digitado.
-// O áudio não é gravado; o texto transcrito segue as mesmas regras do texto (guardado só para o dono).
-async function handleOwnerAudio(ref: AudioRef): Promise<void> {
-  const transcribe = transcriberFromEnv();
-  if (!transcribe) {
-    await notifyOwner(AUDIO_UNAVAILABLE);
-    return;
-  }
-  try {
-    const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
-    const text = (await transcribe(data, mimetype)).trim();
-    if (!text) {
-      await notifyOwner("Não consegui entender o áudio. Pode mandar de novo ou em texto?");
-      return;
-    }
-    await recordMessage(getDb(), { channel: "whatsapp", author: "owner", text });
-    await notifyOwner(`Entendi: "${text}"`);
-    await routeOwnerText(text);
-  } catch (error) {
-    console.error("[audio]", error instanceof Error ? error.message : error);
-    await notifyOwner("Não consegui processar o áudio agora. Tente de novo ou mande em texto.");
-  }
-}
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");

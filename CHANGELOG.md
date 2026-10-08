@@ -15,6 +15,14 @@ bug, qual era o sintoma e a causa.
 - **Motivo de parada registrado:** Ctrl+C, janela fechada, erro não tratado, webhook ou túnel saindo com código e sinal.
 - Pasta `logs/` ignorada pelo git.
 
+### Adicionado (worker da fila: processa o que a Vercel grava)
+- **`server/inboxWorker.ts`** (`pnpm worker`): roda no computador da Maia. Reserva lotes da fila `inbox` com `claim_inbox`, processa e marca cada item como concluído ou falho. Limpa o texto vencido a cada 10 minutos. Ao iniciar, itens presos em "processando" viram falhos (não são reexecutados).
+- **`server/ownerRouter.ts`**: comandos do dono (criar grupo, tarefa, conversa) e áudio saíram do webhook local e passaram a ser usados pelos dois.
+- **Grupo na fila:** a fila guarda só o endereço do grupo (não o texto), para contar a atividade.
+- **Verificado:** typecheck ok, 41 testes, e um teste com a produção usando só itens de terceiros e de grupo (processados e limpos). Mensagens do dono não foram testadas, porque enviariam WhatsApp.
+- **Pendente antes de trocar o webhook da Evolution para a Vercel:** (1) cadastrar na Vercel as variáveis do webhook como Segredo; (2) mover o resumo diário e os avisos proativos (`runProactive`) para o worker, porque hoje só o webhook local os executa; (3) testar com uma mensagem real do dono.
+- Enquanto a Evolution aponta para o túnel do PC, o worker fica ocioso e nada muda.
+
 ### Adicionado (login e permissões por pessoa)
 - **Login por e-mail e senha** no painel (`src/features/auth/AuthGate.tsx`). Sem cadastro público: o proprietário convida.
 - **Página Pessoas** (`src/features/people/PeoplePage.tsx`): cadastrar pessoa, adicionar e remover números, ativar ou desativar e marcar permissões. Só o proprietário altera.
