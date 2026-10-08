@@ -1,5 +1,6 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
+import { createImageServer, IMAGE_TOOL } from "./maiaImageTool.ts";
 import {
   addTaskEvent,
   createTask,
@@ -62,7 +63,7 @@ function record(promise: PromiseLike<unknown>): void {
 // Permissão do WhatsApp: leitura direta; escrita espera SIM/NÃO do aprovador. Cada evento vai para a tarefa.
 function makeWhatsAppPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName)) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL) return { behavior: "allow", updatedInput: input };
     const db = getDb();
     if (pending) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
@@ -109,19 +110,20 @@ const systemPrompt = [
   "Para ações de escrita (enviar, editar, mudar orçamento, alterar planilha), descreva o que vai fazer; o sistema pede aprovação ao dono antes de executar.",
   "Nunca invente dados: se uma consulta falhar, diga que falhou.",
   "Não exponha dados pessoais de terceiros além do necessário para a resposta.",
+  "Você cria artes com a ferramenta gerar_imagem (formatos feed, story ou quadrado) quando o dono pedir. Se o briefing estiver incompleto, pergunte antes de criar.",
 ].join(" ");
 
 // Conversa do painel: só leitura. Escrita é feita pelo WhatsApp, onde passa pela aprovação do aprovador.
 function makePanelPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName)) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL) return { behavior: "allow", updatedInput: input };
     await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
     return { behavior: "deny", message: "Ações de escrita são feitas pelo WhatsApp, com aprovação do aprovador." };
   };
 }
 
 // Executa a Maia para uma tarefa. Registra o uso de ferramentas e devolve a resposta.
-async function runAgent(text: string, taskId: number, permission: CanUseTool): Promise<string> {
+async function runAgent(text: string, taskId: number, permission: CanUseTool, channel: "whatsapp" | "painel"): Promise<string> {
   const db = getDb();
   const runId = await startRun(db, "chat");
   let costUsd: number | null = null;
@@ -134,6 +136,8 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool): P
         maxBudgetUsd: 1,
         persistSession: false,
         canUseTool: permission,
+        // Ferramenta de arte (Codex, em processo separado). Só o dono chega aqui.
+        mcpServers: { maia: createImageServer(channel) },
         // Só os conectores do claude.ai: sem configurações locais, sem servidores MCP do computador.
         settingSources: [],
         disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"],
@@ -177,7 +181,7 @@ export async function handleOwnerMessage(text: string): Promise<void> {
     .then(async () => {
       await setTaskStatus(db, taskId, "em_andamento");
       await addTaskEvent(db, taskId, "task_started", null, null);
-      const reply = await runAgent(text, taskId, makeWhatsAppPermission(taskId));
+      const reply = await runAgent(text, taskId, makeWhatsAppPermission(taskId), "whatsapp");
       await sendOwnerText(owner, reply);
       await recordMessage(db, { channel: "whatsapp", author: "maia", text: reply });
       await markTaskReplied(db, taskId);
@@ -204,7 +208,7 @@ export async function answerFromPanel(text: string): Promise<string> {
   await setTaskStatus(db, taskId, "em_andamento");
   await addTaskEvent(db, taskId, "task_started", null, null);
   try {
-    const reply = await runAgent(text, taskId, makePanelPermission(taskId));
+    const reply = await runAgent(text, taskId, makePanelPermission(taskId), "painel");
     await recordMessage(db, { channel: "painel", author: "maia", text: reply });
     await markTaskReplied(db, taskId);
     await addTaskEvent(db, taskId, "replied", null, null);

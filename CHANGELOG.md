@@ -23,6 +23,14 @@ bug, qual era o sintoma e a causa.
 - Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
 - **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
 
+### Adicionado (criação de arte pela Maia, com o Codex)
+- **`server/imagegen.ts`**: pedido de arte com o Codex CLI, no mesmo modelo do Bryan. Cada pedido tem pasta própria em `data/arte/pedidos/`. Formatos: feed (4:5), story (9:16) e quadrado (1:1). Referências só de `data/arte/fotos` e `data/arte/referencias`, com nomes simples e no máximo quatro. Tempo máximo de 240 s; se estourar, o pedido fica incerto e não é repetido. O arquivo só é aceito se for PNG ou JPEG acima de 10 KB.
+- **`server/maiaImageTool.ts`**: ferramenta `gerar_imagem` para o agente. No WhatsApp, a arte é enviada ao dono; no painel, o caminho do arquivo é devolvido.
+- **`server/evolutionSend.ts`**: `sendOwnerImage`, envio de imagem pela instância da Evolution (endpoint `/message/sendMedia`, ainda não testado no WhatsApp).
+- **Verificado:** 46 testes passando e uma arte real gerada em 84 s (`data/arte/pedidos/2026-10-08-6196f7/arte.png`), conferida visualmente.
+- **Pendente:** testar o envio pelo WhatsApp (sendMedia) e reiniciar a Maia no PC para carregar o código novo.
+- Aviso conhecido: `DEP0190` do Node, porque o Codex é um `.cmd` no Windows e precisa de shell. Os argumentos são fixos e validados.
+
 ### Adicionado (worker da fila: processa o que a Vercel grava)
 - **`server/inboxWorker.ts`** (`pnpm worker`): roda no computador da Maia. Reserva lotes da fila `inbox` com `claim_inbox`, processa e marca cada item como concluído ou falho. Limpa o texto vencido a cada 10 minutos. Ao iniciar, itens presos em "processando" viram falhos (não são reexecutados).
 - **`server/ownerRouter.ts`**: comandos do dono (criar grupo, tarefa, conversa) e áudio saíram do webhook local e passaram a ser usados pelos dois.

@@ -34,3 +34,20 @@ export async function downloadAudio(key: Record<string, unknown>, fallbackMimety
   if (data.length > MAX_AUDIO_BYTES) throw new Error("áudio maior que 25 MB");
   return { data, mimetype: typeof json.mimetype === "string" ? json.mimetype : fallbackMimetype };
 }
+
+// Envia uma imagem ao dono pela instância da Evolution (arte gerada pela Maia).
+export async function sendOwnerImage(number: string, path: string, caption: string): Promise<void> {
+  const base = process.env.EVOLUTION_API_URL;
+  const key = process.env.EVOLUTION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
+  const { readFileSync } = await import("node:fs");
+  const mimetype = /\.jpe?g$/i.test(path) ? "image/jpeg" : "image/png";
+  const response = await fetch(`${base}/message/sendMedia/${instance}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({ number, mediatype: "image", mimetype, caption, media: readFileSync(path).toString("base64"), fileName: path.split(/[\/]/).pop() }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok) throw new Error(`Evolution sendMedia falhou: HTTP ${response.status}`);
+}
