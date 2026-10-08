@@ -14,7 +14,7 @@ export function GruposPage() {
         subtitle="Grupos do WhatsApp com atividade real. Criar grupo e tarefas se faz pelo WhatsApp do dono."
       />
       {!snapshot ? (
-        <p className="empty-note">{error ? `Não foi possível ler o painel: ${error}.` : "Carregando…"}</p>
+        <p className="empty-note">{error ? "Ainda sem dados para esta tela. As informações da Maia chegam só pelo computador dela." : "Carregando…"}</p>
       ) : (
         <>
           {snapshot.groups.error && (

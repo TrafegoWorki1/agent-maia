@@ -69,7 +69,7 @@ function Table({ head, rows, empty }: { head: string[]; rows: ReactNode[][]; emp
 
 function Loading({ error, snapshot, children }: { error: string | null; snapshot: Snapshot | null; children: (s: Snapshot) => ReactNode }) {
   if (!snapshot) {
-    return <p className="empty-note">{error ? `Não foi possível ler o painel: ${error}. Confirme que a Maia está rodando.` : "Carregando…"}</p>;
+    return <p className="empty-note">{error ? "Ainda sem dados para esta tela. As informações da Maia chegam só pelo computador dela." : "Carregando…"}</p>;
   }
   return <>{children(snapshot)}</>;
 }
