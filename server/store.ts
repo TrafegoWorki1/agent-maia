@@ -294,3 +294,11 @@ export async function createOwnerTask(db: Db, input: { title: string; groupName:
   await addTaskEvent(db, row.id, "task_persisted", null, input.groupName, now);
   return row.id;
 }
+
+// Nomes das ferramentas que a Maia usou numa tarefa (para comparar com a triagem do Jev).
+export async function toolsUsed(db: Db, taskId: number): Promise<string[]> {
+  const rows = unwrap(await db.from("task_events").select("operation").eq("task_id", taskId).eq("type", "tool_use").order("id", { ascending: true })) as {
+    operation: string | null;
+  }[];
+  return rows.map((r) => r.operation ?? "").filter(Boolean);
+}

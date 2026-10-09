@@ -23,6 +23,15 @@ bug, qual era o sintoma e a causa.
 - Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
 - **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
 
+### Adicionado (Jev em modo sombra, na Maia)
+- **`server/jev.ts`**: triagem de cada mensagem do dono com a API da TypeSafe (`/v1/systemone`, modelo `jev-latest`). Devolve categoria, confiança, probabilidade de manipulação e de urgência. Limite de 2 s; falha só é registrada.
+- **Canais:** WhatsApp e painel. A triagem começa junto com a tarefa e é gravada depois da resposta. Não altera a resposta.
+- **Concordância:** compara a categoria do Jev com as ferramentas que a Maia usou (conversa, arte, consulta, escrita). Meta de 80%.
+- **Banco:** tabela `jev_triage` (sem texto), com RLS. Migrações `maia_jev_triage_v1` e `maia_jev_triage_probabilities`.
+- **Painel:** bloco "Triagem Jev (modo sombra)" no Resumo, com concordância, alertas de manipulação, falhas e as últimas 12 triagens.
+- **Verificado:** uma chamada real à API (categoria, confiança e probabilidades devolvidas), registro e leitura do painel com linha de teste apagada. 46 testes passando.
+- **Pendente:** reiniciar a Maia no PC para começar a triagem; a coluna "previa" do Bryan não foi incluída (a Maia não mostra texto no painel).
+
 ### Adicionado (criação de arte pela Maia, com o Codex)
 - **`server/imagegen.ts`**: pedido de arte com o Codex CLI, no mesmo modelo do Bryan. Cada pedido tem pasta própria em `data/arte/pedidos/`. Formatos: feed (4:5), story (9:16) e quadrado (1:1). Referências só de `data/arte/fotos` e `data/arte/referencias`, com nomes simples e no máximo quatro. Tempo máximo de 240 s; se estourar, o pedido fica incerto e não é repetido. O arquivo só é aceito se for PNG ou JPEG acima de 10 KB.
 - **`server/maiaImageTool.ts`**: ferramenta `gerar_imagem` para o agente. No WhatsApp, a arte é enviada ao dono; no painel, o caminho do arquivo é devolvido.
