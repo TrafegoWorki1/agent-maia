@@ -29,6 +29,9 @@ bug, qual era o sintoma e a causa.
 - Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
 - Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
 
+### Documentado (plano da Implementação 2: governança e permissões)
+- docs/implementacao-2-governanca.md: estado atual de cada item, fases A a G, testes de aceite e decisões pendentes. Nada foi ativado.
+
 ### Adicionado (atualização automática da base de conhecimento)
 - **server/knowledgeSync.ts:** lê os três documentos aprovados e reindexa só o que mudou (comparação pelo conteúdo). Roda 1 minuto depois de iniciar e depois a cada hora, no webhook local e no worker.
 - **Evita trabalho duplicado:** uma marca no banco impede duas sincronizações seguidas quando os dois processos estão no ar.
