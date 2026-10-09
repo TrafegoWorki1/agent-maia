@@ -40,6 +40,19 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (Maia multi-IA: roteador, fallback seguro e arte direta)
+- **server/ai/**: tipos, configuração (`config/ai-routing.json`), classificador por regras (plano B do Jev), roteador puro, capacidades por provedor, classificador de erros, circuit breaker persistido (`provider_health`), política de fallback, rastreador de uso e provedores (Claude e Codex).
+- **Roteamento:** conversa e resumo simples vão ao modelo econômico (haiku); análises ao principal; arte direto ao executor criativo, sem chamar o Claude; carrossel responde que ainda não existe, sem simular.
+- **Fallback Claude para Codex:** só para texto (conversa e resumo), só com erro de provedor confirmado (limite, indisponibilidade, timeout) e sem efeito externo iniciado. Autenticação, permissão, orçamento e limite de passos nunca disparam troca. Cada troca é registrada.
+- **Jev:** passou a devolver intenção, complexidade e risco (colunas novas em `jev_triage`). Continua em modo sombra: só decide com `jev.activeRouting` ligado, confiança mínima e risco baixo.
+- **Arte direta:** `server/creative/creativeRouter.ts`, com cota diária atômica (`claim_image_quota`, fuso de Fortaleza, padrão 10, devolvida se a geração falhar com certeza) e entrega pelo WhatsApp.
+- **Métricas:** `agent_runs` ganhou provedor, modelo, categoria, complexidade, motivo, tokens, duração, fallback e classe do erro. Valor não informado pelo provedor fica nulo.
+- **Painel:** página Modelos e Roteamento (saúde dos provedores, execuções por modelo, categorias, trocas de provedor, artes do dia).
+- **Verificado de verdade:** Codex respondeu texto em modo somente leitura (6 s); com o Claude forçado a limite, a Maia respondeu pelo Codex e registrou a troca (4 s), e o Claude foi restaurado; arte direta gerada em 50 s e enviada ao WhatsApp, tarefa concluída e cota 1 de 10; métricas lidas do banco de produção. 97 testes, typecheck e build passando.
+- **Só simulado (testes unitários):** a decisão de fallback DEPOIS de um erro real do SDK (não foi possível provocar um limite verdadeiro), o circuit breaker em tempo real e o roteamento ativo pelo Jev.
+- **Não implementado:** motor de carrossel (precisa de renderizador, fontes e identidade visual por cliente); executor central de ferramentas compartilhadas entre Claude e Codex (o Codex não herda os conectores e não recebeu nenhuma ferramenta); cache e otimização de contexto além do que já existe.
+- **Pendente:** reiniciar a Maia no PC.
+
 ### Corrigido (Maia sem contexto da conversa)
 - O agente não recebia as mensagens recentes e respondia que não lembrava. Agora o pedido leva as mensagens do dono e da Maia dos últimos 30 minutos (server/context.ts).
 - Testes: 65 passando. Pendente: reiniciar a Maia.

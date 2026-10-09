@@ -11,7 +11,8 @@ export type PageId =
   | "grupos"
   | "agente"
   | "pessoas"
-  | "regras";
+  | "regras"
+  | "modelos";
 
 export type GroupId = "principal" | "trafego" | "aprovacao-alex";
 

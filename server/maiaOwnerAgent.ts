@@ -5,6 +5,16 @@ import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import { conversationContext } from "./context.ts";
+import { loadRoutingConfig } from "./ai/config.ts";
+import { classifyByRules } from "./ai/rulesClassifier.ts";
+import { route } from "./ai/router.ts";
+import { isRoutable, loadHealth, recordProviderEvent } from "./ai/providerHealth.ts";
+import { classifyError } from "./ai/errorClassifier.ts";
+import { decideFallback, effectFromTools } from "./ai/fallback.ts";
+import { annotateRun } from "./ai/usageTracker.ts";
+import { budgetFor, claudeModelFor } from "./ai/providers/claude.ts";
+import { buildCodexPrompt, runCodexText } from "./ai/providers/codex.ts";
+import type { RoutingConfig } from "./ai/types.ts";
 import {
   addTaskEvent,
   createTask,
@@ -86,25 +96,37 @@ function makePanelPermission(taskId: number): CanUseTool {
   };
 }
 
-// Executa a Maia para uma tarefa. Registra o uso de ferramentas e devolve a resposta.
-async function runAgent(text: string, taskId: number, permission: CanUseTool, channel: "whatsapp" | "painel"): Promise<string> {
-  const db = getDb();
-  const runId = await startRun(db, "chat");
-  let costUsd: number | null = null;
-  try {
-    // Contexto recente: o agente não guarda o histórico entre pedidos.
-    const history = await conversationContext(db, text);
-    const prompt = history ? `Conversa recente (para entender o pedido atual, não repita):
-${history}
+interface ClaudeRun {
+  reply: string;
+  costUsd: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+}
 
-Pedido atual:
-${text}` : text;
+// Uma execução no Claude. Registra o uso de ferramentas e devolve a resposta. Erros sobem com o texto do SDK,
+// para o classificador separar limite de uso de erro de tarefa.
+async function runClaudeOnce(
+  text: string,
+  taskId: number,
+  permission: CanUseTool,
+  channel: "whatsapp" | "painel",
+  opts: { model: string | undefined; maxBudgetUsd: number; timeoutMs: number },
+): Promise<ClaudeRun> {
+  const db = getDb();
+  // Contexto recente: o agente não guarda o histórico entre pedidos.
+  const history = await conversationContext(db, text);
+  const prompt = history ? `Conversa recente (para entender o pedido atual, não repita):\n${history}\n\nPedido atual:\n${text}` : text;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+  try {
     const run = query({
       prompt,
       options: {
         systemPrompt: await buildSystemPrompt(db),
+        ...(opts.model ? { model: opts.model } : {}),
+        abortController: controller,
         maxTurns: 12,
-        maxBudgetUsd: 1,
+        maxBudgetUsd: opts.maxBudgetUsd,
         persistSession: false,
         canUseTool: permission,
         // Ferramenta de arte (Codex, em processo separado). Só o dono chega aqui.
@@ -129,16 +151,106 @@ ${text}` : text;
         }
       }
       if (message.type === "result") {
-        costUsd = (message as { total_cost_usd?: number }).total_cost_usd ?? null;
-        if (message.is_error || message.subtype !== "success") throw new Error(`Agent SDK falhou (${message.subtype})`);
-        const reply = message.result.trim() || "Não consegui gerar uma resposta.";
-        await finishRun(db, runId, "ok", costUsd, null);
-        return reply;
+        const info = message as { total_cost_usd?: number; usage?: { input_tokens?: number; output_tokens?: number }; result?: string };
+        if (message.is_error || message.subtype !== "success") {
+          const detail = typeof info.result === "string" && info.result ? `: ${info.result.slice(0, 300)}` : "";
+          throw new Error(`Agent SDK falhou (${message.subtype})${detail}`);
+        }
+        return {
+          reply: message.result.trim() || "Não consegui gerar uma resposta.",
+          costUsd: info.total_cost_usd ?? null,
+          tokensIn: info.usage?.input_tokens ?? null,
+          tokensOut: info.usage?.output_tokens ?? null,
+        };
       }
     }
     throw new Error("Agent SDK encerrou sem resultado");
   } catch (error) {
-    await finishRun(db, runId, "error", costUsd, error instanceof Error ? error.message : String(error)).catch(() => {});
+    if (controller.signal.aborted) throw new Error("tempo esgotado no Claude");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Resposta de texto pelo Codex. Só para tarefas compatíveis, sem ferramentas e sem efeito externo.
+async function runCodexReply(text: string, db: Db, cfg: RoutingConfig): Promise<{ text: string; durationMs: number }> {
+  const prompt = buildCodexPrompt({ rules: await buildSystemPrompt(db), context: await conversationContext(db, text), request: text });
+  const result = await runCodexText({ prompt, timeoutMs: cfg.timeoutMs.codex, model: cfg.providers.codex.model });
+  if (!result.ok) {
+    const err = classifyError(result.error);
+    await recordProviderEvent(db, "codex", { type: "failure", kind: err.kind, retryAfterMs: err.retryAfterMs, message: err.message }, cfg.health);
+    throw new Error(result.error);
+  }
+  await recordProviderEvent(db, "codex", { type: "success" }, cfg.health);
+  return { text: result.text, durationMs: result.durationMs };
+}
+
+// Executa a Maia para uma tarefa: classifica, roteia, executa no provedor escolhido e, se for seguro,
+// tenta o outro provedor. Registra provedor, modelo, duração e motivo de cada execução.
+async function runAgent(text: string, taskId: number, permission: CanUseTool, channel: "whatsapp" | "painel"): Promise<string> {
+  const db = getDb();
+  const cfg = loadRoutingConfig();
+  const classification = classifyByRules(text);
+  const [claudeHealth, codexHealth] = await Promise.all([loadHealth(db, "claude"), loadHealth(db, "codex")]);
+  const decision = route({ classification, claude: claudeHealth, codex: codexHealth, cfg, now: Date.now() });
+  const runId = await startRun(db, "chat");
+  const t0 = Date.now();
+  const base = { categoria: classification.category, complexidade: classification.complexity, tokensIn: null, tokensOut: null, fallbackDe: null, erroClasse: null, tentativas: 1 };
+
+  if ("blocked" in decision) {
+    await finishRun(db, runId, "error", null, decision.motivo);
+    await annotateRun(db, runId, { ...base, provider: "nenhum", model: null, motivo: decision.motivo, durationMs: Date.now() - t0, erroClasse: "bloqueado" });
+    return decision.motivo;
+  }
+  // Arte direta é tratada antes, no roteador do WhatsApp. Aqui (painel), a arte segue pelo Claude, que tem a ferramenta.
+  const target = decision.direct
+    ? { ...decision, provider: "claude" as const, tier: "principal" as const, model: cfg.providers.claude.models.principal, direct: null }
+    : decision;
+
+  if (target.provider === "codex") {
+    try {
+      const out = await runCodexReply(text, db, cfg);
+      await finishRun(db, runId, "ok", null, null);
+      await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: target.motivo, durationMs: out.durationMs, fallbackDe: "claude" });
+      return out.text;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await finishRun(db, runId, "error", null, message).catch(() => {});
+      await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: target.motivo, durationMs: Date.now() - t0, fallbackDe: "claude", erroClasse: classifyError(message).kind });
+      throw error;
+    }
+  }
+
+  try {
+    const out = await runClaudeOnce(text, taskId, permission, channel, { model: claudeModelFor(target), maxBudgetUsd: budgetFor(target.category, cfg), timeoutMs: cfg.timeoutMs.claude });
+    await recordProviderEvent(db, "claude", { type: "success" }, cfg.health);
+    await finishRun(db, runId, "ok", out.costUsd, null);
+    await annotateRun(db, runId, { ...base, provider: "claude", model: target.model, motivo: target.motivo, durationMs: Date.now() - t0, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
+    return out.reply;
+  } catch (error) {
+    const err = classifyError(error);
+    await recordProviderEvent(db, "claude", { type: "failure", kind: err.kind, retryAfterMs: err.retryAfterMs, message: err.message }, cfg.health);
+    const tools = await toolsUsed(db, taskId);
+    const effect = effectFromTools(tools.map(toolCategory));
+    const codexNow = await loadHealth(db, "codex");
+    const fb = decideFallback({ fallbackAllowed: err.fallbackAllowed, errorKind: err.kind, category: target.category, effect, codexRoutable: isRoutable(codexNow, Date.now()), cfg });
+    await addTaskEvent(db, taskId, fb.allowed ? "fallback_codex" : "fallback_negado", err.kind, fb.reason).catch(() => {});
+    if (fb.allowed) {
+      try {
+        const out = await runCodexReply(text, db, cfg);
+        await finishRun(db, runId, "ok", null, null);
+        await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: `fallback: ${fb.reason}`, durationMs: Date.now() - t0, fallbackDe: "claude", erroClasse: err.kind, tentativas: 2 });
+        return out.text;
+      } catch (fallbackError) {
+        const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        await finishRun(db, runId, "error", null, message).catch(() => {});
+        await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: `fallback falhou: ${message}`.slice(0, 280), durationMs: Date.now() - t0, fallbackDe: "claude", erroClasse: err.kind, tentativas: 2 });
+        throw fallbackError;
+      }
+    }
+    await finishRun(db, runId, "error", null, err.message).catch(() => {});
+    await annotateRun(db, runId, { ...base, provider: "claude", model: target.model, motivo: `${target.motivo}; sem fallback: ${fb.reason}`.slice(0, 280), durationMs: Date.now() - t0, erroClasse: err.kind });
     throw error;
   }
 }
