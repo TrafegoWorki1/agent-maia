@@ -106,7 +106,7 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 ### Pendências
 1. Reiniciar a Maia no PC para carregar a ferramenta de busca.
-2. Ativar a proteção contra senhas vazadas no Supabase Auth (Authentication, Passwords).
+2. Proteção contra senhas vazadas: não disponível no plano atual (HTTP 402). Risco aceito pelo owner, com senha forte no painel. Reavaliar se o plano mudar.
 3. Decidir se o modelo gte-small basta ou se vale um modelo multilíngue externo.
 4. Indexar mais documentos quando você aprovar.
 

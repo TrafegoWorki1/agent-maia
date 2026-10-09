@@ -31,7 +31,7 @@ bug, qual era o sintoma e a causa.
 - **Documentos indexados:** CLAUDE.md, docs/erros-e-mudancas.md e plan.md (39 trechos).
 - **Verificado:** buscas em português acertaram o documento certo entre os dois primeiros resultados em 4 de 4 perguntas de teste. 54 testes passando.
 - **Limite conhecido:** o primeiro resultado nem sempre é o melhor, porque o gte-small é treinado sobretudo em inglês. Se a qualidade não bastar, trocar por um modelo multilíngue exige decisão sua (provedor externo).
-- **Pendente:** reiniciar a Maia no PC para carregar a ferramenta. Ativar a proteção contra senhas vazadas no Supabase Auth (aviso do advisor).
+- **Pendente:** reiniciar a Maia no PC para carregar a ferramenta. Proteção contra senhas vazadas do Supabase Auth: não disponível no plano atual (HTTP 402 na API). Risco aceito pelo owner: manter a senha forte do painel. Reavaliar se o plano mudar.
 
 ### Adicionado (agrupamento de mensagens do dono)
 - **Janela de agrupamento:** mensagens seguidas do dono viram um só pedido. O lote fica pronto após 15 s sem nova mensagem, ou no máximo 60 s desde a primeira. Configurável por `MAIA_BATCH_WINDOW_S` e `MAIA_BATCH_MAX_S`.
