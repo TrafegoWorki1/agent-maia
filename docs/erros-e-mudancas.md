@@ -206,6 +206,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 2. Decidir o escopo de conectores dentro do grupo.
 3. Implementar leitura e resposta no grupo, com a regra acima.
 
+## Atualização (pedido de criar grupo em linguagem natural)
+
+### Erros e correções
+- A Maia dizia que não conseguia criar grupo e tentava usar o conector disparom. Causa: pedido fora do formato caía na conversa geral. Correção: o prompt manda entender o contexto, perguntar o que falta e explicar o comando de criação, sem usar conectores de WhatsApp.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
