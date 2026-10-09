@@ -20,7 +20,35 @@ const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
 
 const REGISTER_GROUP = /(cadastr|atend|registr)\w*\s+(este|esse|neste|nesse|o)?\s*grupo|passa\s+a\s+atender/i;
 
-export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlySet<string>): InboxRow | null {
+// Estado de um grupo atendido pela Maia: a última resposta dela e para quem (conversa em andamento).
+export interface GroupState {
+  lastReplyAt?: string | null;
+  lastReplyTo?: string | null;
+}
+const CONVERSATION_WINDOW_MS = 10 * 60 * 1000;
+
+function digitsOf(jid: unknown): string {
+  return typeof jid === "string" ? jid.split("@")[0].replace(/\D/g, "") : "";
+}
+
+// A mensagem é para a Maia? Chama pelo nome, menciona, responde a uma mensagem dela ou continua a conversa
+// que ela estava tendo com a mesma pessoa nos últimos 10 minutos.
+function addressedToMaia(body: Record<string, unknown>, data: Record<string, unknown>, text: string, participant: string, state: GroupState, now: Date): boolean {
+  if (CALLS_MAIA.test(text)) return true;
+  const own = digitsOf(body.sender);
+  const message = (data.message ?? {}) as Record<string, unknown>;
+  const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
+  const context = (extended.contextInfo ?? data.contextInfo ?? {}) as Record<string, unknown>;
+  if (own) {
+    if (digitsOf(context.participant) === own) return true;
+    const mentioned = Array.isArray(context.mentionedJid) ? context.mentionedJid : [];
+    if (mentioned.some((j) => digitsOf(j) === own)) return true;
+  }
+  const last = state.lastReplyAt ? Date.parse(state.lastReplyAt) : NaN;
+  return Boolean(state.lastReplyTo && participant && digitsOf(state.lastReplyTo) === digitsOf(participant) && !Number.isNaN(last) && now.getTime() - last <= CONVERSATION_WINDOW_MS);
+}
+
+export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlyMap<string, GroupState>, now = new Date()): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
   const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
@@ -38,8 +66,8 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
       const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
       const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
       const text = typeof raw === "string" ? raw.trim() : "";
-      if (text && CALLS_MAIA.test(text)) {
-        const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
+      const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
+      if (text && addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now)) {
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
         return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text }) };
       }

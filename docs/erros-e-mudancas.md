@@ -468,3 +468,5 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Objetivo da Maia** reescrito (banco e manual da página Operação).
 - **WappTrack MCP:** o servidor recusou dois tokens (401). Integração não feita; aguardando token válido.
 - **Pendente:** reiniciar a Maia; testar grupo, enquete e cadastro de grupo novo.
+
+- **Erro: Maia não respondeu "Cria uma planilha…" no grupo (14:13).** Causa: o texto só entrava na fila com a palavra "Maia". Correção: vale também citar/mencionar a Maia e continuar a conversa da mesma pessoa em até 10 min; ela lembra as últimas falas do grupo.

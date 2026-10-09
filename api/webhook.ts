@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tokenFromRequest, tokenMatches } from "../server/evolutionWebhook.ts";
-import { toInboxRow } from "../server/inbox.ts";
+import { toInboxRow, type GroupState } from "../server/inbox.ts";
 import { supabaseFromEnv } from "../server/supabaseClient.ts";
 
 // Rota do webhook na Vercel (/api/webhook). Só recebe e grava na fila `inbox` do Supabase.
@@ -30,16 +30,17 @@ async function readBody(req: Req): Promise<string | null> {
   return raw;
 }
 
-// Grupos em que a Maia atende. Cache de 60 s para não consultar o banco a cada evento.
-let groupsCache: { at: number; jids: Set<string> } | null = null;
-async function maiaGroups(): Promise<Set<string>> {
-  if (groupsCache && Date.now() - groupsCache.at < 60_000) return groupsCache.jids;
+// Grupos em que a Maia atende. Cache de 10 s para não consultar o banco a cada evento.
+let groupsCache: { at: number; jids: Map<string, GroupState> } | null = null;
+async function maiaGroups(): Promise<Map<string, GroupState>> {
+  // 10 s: a conversa em andamento (última resposta da Maia) precisa chegar rápido ao webhook.
+  if (groupsCache && Date.now() - groupsCache.at < 10_000) return groupsCache.jids;
   try {
-    const { data } = await supabaseFromEnv().from("maia_groups").select("jid").eq("active", true);
-    groupsCache = { at: Date.now(), jids: new Set((data ?? []).map((r) => String(r.jid))) };
+    const { data } = await supabaseFromEnv().from("maia_groups").select("jid, last_reply_at, last_reply_to").eq("active", true);
+    groupsCache = { at: Date.now(), jids: new Map((data ?? []).map((r) => [String(r.jid), { lastReplyAt: r.last_reply_at as string | null, lastReplyTo: r.last_reply_to as string | null }] as [string, GroupState])) };
   } catch {
     // Sem o banco, mantém a última lista conhecida; a mensagem ainda é gravada sem texto.
-    groupsCache = { at: Date.now(), jids: groupsCache?.jids ?? new Set() };
+    groupsCache = { at: Date.now(), jids: groupsCache?.jids ?? new Map() };
   }
   return groupsCache.jids;
 }

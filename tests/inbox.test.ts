@@ -44,24 +44,43 @@ describe("triagem do webhook para a fila", () => {
   it("grupo operacional: só entra o texto de quem chama a Maia", () => {
     const OP = "120363412181825151@g.us";
     const msg = (text: string, fromMe = false) => ({ event: "messages.upsert", instance: "wt_test", data: { pushName: "Herickson", key: { id: "G2", remoteJid: OP, fromMe, participant: "5585992494552@s.whatsapp.net" }, message: { conversation: text } } });
-    const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, new Set([OP]));
+    const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, new Map([[OP, {}]]));
     expect(row).toMatchObject({ kind: "text", sender: "group" });
     expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "5585992494552", name: "Herickson", text: "Maia, a reunião foi ótima" });
-    expect(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event", payload: OP });
-    expect(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event", payload: OP });
-    expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event" });
+    expect(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event", payload: OP });
+    expect(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event", payload: OP });
+    expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event" });
     expect(toInboxRow(msg("Maia, oi"), OWNER, APPROVER)).toMatchObject({ kind: "event", payload: OP });
+  });
+
+  it("grupo operacional: continuação, resposta e menção também valem", () => {
+    const OP = "120363412181825151@g.us";
+    const now = new Date("2026-10-09T17:13:00Z");
+    const base = (text: string, extra: Record<string, unknown> = {}, participant = "5585992494552@s.whatsapp.net") => ({
+      event: "messages.upsert", instance: "wt_test", sender: "5585900000000@s.whatsapp.net",
+      data: { pushName: "Herickson", key: { id: "G4", remoteJid: OP, fromMe: false, participant }, message: extra.message ?? { conversation: text } },
+    });
+    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "5585992494552" }]]);
+    // continuação da conversa com a mesma pessoa, sem dizer "Maia"
+    expect(toInboxRow(base("Cria uma planilha e depois me envia o link aqui!"), OWNER, APPROVER, state, now)).toMatchObject({ kind: "text" });
+    // outra pessoa, sem chamar: ignorada
+    expect(toInboxRow(base("Cria uma planilha", {}, "5511999999999@s.whatsapp.net"), OWNER, APPROVER, state, now)).toMatchObject({ kind: "event" });
+    // fora da janela de 10 minutos
+    expect(toInboxRow(base("Cria uma planilha"), OWNER, APPROVER, state, new Date("2026-10-09T17:30:00Z"))).toMatchObject({ kind: "event" });
+    // resposta (citação) a uma mensagem da Maia
+    const quoted = base("sim", { message: { extendedTextMessage: { text: "sim", contextInfo: { participant: "5585900000000@s.whatsapp.net" } } } });
+    expect(toInboxRow(quoted, OWNER, APPROVER, new Map([[OP, {}]]), now)).toMatchObject({ kind: "text" });
   });
 
   it("grupo novo: só o dono, chamando a Maia, cadastra o grupo", () => {
     const NEW = "120363999@g.us";
     const msg = (text: string, participant: string) => ({ event: "messages.upsert", instance: "wt_test", data: { key: { id: "G3", remoteJid: NEW, fromMe: false, participant: participant + "@s.whatsapp.net" }, message: { conversation: text } } });
-    const row = toInboxRow(msg("Maia, cadastra este grupo", OWNER), OWNER, APPROVER, new Set());
+    const row = toInboxRow(msg("Maia, cadastra este grupo", OWNER), OWNER, APPROVER, new Map());
     expect(row).toMatchObject({ kind: "text", sender: "group" });
     expect(JSON.parse(row!.payload!)).toMatchObject({ jid: NEW, register: true });
-    expect(toInboxRow(msg("Maia, passa a atender aqui", OWNER), OWNER, APPROVER, new Set())).toMatchObject({ kind: "text" });
-    expect(toInboxRow(msg("Maia, cadastra este grupo", "5511999999999"), OWNER, APPROVER, new Set())).toMatchObject({ kind: "event", payload: NEW });
-    expect(toInboxRow(msg("Maia, bom dia", OWNER), OWNER, APPROVER, new Set())).toMatchObject({ kind: "event", payload: NEW });
+    expect(toInboxRow(msg("Maia, passa a atender aqui", OWNER), OWNER, APPROVER, new Map())).toMatchObject({ kind: "text" });
+    expect(toInboxRow(msg("Maia, cadastra este grupo", "5511999999999"), OWNER, APPROVER, new Map())).toMatchObject({ kind: "event", payload: NEW });
+    expect(toInboxRow(msg("Maia, bom dia", OWNER), OWNER, APPROVER, new Map())).toMatchObject({ kind: "event", payload: NEW });
   });
 
   it("mensagem de grupo vira atividade, sem texto", () => {
