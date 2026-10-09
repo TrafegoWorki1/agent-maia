@@ -73,7 +73,7 @@ function makeWhatsAppPermission(taskId: number): CanUseTool {
 ${toolName}
 ${preview(input)}
 
-Responda SIM ${approval.id} para aprovar só esta ação ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusada.`;
+Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 10 minutos, é recusada.`;
     await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });
     for (const to of await approverNumbers(db)) {
       sendOwnerText(to, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));

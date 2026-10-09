@@ -47,11 +47,11 @@ export interface ApprovalRow {
   process_id: number | null;
 }
 
-// "sim", "não", "nao", com número opcional. Qualquer outra coisa não é uma resposta de aprovação.
+// "ok", "sim", "não", "nao", com número opcional. Qualquer outra coisa não é uma resposta de aprovação.
 export function parseDecision(text: string): { approved: boolean; id: number | null } | null {
-  const match = /^\s*(sim|não|nao)\s*(\d{1,9})?\s*$/i.exec(text);
+  const match = /^\s*(ok|okay|sim|não|nao)\s*(\d{1,9})?\s*$/i.exec(text);
   if (!match) return null;
-  return { approved: match[1].toLowerCase() === "sim", id: match[2] ? Number(match[2]) : null };
+  return { approved: !/^n[ãa]o$/i.test(match[1]), id: match[2] ? Number(match[2]) : null };
 }
 
 // Processo vivo na mesma máquina? Usado para não executar ação de quem já não está esperando.
@@ -139,7 +139,7 @@ export async function decideFromText(db: Db, text: string, now = new Date()): Pr
     if (open.length === 0) return { handled: false };
     if (open.length > 1) {
       const lista = open.map((r) => `#${r.id}`).join(", ");
-      return { handled: true, reply: `Há mais de um pedido aberto (${lista}). Responda com o número: SIM <número> ou NÃO <número>.` };
+      return { handled: true, reply: `Há mais de um pedido aberto (${lista}). Responda com o número: OK <número> ou NÃO <número>.` };
     }
     row = open[0];
   }

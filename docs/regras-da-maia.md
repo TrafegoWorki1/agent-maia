@@ -20,7 +20,7 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 ## 3. Aprovação de escrita
 
 - **O que pede aprovação (decisão de 09/10/2026):** só publicar ou postar (Instagram), enviar mensagem (e-mail, privado, outro grupo) e subir ou ativar anúncios. Lista em `server/approvalPolicy.ts`. Leituras e as demais ações (rascunhos, etiquetas, tarefas) rodam direto. Criar grupo continua com aprovação.
-- Cada ação de escrita vira um pedido com número, enviado ao aprovador: `SIM <número>` ou `NÃO <número>`.
+- Cada ação de escrita vira um pedido com número, enviado ao aprovador: `OK` (ou `SIM`) para aprovar e `NÃO` para recusar. O número é opcional quando só há um pedido aberto; com mais de um, use `OK <número>`.
 - A aprovação vale só para aquela ação, uma única vez.
 - Sem resposta em 10 minutos, o pedido expira e a ação não é executada.
 - Se houver mais de um pedido aberto, a resposta precisa do número. Se a Maia reiniciar no meio do pedido, nada é executado, e a pessoa é avisada.

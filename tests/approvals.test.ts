@@ -3,6 +3,9 @@ import { parseDecision, processAlive } from "../server/approvals.ts";
 
 describe("respostas de aprovação", () => {
   it("lê SIM e NÃO, com ou sem número", () => {
+    expect(parseDecision("ok")).toEqual({ approved: true, id: null });
+    expect(parseDecision("OK 12")).toEqual({ approved: true, id: 12 });
+    expect(parseDecision("ok, mas muda a legenda")).toBeNull();
     expect(parseDecision("SIM 12")).toEqual({ approved: true, id: 12 });
     expect(parseDecision("não 7")).toEqual({ approved: false, id: 7 });
     expect(parseDecision("nao")).toEqual({ approved: false, id: null });
