@@ -23,6 +23,16 @@ bug, qual era o sintoma e a causa.
 - Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
 - **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
 
+### Adicionado (base de conhecimento com RAG no Supabase)
+- **Banco:** extensão vector (schema extensions), tabelas knowledge_sources e knowledge_chunks (embedding 384 dimensões, índice HNSW, índice textual em português), função search_knowledge (busca híbrida por RRF). RLS ligado, sem políticas: só a service role.
+- **Função embed** no Supabase (Edge Function, modelo gte-small, verify_jwt ligado). Não usa provedor externo nem chave nova.
+- **server/knowledge.ts:** divisão por títulos e parágrafos (trechos de até 900 caracteres, com a seção de origem), geração de vetores, ingestão com checksum (sem reindexar o que não mudou) e busca.
+- **Agente:** ferramenta mcp__maia__buscar_conhecimento, só de leitura, liberada nos dois canais do dono. Os trechos são tratados como referência, não como instruções.
+- **Documentos indexados:** CLAUDE.md, docs/erros-e-mudancas.md e plan.md (39 trechos).
+- **Verificado:** buscas em português acertaram o documento certo entre os dois primeiros resultados em 4 de 4 perguntas de teste. 54 testes passando.
+- **Limite conhecido:** o primeiro resultado nem sempre é o melhor, porque o gte-small é treinado sobretudo em inglês. Se a qualidade não bastar, trocar por um modelo multilíngue exige decisão sua (provedor externo).
+- **Pendente:** reiniciar a Maia no PC para carregar a ferramenta. Ativar a proteção contra senhas vazadas no Supabase Auth (aviso do advisor).
+
 ### Adicionado (agrupamento de mensagens do dono)
 - **Janela de agrupamento:** mensagens seguidas do dono viram um só pedido. O lote fica pronto após 15 s sem nova mensagem, ou no máximo 60 s desde a primeira. Configurável por `MAIA_BATCH_WINDOW_S` e `MAIA_BATCH_MAX_S`.
 - **Banco:** tabelas `message_batches` e `batch_items`, função `add_batch_item` (atômica, um lote aberto por conversa, repetição do mesmo item da inbox é ignorada) e função `due_owner_batches` (o vencimento é decidido pelo relógio do banco).
