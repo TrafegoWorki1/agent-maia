@@ -35,6 +35,11 @@ bug, qual era o sintoma e a causa.
 - Achado: a instância `wt_yrxexuou6jwp` apareceu com estado `close` numa consulta e `open` em outras, com o perfil "Herickson Maia". Ou seja, a queda foi intermitente, não permanente. Confirmado `open` no fim da sessão.
 - Grupo operacional: o pedido autorizado dentro do grupo é o 5585992494552. Criar o grupo passa pela aprovação. Pendente: escopo de conectores dentro do grupo.
 
+### Alterado (pedido de criar grupo em linguagem natural)
+- Corrigido: a Maia respondia que não conseguia criar grupo e tentava usar o conector de WhatsApp (disparom). Causa: o pedido sem o formato `criar grupo Nome | números` caía na conversa geral.
+- Solução: sem resposta fixa. O prompt manda entender o pedido, perguntar o nome e os números que faltarem, e explicar o comando de criação com aprovação. Nunca usar conectores de WhatsApp para grupos.
+- Pendente: reiniciar a Maia no PC.
+
 ### Alterado (estilo de resposta da Maia)
 - Regra no prompt: resposta breve, sem listar capacidades a menos que peçam, sem mencionar conectores indisponíveis, com sugestão de próximo passo.
 - Pendente: reiniciar a Maia no PC para carregar o prompt.
