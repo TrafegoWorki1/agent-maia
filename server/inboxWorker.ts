@@ -5,6 +5,7 @@ import { handleApproverText } from "./groups.ts";
 import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
+import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { runProactive } from "./proactive.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
@@ -113,6 +114,10 @@ async function main(): Promise<void> {
   const proactive = () => runProactive(db, notifyOwner).catch((error) => console.error("[proativo]", error instanceof Error ? error.message : error));
   setTimeout(proactive, 30_000);
   setInterval(proactive, 5 * 60 * 1000);
+  // Envios agendados em grupos (já aprovados ao agendar). Cada um sai uma vez; falha avisa o dono e não repete.
+  const interruptedActions = await recoverRunningActions(db);
+  if (interruptedActions > 0) console.warn(`[worker] ${interruptedActions} envio(s) agendado(s) interrompido(s) marcado(s) como falho(s)`);
+  setInterval(() => runDueActions(db, notifyOwner).catch((error) => console.error("[agendados]", error instanceof Error ? error.message : error)), 30_000);
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);

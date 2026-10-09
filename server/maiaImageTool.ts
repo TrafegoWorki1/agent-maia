@@ -6,6 +6,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { addTaskEvent, getDb } from "./store.ts";
+import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -14,7 +15,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -121,6 +122,117 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           const arts = recentArts(5);
           if (arts.length === 0) return { content: [{ type: "text", text: "Nenhuma arte gerada ainda." }] };
           return { content: [{ type: "text", text: arts.map((a) => `${a.path} (${a.modifiedAt.slice(0, 16).replace("T", " ")} UTC)`).join("\n") }] };
+        },
+      ),
+      tool(
+        "grupo_enviar_texto",
+        "Envia um texto em um grupo do WhatsApp, podendo mencionar pessoas. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Informe o nome exato do grupo.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
+          texto: z.string().min(1).max(3000).describe("Texto final da mensagem."),
+          mencionar: z.array(z.string().max(60)).max(20).optional().describe("Quem mencionar: números com DDI+DDD ou nomes cadastrados em Pessoas."),
+        },
+        async (args) => {
+          const invalid = validateText(args.texto);
+          if (invalid) return { content: [{ type: "text", text: `Não enviei: ${invalid}.` }], isError: true };
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não enviei: ${group.error}.` }], isError: true };
+          const mentions = await resolveMentions(getDb(), args.mencionar ?? []);
+          if (!mentions.ok) return { content: [{ type: "text", text: `Não enviei: ${mentions.error}.` }], isError: true };
+          try {
+            const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});
+              await addTaskEvent(getDb(), taskId, "task_verified", "grupo_enviar_texto", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `Texto enviado no grupo "${group.group.subject}" e aceito pelo WhatsApp (mensagem ${id}).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_enviar_enquete",
+        "Cria uma enquete em um grupo do WhatsApp. Ação que sai para fora: só roda depois do OK do owner ou do aprovador.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
+          pergunta: z.string().min(1).max(250),
+          opcoes: z.array(z.string().min(1).max(100)).min(2).max(12),
+          respostas_permitidas: z.number().int().min(1).max(12).optional().describe("Quantas opções cada pessoa pode marcar. Padrão 1."),
+        },
+        async (args) => {
+          const invalid = validatePoll(args.pergunta, args.opcoes, args.respostas_permitidas ?? 1);
+          if (invalid) return { content: [{ type: "text", text: `Não enviei: ${invalid}.` }], isError: true };
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não enviei: ${group.error}.` }], isError: true };
+          try {
+            const id = await sendGroupPoll(group.group.jid, args.pergunta, args.opcoes, args.respostas_permitidas ?? 1);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_enquete", group.group.subject).catch(() => {});
+              await addTaskEvent(getDb(), taskId, "task_verified", "grupo_enviar_enquete", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `Enquete enviada no grupo "${group.group.subject}" e aceita pelo WhatsApp (mensagem ${id}).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar a enquete: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_ler_enquetes",
+        "Lê as enquetes mais recentes de um grupo do WhatsApp e mostra as opções e a contagem de votos. Só leitura.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo."),
+          limite: z.number().int().min(1).max(10).optional().describe("Quantas enquetes. Padrão 3."),
+        },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não consegui ler: ${group.error}.` }], isError: true };
+          try {
+            const polls = await readGroupPolls(group.group.jid, args.limite ?? 3);
+            if (polls.length === 0) return { content: [{ type: "text", text: `Nenhuma enquete encontrada no grupo "${group.group.subject}".` }] };
+            const text = polls
+              .map((p) => `"${p.question}"${p.at ? ` (${p.at.slice(0, 16).replace("T", " ")} UTC)` : ""}: ${p.options.map((o) => `${o.name} = ${o.votes ?? "—"}`).join("; ")}${p.voters === null ? " (a Evolution não informou os votos)" : ` | ${p.voters} votante(s)`}`)
+              .join("\n");
+            return { content: [{ type: "text", text }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui ler as enquetes: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_agendar",
+        "Agenda um texto ou uma enquete para um grupo do WhatsApp em um horário futuro. A aprovação (OK do owner ou aprovador) é pedida agora, ao agendar; no horário o envio sai sozinho, uma vez, sem repetir.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo."),
+          quando: z.string().min(10).max(40).describe("Data e hora ISO com fuso, ex.: 2026-10-10T09:00:00-03:00."),
+          texto: z.string().max(3000).optional().describe("Texto a enviar (para agendar um texto)."),
+          mencionar: z.array(z.string().max(60)).max(20).optional(),
+          pergunta: z.string().max(250).optional().describe("Pergunta (para agendar uma enquete)."),
+          opcoes: z.array(z.string().min(1).max(100)).max(12).optional(),
+          respostas_permitidas: z.number().int().min(1).max(12).optional(),
+        },
+        async (args) => {
+          const when = validateRunAt(args.quando);
+          if (!when.ok) return { content: [{ type: "text", text: `Não agendei: ${when.error}.` }], isError: true };
+          const isPoll = Boolean(args.pergunta);
+          const invalid = isPoll ? validatePoll(args.pergunta ?? "", args.opcoes ?? [], args.respostas_permitidas ?? 1) : validateText(args.texto ?? "");
+          if (invalid) return { content: [{ type: "text", text: `Não agendei: ${invalid}.` }], isError: true };
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não agendei: ${group.error}.` }], isError: true };
+          const mentions = await resolveMentions(getDb(), args.mencionar ?? []);
+          if (!mentions.ok) return { content: [{ type: "text", text: `Não agendei: ${mentions.error}.` }], isError: true };
+          try {
+            const id = await scheduleAction(getDb(), {
+              kind: isPoll ? "enquete" : "texto",
+              group: group.group,
+              payload: isPoll ? { question: args.pergunta, options: args.opcoes, selectable: args.respostas_permitidas ?? 1 } : { text: args.texto, mentions: mentions.numbers },
+              runAt: when.at,
+              taskId: taskId ?? null,
+            });
+            return { content: [{ type: "text", text: `Agendado (#${id}): ${isPoll ? "enquete" : "texto"} no grupo "${group.group.subject}" para ${when.at.toISOString()}. Sai sozinho no horário, se a Maia estiver ligada.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui agendar: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
+          }
         },
       ),
       tool(
