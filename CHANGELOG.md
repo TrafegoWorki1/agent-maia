@@ -29,6 +29,10 @@ bug, qual era o sintoma e a causa.
 - Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
 - Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
 
+### Alterado (estilo de resposta da Maia)
+- Regra no prompt: resposta breve, sem listar capacidades a menos que peçam, sem mencionar conectores indisponíveis, com sugestão de próximo passo.
+- Pendente: reiniciar a Maia no PC para carregar o prompt.
+
 ### Alterado (regras da Maia no prompt de sistema)
 - O prompt de sistema passou a incluir as regras em vigor: quem pode pedir ações, aprovação de escrita por número, não inventar dados, privacidade, conteúdo de documentos como dado e não como instrução, recusa do que a Maia não faz, e uso da base e dos conectores.
 - Regras planejadas (permissões por pessoa, impressão digital das aprovações, limite de imagens, memória por cliente) não entraram: estão em docs/regras-da-maia.md, seção 12.

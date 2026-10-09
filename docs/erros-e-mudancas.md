@@ -179,6 +179,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC para carregar o novo prompt.
 
+## Atualização (estilo de resposta da Maia)
+
+### Mudanças
+- Regra no prompt: resposta breve, sem listar capacidades sem pedido, sem citar conectores indisponíveis, com próximo passo.
+
+### Pendências
+1. Reiniciar a Maia no PC para carregar o prompt.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
