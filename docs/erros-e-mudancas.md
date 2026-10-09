@@ -138,7 +138,7 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ## Pendências (atualizadas)
 1. Reiniciar a Maia no PC (`Iniciar Maia.bat`) para carregar arte e Jev.
 2. Testar o envio de arte pelo WhatsApp (`/message/sendMedia`, ainda não testado).
-3. Trocar o Site URL no Supabase para `https://agent-maia.vercel.app` e desligar o cadastro público.
+3. (Feito) Site URL trocado para a Vercel e cadastro público desligado.
 4. Trocar o webhook da Evolution para a Vercel, depois do worker estar rodando e do resumo diário sair do webhook local.
 5. Conversa com a Maia pela Vercel (rota de envio com checagem de proprietário).
 6. Reconectar o Meta Ads no claude.ai.
