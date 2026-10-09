@@ -4,6 +4,7 @@ import type { AudioRef } from "./evolutionWebhook.ts";
 import { resolveApprovalFromText } from "./maiaOwnerAgent.ts";
 import { hasPendingGroupAction, resolveGroupActionFromText } from "./groups.ts";
 import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
+import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -30,7 +31,8 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "owner" && item.kind === "text" && item.payload) {
     await recordMessage(db, { channel: "whatsapp", author: "owner", text: item.payload }, now);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "handled" }, now);
-    void routeOwnerText(item.payload).catch((error) => console.error("[worker] comando do dono:", error instanceof Error ? error.message : error));
+    // Entra no lote da conversa: o despacho é feito pelo laço de lotes, nunca aqui.
+    await addOwnerText(db, item.id, item.payload);
     return;
   }
 
@@ -101,6 +103,9 @@ async function main(): Promise<void> {
   loadLocalEnv();
   const db = getDb();
   await recoverClaimed(db);
+  const batchesRecovered = await recoverBatches(db);
+  if (batchesRecovered > 0) console.warn(`[worker] ${batchesRecovered} lote(s) interrompido(s) marcado(s) como incerto(s)`);
+  void runBatchDispatcher(db, (text) => routeOwnerText(text));
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);

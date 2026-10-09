@@ -4,6 +4,7 @@ import { audioFrom, incomingText, normalizeEvent, recordEvent, recentEvents, sam
 import { resolveApprovalFromText } from "./maiaOwnerAgent.ts";
 import { hasPendingGroupAction, resolveGroupActionFromText } from "./groups.ts";
 import { notifyOwner, routeOwnerText, handleOwnerAudio } from "./ownerRouter.ts";
+import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { runProactive } from "./proactive.ts";
 import { getDb, markMessageSeen, recordEvent as persistEvent, recordGroupActivity, recordMessage, recoverStaleTasks, type Sender } from "./store.ts";
 
@@ -89,7 +90,8 @@ const server = createServer(async (req, res) => {
       sender = "owner";
       outcome = "handled";
       await recordMessage(db, { channel: "whatsapp", author: "owner", text: msg.text });
-      void routeOwnerText(msg.text);
+      // Agrupa com as mensagens seguidas do dono (15 s de silêncio, máximo de 60 s) antes de executar.
+      void addOwnerText(db, null, msg.text).catch((error) => console.error("[lotes] falha ao agrupar:", error instanceof Error ? error.message : error));
     } else if (samePhone(msg.from, approver)) {
       sender = "approver";
       await recordMessage(db, { channel: "whatsapp", author: "approver", text: msg.text });
@@ -112,6 +114,8 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   const db = getDb();
+  void recoverBatches(db).catch((error) => console.error("[lotes] recuperação:", error instanceof Error ? error.message : error));
+  void runBatchDispatcher(db, (text) => routeOwnerText(text));
   // Tarefas do WhatsApp que estavam em andamento antes deste processo: viram "incerta", sem reexecutar.
   void recoverStaleTasks(db, "whatsapp").then((interrupted) => {
     if (interrupted > 0) console.warn(`[webhook] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);

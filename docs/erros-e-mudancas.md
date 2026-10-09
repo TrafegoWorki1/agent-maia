@@ -84,7 +84,32 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Webhook da Vercel: token aceito, gravação na fila e remoção do teste.
 - 46 testes passando.
 
-### Pendências (atualizadas)
+### Atualização (agrupamento de mensagens)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Lotes | Mensagens seguidas do dono viram um pedido: pronto após 15 s de silêncio ou no máximo 60 s. Tabelas `message_batches` e `batch_items`, com funções atômicas no banco. |
+| Despacho | `server/batching.ts`: laço compartilhado pelo webhook local e pelo worker. Reserva atômica de cada lote. |
+| Worker | Não executa mais a Maia sem espera. O item da inbox só vira concluído depois de gravado no lote. |
+
+### Erros e correções
+- **Worker marcava o item como concluído antes de a Maia terminar.** Causa: `void routeOwnerText` sem espera. Correção: o texto entra no lote e o despacho é separado da leitura da fila.
+- **Esperar a execução travaria o SIM do aprovador.** Causa: a Maia pode aguardar aprovação, e a fila ficaria parada. Correção: despacho em laço próprio, fora da leitura da fila.
+- **Lote não despachava com janela zero.** Causa: o relógio do PC e o do banco diferiam por alguns décimos de segundo. Correção: o vencimento é decidido pela função `due_owner_batches`, com o relógio do banco.
+- **Despacho marcava o lote como concluído sem checar erro.** Causa: a atualização do fim não tinha verificação. Correção: o erro agora é lançado e registrado.
+
+### Verificado
+- 51 testes (regras de vencimento e montagem do texto).
+- Teste com o banco de produção: três mensagens viraram um lote com o texto na ordem certa, a repetição foi ignorada, e os dados de teste foram apagados.
+
+### Pendências
+1. Reiniciar a Maia no PC para usar o agrupamento.
+2. Persistir as aprovações no banco (hoje ficam na memória do processo).
+3. Incluir o áudio do dono no lote, depois da transcrição.
+4. RAG: escolher o provedor de embeddings e os documentos iniciais. Depende de decisão sua.
+
+## Pendências (atualizadas)
 1. Reiniciar a Maia no PC (`Iniciar Maia.bat`) para carregar arte e Jev.
 2. Testar o envio de arte pelo WhatsApp (`/message/sendMedia`, ainda não testado).
 3. Trocar o Site URL no Supabase para `https://agent-maia.vercel.app` e desligar o cadastro público.
