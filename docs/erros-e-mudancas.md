@@ -192,7 +192,8 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Decisões
 - Envio a grupos: só com aprovação prévia (`SIM <número>`), por ação, a grupo validado pelo JID.
 - Grupo Operacional Worki Digital: a ser criado pelo comando `criar grupo Operacional Worki Digital | 5585992494552`. O pedido autorizado dentro do grupo é só o 5585992494552, que já tem permissão. Outros participantes são ignorados e o texto deles não é guardado.
-- Pendente: o 5585992494552 pode pedir consultas de Gmail, Meta Ads, Sheets e Agenda pelo grupo?
+- Decidido: qualquer participante do grupo pode pedir consultas (Gmail, Meta Ads, Sheets, Agenda). Ações que alteram algo exigem SIM ou NÃO do owner (5585992494552), no privado.
+- Regra: toda resposta da Maia no grupo começa com o nome de quem pediu; pedidos de aprovação também mostram esse nome.
 
 ### Achados
 - A instância `wt_yrxexuou6jwp` apareceu como desconectada numa consulta e conectada em outras. A queda foi intermitente. Um registro anterior dizia que estava desconectada; foi corrigido.
