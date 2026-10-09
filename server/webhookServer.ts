@@ -1,8 +1,7 @@
 import { createServer } from "node:http";
 import { loadLocalEnv } from "./loadEnv.ts";
 import { audioFrom, incomingText, normalizeEvent, recordEvent, recentEvents, samePhone, tokenFromRequest, tokenMatches, type AudioRef } from "./evolutionWebhook.ts";
-import { resolveApprovalFromText } from "./maiaOwnerAgent.ts";
-import { hasPendingGroupAction, resolveGroupActionFromText } from "./groups.ts";
+import { handleApproverText } from "./groups.ts";
 import { notifyOwner, routeOwnerText, handleOwnerAudio } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { runProactive } from "./proactive.ts";
@@ -95,14 +94,12 @@ const server = createServer(async (req, res) => {
     } else if (samePhone(msg.from, approver)) {
       sender = "approver";
       await recordMessage(db, { channel: "whatsapp", author: "approver", text: msg.text });
-      if (resolveApprovalFromText(msg.text)) {
-        outcome = "approval_answer";
-      } else if (hasPendingGroupAction()) {
-        outcome = "approval_answer";
-        void resolveGroupActionFromText(msg.text, { db, notifyOwner }).catch((error) => console.error("[grupos]", error instanceof Error ? error.message : error));
-      } else {
-        outcome = "ignored";
-      }
+      // Resposta de aprovação (SIM ou NÃO, com número): decidida pelo banco. Erro não derruba o webhook.
+      const handled = await handleApproverText({ db, notifyOwner }, msg.text).catch((error) => {
+        console.error("[aprovacao]", error instanceof Error ? error.message : error);
+        return false;
+      });
+      outcome = handled ? "approval_answer" : "ignored";
     } else {
       sender = "other";
       outcome = "ignored";

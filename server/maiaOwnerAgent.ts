@@ -2,6 +2,7 @@ import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
+import { createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import {
   addTaskEvent,
   createTask,
@@ -20,36 +21,18 @@ import {
 } from "./store.ts";
 
 // Só o número da conversa (EVOLUTION_OWNER_NUMBER) chega a handleOwnerMessage, e só o número
-// aprovador (EVOLUTION_APPROVER_NUMBER) chega a resolveApprovalFromText (roteamento em webhookServer.ts).
+// aprovador (EVOLUTION_APPROVER_NUMBER) chega a decideFromText (approvals.ts), pelo roteamento do webhook ou do worker.
 // A Maia usa as conexões MCP desta conta (Gmail, Meta Ads, Drive/Sheets). Leituras rodam direto;
 // qualquer escrita espera um SIM ou NÃO do aprovador, válido só para aquela chamada.
 // Cada pedido vira uma tarefa (tabela tasks) com os eventos da execução (tabela task_events).
 
 const READ_TOOL = /^mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)/;
-const APPROVAL_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_PREVIEW = 300;
 
-interface PendingApproval {
-  toolName: string;
-  resolve: (approved: boolean) => void;
-}
-
-let pending: PendingApproval | null = null;
 let queue: Promise<void> = Promise.resolve();
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);
-}
-
-// Resposta "sim"/"não" do dono para a aprovação pendente. Retorna true se consumiu a mensagem.
-export function resolveApprovalFromText(text: string): boolean {
-  if (!pending) return false;
-  const answer = text.trim().toLowerCase();
-  if (answer !== "sim" && answer !== "não" && answer !== "nao") return false;
-  const current = pending;
-  pending = null;
-  current.resolve(answer === "sim");
-  return true;
 }
 
 function preview(input: Record<string, unknown>): string {
@@ -57,49 +40,34 @@ function preview(input: Record<string, unknown>): string {
   return raw.length > MAX_PREVIEW ? `${raw.slice(0, MAX_PREVIEW)}…` : raw;
 }
 
-// Falha de registro não pode derrubar a Maia: o erro vai para o log e a conversa segue.
-function record(promise: PromiseLike<unknown>): void {
-  void Promise.resolve(promise).catch((error) => console.error("[maia] falha ao gravar:", error instanceof Error ? error.message : error));
-}
-
-// Permissão do WhatsApp: leitura direta; escrita espera SIM/NÃO do aprovador. Cada evento vai para a tarefa.
+// Permissão do WhatsApp: leitura direta; escrita espera SIM <número> ou NÃO <número> do aprovador.
+// O pedido fica no banco, com prazo: a resposta pode chegar por outro processo.
 function makeWhatsAppPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
     if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL) return { behavior: "allow", updatedInput: input };
     const db = getDb();
-    if (pending) {
+    if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
       return { behavior: "deny", message: "Já existe outra ação aguardando aprovação do dono." };
     }
 
     const approver = process.env.EVOLUTION_APPROVER_NUMBER!;
-    const approvalId = await startApproval(db, toolName);
+    const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: preview(input), taskId });
     await setTaskStatus(db, taskId, "aguardando_aprovacao");
     await addTaskEvent(db, taskId, "approval_requested", toolName, null);
-    const approved = await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => {
-        if (pending?.toolName === toolName) pending = null;
-        record(resolveApproval(db, approvalId, "expired"));
-        record(addTaskEvent(db, taskId, "approval_expired", toolName, null));
-        record(setTaskStatus(db, taskId, "em_andamento"));
-        resolve(false);
-      }, APPROVAL_TIMEOUT_MS);
-      pending = {
-        toolName,
-        resolve: (answer) => {
-          clearTimeout(timer);
-          record(resolveApproval(db, approvalId, answer ? "approved" : "denied"));
-          record(addTaskEvent(db, taskId, answer ? "approval_approved" : "approval_denied", toolName, null));
-          record(setTaskStatus(db, taskId, "em_andamento"));
-          resolve(answer);
-        },
-      };
-      const request = `Pedido de ação de escrita:\n${toolName}\n${preview(input)}\n\nResponda SIM para aprovar só esta ação ou NÃO para recusar. Sem resposta em 10 minutos, é recusada.`;
-      record(recordMessage(db, { channel: "whatsapp", author: "maia", text: request }));
-      sendOwnerText(approver, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));
-    });
+    const request = `Pedido de ação de escrita (#${approval.id}):
+${toolName}
+${preview(input)}
 
-    return approved
+Responda SIM ${approval.id} para aprovar só esta ação ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusada.`;
+    await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });
+    sendOwnerText(approver, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));
+
+    const outcome = await waitApproval(db, approval.id, approval.expiresAt);
+    await setTaskStatus(db, taskId, "em_andamento");
+    const eventType = outcome === "approved" ? "approval_approved" : outcome === "denied" ? "approval_denied" : "approval_expired";
+    await addTaskEvent(db, taskId, eventType, toolName, null);
+    return outcome === "approved"
       ? { behavior: "allow", updatedInput: input }
       : { behavior: "deny", message: "Ação recusada ou sem aprovação do dono." };
   };

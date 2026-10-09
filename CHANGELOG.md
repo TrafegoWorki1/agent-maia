@@ -29,6 +29,15 @@ bug, qual era o sintoma e a causa.
 - Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
 - Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
 
+### Alterado (aprovações persistidas no banco)
+- **Tabela approvals:** agora guarda tipo (ferramenta ou grupo), resumo, dados do pedido, tarefa, prazo, processo que espera e quem decidiu.
+- **server/approvals.ts:** cria o pedido com número, espera a decisão lendo o banco (funciona mesmo se a resposta chegar por outro processo) e aplica o SIM ou NÃO.
+- **SIM e NÃO com número** (SIM 12, NÃO 12). Sem número, só vale com um pedido aberto. Com dois ou mais, a Maia pede o número.
+- **Processo que caiu:** se a Maia reiniciou antes da resposta, a ação não é executada e o pedido é encerrado com aviso.
+- **Grupos:** o pedido de criação de grupo também é persistido e decidido pelo mesmo caminho.
+- **Verificado:** 57 testes. Teste com o banco de produção: resposta ambígua, SIM e NÃO com número, espera pelo banco, resposta repetida e limpeza.
+- **Pendente:** reiniciar a Maia no PC para carregar a mudança.
+
 ### Adicionado (base de conhecimento com RAG no Supabase)
 - **Banco:** extensão vector (schema extensions), tabelas knowledge_sources e knowledge_chunks (embedding 384 dimensões, índice HNSW, índice textual em português), função search_knowledge (busca híbrida por RRF). RLS ligado, sem políticas: só a service role.
 - **Função embed** no Supabase (Edge Function, modelo gte-small, verify_jwt ligado). Não usa provedor externo nem chave nova.

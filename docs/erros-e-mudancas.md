@@ -110,6 +110,26 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 3. Decidir se o modelo gte-small basta ou se vale um modelo multilíngue externo.
 4. Indexar mais documentos quando você aprovar.
 
+## Atualização (aprovações persistidas)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Aprovações | Persistidas no banco, com número, prazo e processo. SIM ou NÃO com número. |
+| Grupos | Criação de grupo passa pelo mesmo caminho de aprovação. |
+
+### Erros e correções
+- **Aprovação se perdia quando a Maia reiniciava.** Causa: o pedido ficava na memória do processo. Correção: pedido gravado no banco, com prazo.
+- **SIM podia cair em outro pedido.** Causa: uma única aprovação aberta por vez, sem número. Correção: número obrigatório quando há mais de um pedido aberto.
+- **Resposta chegando por outro processo não era aplicada.** Causa: o pedido só era resolvido no processo que o criou. Correção: a espera lê o banco.
+- **Ação poderia ser executada depois de um reinício.** Correção: o pedido guarda o processo que o espera; se ele não existe mais, nada é executado.
+
+### Verificado
+- 57 testes. Teste com o banco de produção, com limpeza.
+
+### Pendências
+1. Reiniciar a Maia no PC para carregar a mudança.
+
 ## Atualização (agrupamento de mensagens)
 
 ### Mudanças

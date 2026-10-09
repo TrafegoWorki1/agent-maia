@@ -1,8 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef } from "./evolutionWebhook.ts";
-import { resolveApprovalFromText } from "./maiaOwnerAgent.ts";
-import { hasPendingGroupAction, resolveGroupActionFromText } from "./groups.ts";
+import { handleApproverText } from "./groups.ts";
 import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
@@ -45,13 +44,12 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
 
   if (item.sender === "approver" && item.kind === "text" && item.payload) {
     await recordMessage(db, { channel: "whatsapp", author: "approver", text: item.payload }, now);
-    let outcome = "ignored";
-    if (resolveApprovalFromText(item.payload)) {
-      outcome = "approval_answer";
-    } else if (hasPendingGroupAction()) {
-      outcome = "approval_answer";
-      void resolveGroupActionFromText(item.payload, { db, notifyOwner }).catch((error) => console.error("[worker] grupos:", error instanceof Error ? error.message : error));
-    }
+    // Resposta de aprovação (SIM ou NÃO, com número): decidida pelo banco.
+    const handled = await handleApproverText({ db, notifyOwner }, item.payload).catch((error) => {
+      console.error("[aprovacao]", error instanceof Error ? error.message : error);
+      return false;
+    });
+    const outcome = handled ? "approval_answer" : "ignored";
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "approver", outcome }, now);
     return;
   }
