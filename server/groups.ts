@@ -101,6 +101,12 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
   }
 }
 
+// A conferência de grupo criado: o nome aparece na lista da instância (comparação sem acento e sem maiúsculas).
+export function groupExists(groups: { subject: string }[], name: string): boolean {
+  const norm = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  return groups.some((g) => norm(g.subject) === norm(name));
+}
+
 export interface GroupDeps {
   db: Db;
   notifyOwner: (text: string) => Promise<void>;
@@ -172,6 +178,14 @@ export async function handleApproverText(deps: GroupDeps, text: string): Promise
   }
   const result = await executeCreateGroup(payload.name, payload.participants);
   if (taskId) await addTaskEvent(deps.db, taskId, result.ok ? "external_done" : "task_failed", "whatsapp.create_group", result.detail);
-  await deps.notifyOwner(result.ok ? `Grupo "${payload.name}" criado.` : `Não consegui criar o grupo "${payload.name}": ${result.detail}`);
+  if (!result.ok) {
+    await deps.notifyOwner(`Não consegui criar o grupo "${payload.name}": ${result.detail}`);
+    return true;
+  }
+  // Conferência: o grupo precisa aparecer na lista da instância. Só então vale como confirmado.
+  const live = await fetchLiveGroups();
+  const confirmed = !live.error && groupExists(live.groups, payload.name);
+  if (taskId) await addTaskEvent(deps.db, taskId, confirmed ? "task_verified" : "verification_failed", "whatsapp.create_group", confirmed ? null : live.error ?? "grupo não apareceu na lista");
+  await deps.notifyOwner(confirmed ? `Grupo "${payload.name}" criado e conferido na lista da instância.` : `O pedido de criação do grupo "${payload.name}" foi aceito, mas não consegui confirmar que ele existe. Confira no WhatsApp antes de pedir de novo.`);
   return true;
 }

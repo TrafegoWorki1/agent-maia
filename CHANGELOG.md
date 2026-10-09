@@ -40,6 +40,14 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (precisão e conferência: instrução e indicador)
+- **Problema:** o indicador Precisão e conferência (25% da nota) ficava zerado: o sistema registrava `external_done` (ação feita) mas nunca `task_verified` (ação conferida), e nenhuma regra mandava conferir.
+- **Regra no banco:** `precisao_conferencia` (27): conferir na fonte antes de dizer "feito", dizer com clareza quando não der para conferir, perguntar quando faltar dado.
+- **Conferência real, gravando `task_verified`:** criação de grupo (o nome precisa aparecer na lista da instância; senão grava `verification_failed` e avisa que não está confirmado); publicação no Instagram (lê o post de volta na Zernio, `getPostStatus`); arte enviada (id da mensagem devolvido pela Evolution, `sendOwnerImage` agora retorna esse id).
+- A ferramenta `instagram_publicar` e o envio de arte pela ferramenta agora gravam os eventos na tarefa (`createImageServer(channel, taskId)`).
+- Testes novos: grupo existente/inexistente, status do post, cálculo do indicador.
+- **Pendente:** reiniciar a Maia no PC.
+
 ### Adicionado (proatividade: instrução e indicador)
 - **Regra no banco:** `proatividade` (26). A Maia avisa o Herickson, sem pedido, de conexão com erro, aprovação parada, gasto fora do esperado e riscos ou oportunidades que perceber, e sugere o próximo passo. Proatividade é avisar e propor: nunca age sem aprovação nem contata terceiros por conta própria.
 - **Indicador Proatividade (15% da nota):** já existia no painel, mas nunca tinha dados, porque nenhum aviso gravava os eventos que ele conta. Agora todo aviso automático (resumo diário, alerta de conexão, aprovação parada, gasto do Meta Ads) vira uma tarefa de conversa com os eventos `handoff` (enviado) e `handoff_confirmed` (entrega confirmada). Falha de entrega grava `handoff_failed` e aparece em Ocorrências.

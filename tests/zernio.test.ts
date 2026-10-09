@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInstagramPost, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, ZernioError } from "../server/integrations/zernio.ts";
+import { buildInstagramPost, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, ZernioError } from "../server/integrations/zernio.ts";
 
 const NOW = new Date("2026-10-09T12:00:00Z");
 const base = { accountId: "acc123", caption: "Legenda do post", imageUrl: "https://cdn.exemplo.com/arte.png" };
@@ -80,6 +80,21 @@ describe("erros da Zernio", () => {
     process.env.ZERNIO_API_KEY = "k";
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ post: { status: "failed" } }), { status: 207 })));
     await expect(publishInstagramPost(base)).rejects.toThrow("recusou a publicação");
+  });
+
+  it("conferência lê o status real do post", async () => {
+    process.env.ZERNIO_API_KEY = "k";
+    const payload = { post: { _id: "p1", status: "published", platforms: [{ platformPostUrl: "https://instagram.com/p/abc" }] } };
+    const fetchMock = vi.fn(async (_url: string) => new Response(JSON.stringify(payload), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(getPostStatus("p1")).resolves.toEqual({ status: "published", url: "https://instagram.com/p/abc" });
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/posts/p1");
+  });
+
+  it("conferência de post inexistente vira erro, não sucesso", async () => {
+    process.env.ZERNIO_API_KEY = "k";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
+    await expect(getPostStatus("nao-existe")).rejects.toThrow("não encontrou");
   });
 
   it("publicação criada devolve o status e o link", async () => {

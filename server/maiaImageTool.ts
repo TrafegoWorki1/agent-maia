@@ -2,10 +2,10 @@ import { relative } from "node:path";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { sendOwnerImage, sendOwnerText } from "./evolutionSend.ts";
-import { instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
+import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
-import { getDb } from "./store.ts";
+import { addTaskEvent, getDb } from "./store.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -19,7 +19,7 @@ export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
 
-export function createImageServer(channel: "whatsapp" | "painel") {
+export function createImageServer(channel: "whatsapp" | "painel", taskId?: number) {
   return createSdkMcpServer({
     name: "maia",
     version: "1.0.0",
@@ -42,7 +42,11 @@ export function createImageServer(channel: "whatsapp" | "painel") {
             return { content: [{ type: "text", text: `Arte criada em: ${result.path}` }] };
           }
           try {
-            await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", result.path, `Arte ${FORMATS[args.formato]}`);
+            const messageId = await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", result.path, `Arte ${FORMATS[args.formato]}`);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "enviar_arte", null).catch(() => {});
+              if (messageId) await addTaskEvent(getDb(), taskId, "task_verified", "enviar_arte", `mensagem ${messageId}`).catch(() => {});
+            }
             return { content: [{ type: "text", text: `Arte criada e enviada no WhatsApp. Arquivo: ${relative(ARTE_ROOT, result.path).split("\\").join("/")}` }] };
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
@@ -137,8 +141,21 @@ export function createImageServer(channel: "whatsapp" | "painel") {
             }
             const imageUrl = await uploadImage(art.path);
             const result = await publishInstagramPost({ accountId: accounts[0].id, caption: args.legenda, imageUrl, scheduledFor: args.agendar_para ?? null });
-            const where = result.url ? ` Link: ${result.url}` : "";
-            return { content: [{ type: "text", text: `${result.scheduled ? "Post agendado" : "Post publicado"} no Instagram (@${accounts[0].username}). Status: ${result.status}.${where}` }] };
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_publicar", result.postId).catch(() => {});
+            // Conferência: lê o post de volta na Zernio. Publicado ou agendado só vale com o status real.
+            let url = result.url;
+            let verified = false;
+            if (result.postId) {
+              const check = await getPostStatus(result.postId).catch(() => null);
+              if (check) {
+                url = check.url ?? url;
+                verified = result.scheduled ? ["scheduled", "published"].includes(check.status) : check.status === "published";
+              }
+            }
+            if (verified && taskId) await addTaskEvent(getDb(), taskId, "task_verified", "instagram_publicar", result.postId).catch(() => {});
+            const where = url ? ` Link: ${url}` : "";
+            const note = verified ? " Conferido na Zernio." : " Não consegui conferir o status final: diga isso e peça para confirmar no Instagram.";
+            return { content: [{ type: "text", text: `${result.scheduled ? "Post agendado" : "Post criado"} no Instagram (@${accounts[0].username}). Status: ${result.status}.${where}${note}` }] };
           } catch (error) {
             // Não repete sozinho: quem pediu decide se tenta de novo, depois de conferir no Instagram.
             return { content: [{ type: "text", text: `A publicação falhou: ${error instanceof Error ? error.message : String(error)}. Confira o Instagram antes de tentar de novo.` }], isError: true };

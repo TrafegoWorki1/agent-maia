@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCreateGroup, parseOwnerTask } from "../server/groups.ts";
+import { groupExists, parseCreateGroup, parseOwnerTask } from "../server/groups.ts";
 
 describe("comandos de grupo do dono", () => {
   it("lê o nome e os participantes de 'criar grupo'", () => {
@@ -22,5 +22,17 @@ describe("comandos de grupo do dono", () => {
   it("não reconhece texto comum como comando", () => {
     expect(parseCreateGroup("oi, tudo bem?")).toBeNull();
     expect(parseOwnerTask("oi, tudo bem?")).toBeNull();
+  });
+});
+
+describe("conferência do grupo criado", () => {
+  it("acha o grupo ignorando acento, maiúsculas e espaços", () => {
+    const groups = [{ subject: "Operacional Worki Digital" }, { subject: "Tráfego" }];
+    expect(groupExists(groups, " operacional worki digital ")).toBe(true);
+    expect(groupExists(groups, "Trafego")).toBe(true);
+  });
+  it("não confirma grupo que não está na lista", () => {
+    expect(groupExists([{ subject: "Outro" }], "Operacional Worki Digital")).toBe(false);
+    expect(groupExists([], "Qualquer")).toBe(false);
   });
 });
