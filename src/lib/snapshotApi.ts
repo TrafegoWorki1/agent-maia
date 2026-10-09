@@ -21,6 +21,17 @@ export interface SheetsData {
   sheets: { name: string; modified_at: string }[];
 }
 
+export interface ModelosView {
+  error?: string;
+  total: number;
+  porModelo: { provider: string; model: string; execucoes: number; sucesso: number; duracaoMediaMs: number | null; tokensEntrada: number | null; tokensSaida: number | null; custoUsd: number | null }[];
+  porCategoria: Record<string, number>;
+  taxaFallback: number;
+  fallbacks: { em: string; de: string | null; para: string | null; motivo: string | null }[];
+  saude: { provider: string; state: string; cooldown_until: string | null; last_error_class: string | null; consecutive_failures: number }[];
+  imagensHoje: { dia: string; usadas: number } | null;
+}
+
 export interface MaiaRuleView {
   codigo: string;
   categoria: string;
@@ -63,6 +74,7 @@ export interface Snapshot {
   groups: { groups: { jid: string; subject: string; size: number | null; messages7d: number; lastActivity: string | null }[]; error: string | null; total: number };
   jev: JevData;
   regras: MaiaRuleView[];
+  modelos: ModelosView;
   incidents: { at: string; kind: string; taskId: number | null; summary: string }[];
   conversation: {
     total7d: number;

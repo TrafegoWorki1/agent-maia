@@ -69,7 +69,7 @@ export function isRealImage(bytes: Buffer): boolean {
 }
 
 // Ambiente mínimo para o Codex: nada das credenciais do projeto.
-function minimalEnv(): NodeJS.ProcessEnv {
+export function minimalEnv(): NodeJS.ProcessEnv {
   const keep = ["PATH", "PATHEXT", "SYSTEMROOT", "COMSPEC", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA"];
   const env: NodeJS.ProcessEnv = {};
   for (const key of keep) if (process.env[key]) env[key] = process.env[key];

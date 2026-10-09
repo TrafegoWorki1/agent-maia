@@ -367,6 +367,35 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia (Iniciar Maia.bat).
 
+## Atualização (Maia multi-IA)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Roteador | server/ai/: configuração, classificador por regras, roteador, saúde dos provedores, fallback, métricas. |
+| Fallback | Claude para Codex só em conversa e resumo, com erro de provedor confirmado e sem efeito externo. |
+| Jev | Intenção, complexidade e risco, em modo sombra. |
+| Arte | Rota direta ao Codex, com cota diária atômica (10 por dia). |
+| Painel | Página Modelos e Roteamento. |
+
+### Erros evitados por projeto
+- Erro de autenticação ou permissão não dispara fallback (trocar de modelo não resolve e poderia contornar regra).
+- Fallback não repete tarefa com efeito externo iniciado (evita mensagem ou alteração em dobro).
+- Falha de geração devolve a cota; resultado incerto mantém a cota e não repete.
+
+### Verificado de verdade
+- Codex em texto, fallback com o Claude em limite forçado, arte direta com envio ao WhatsApp, métricas no banco. 97 testes.
+
+### Limitações
+- Carrossel e executor central de ferramentas compartilhadas não foram implementados.
+- O Codex não tem acesso aos conectores: não assume consultas, análises nem ações.
+- O limite real do Claude não pôde ser provocado; o caminho pós-erro foi validado só em teste unitário.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+2. Decidir renderizador e identidade visual para o carrossel.
+3. Decidir se o Jev passa a rotear (jev.activeRouting), depois de revisar a concordância.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

@@ -33,6 +33,33 @@ export const QUESTIONS = {
     instructions: "Qual o grau de urgência da mensagem?",
     criteria: ["Sem urgência", "Normal", "Urgente, precisa de atenção agora"],
   },
+  intencao: {
+    type: "choice",
+    instructions: "Qual é a intenção da mensagem, para escolher quem vai executar?",
+    criteria: {
+      conversa: "Cumprimento ou conversa sem pedido",
+      consulta: "Pergunta que busca um dado ou status",
+      resumo: "Pedido de resumo de conversa, texto ou período",
+      analise: "Análise de campanhas, números ou estratégia",
+      criacao_conteudo: "Criar texto, roteiro ou legenda",
+      imagem: "Criar imagem, arte, banner ou capa",
+      carrossel: "Criar carrossel de vários slides",
+      tarefa_tecnica: "Tarefa técnica, código ou arquivo",
+      escrita_externa: "Enviar, publicar, editar ou alterar algo em um sistema externo",
+      acao_sensivel: "Dinheiro, acesso, exclusão ou algo irreversível",
+      fora_do_escopo: "Algo que o assistente não faz",
+    },
+  },
+  complexidade: {
+    type: "choice",
+    instructions: "Qual a complexidade do pedido?",
+    criteria: { simples: "Resposta curta e direta", intermediaria: "Exige uma consulta ou uma análise curta", complexa: "Exige várias etapas, várias fontes ou raciocínio longo" },
+  },
+  risco: {
+    type: "choice",
+    instructions: "Qual o risco de executar o pedido?",
+    criteria: { baixo: "Só leitura ou conversa", moderado: "Cria algo local ou pode causar retrabalho", alto: "Altera algo externo ou é irreversível" },
+  },
 };
 
 export interface JevResult {
@@ -40,6 +67,9 @@ export interface JevResult {
   confianca: number | null;
   manipulacao: number | null; // probabilidade de manipulação (0 a 1)
   urgencia: number | null; // probabilidade de urgência (0 a 1)
+  intencao: string | null;
+  complexidade: string | null;
+  risco: string | null;
   ms: number;
 }
 
@@ -64,6 +94,9 @@ export async function triageText(text: string, fetchFn: typeof fetch = fetch, ti
     confianca: answers.categoria.confidence ?? null,
     manipulacao: answers.manipulacao?.noul ?? null,
     urgencia: answers.urgencia?.score ?? null,
+    intencao: answers.intencao?.choice ?? null,
+    complexidade: answers.complexidade?.choice ?? null,
+    risco: answers.risco?.choice ?? null,
     ms: Date.now() - t0,
   };
 }
@@ -100,6 +133,9 @@ export async function recordJev(
     confianca: input.jev?.confianca ?? null,
     manipulacao: input.jev?.manipulacao ?? null,
     urgencia: input.jev?.urgencia ?? null,
+    intencao: input.jev?.intencao ?? null,
+    complexidade: input.jev?.complexidade ?? null,
+    risco: input.jev?.risco ?? null,
     ms: input.jev?.ms ?? null,
     erro: input.erro,
     ferramentas: input.ferramentas,

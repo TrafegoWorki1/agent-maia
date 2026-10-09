@@ -2,6 +2,7 @@ import { downloadAudio, sendOwnerText } from "./evolutionSend.ts";
 import type { AudioRef } from "./evolutionWebhook.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
 import { handleOwnerMessage } from "./maiaOwnerAgent.ts";
+import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
 import { parseGroupIntent, parseOwnerTask, requestCreateGroup } from "./groups.ts";
 import { createOwnerTask, getDb, recordMessage } from "./store.ts";
 
@@ -41,6 +42,8 @@ export async function routeOwnerText(text: string): Promise<number | null> {
     await notifyOwner(`Tarefa #${taskId} criada: ${task.title}${task.groupName ? ` (grupo ${task.groupName})` : ""}.`);
     return null;
   }
+  // Pedido de arte vai direto ao executor criativo, sem passar pelo Claude.
+  if (isDirectImageRequest(text)) return handleDirectImage({ db, notifyOwner }, text);
   return handleOwnerMessage(text);
 }
 

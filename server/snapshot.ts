@@ -3,6 +3,7 @@ import { brtDayStart } from "./proactive.ts";
 import { fetchLiveGroups } from "./groups.ts";
 import { jevView } from "./jev.ts";
 import { listRules } from "./rules.ts";
+import { modelsView } from "./ai/usageTracker.ts";
 import { buildScorecard, isoWeek, isoWeekBounds, previousWeek, type Scorecard } from "./quality.ts";
 import {
   approvalsBetween,
@@ -142,6 +143,7 @@ export async function buildSnapshot(db: Db, now = new Date()): Promise<Record<st
     groups: await groupsView(db, now),
     jev: await jevView(db, now),
     regras: await listRules(db),
+    modelos: await modelsView(db, now),
   };
 }
 
