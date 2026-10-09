@@ -10,7 +10,8 @@ export type PageId =
   | "conexoes"
   | "grupos"
   | "agente"
-  | "pessoas";
+  | "pessoas"
+  | "regras";
 
 export type GroupId = "principal" | "trafego" | "aprovacao-alex";
 
