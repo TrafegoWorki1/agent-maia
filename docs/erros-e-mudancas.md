@@ -279,6 +279,19 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (dono também aprova)
+
+### Achado
+- O banco mostrava que o dono (5585992494552) tem a permissão escrita.aprovar, mas o código só aceitava aprovação do número do aprovador (5585998372658). Um SIM do dono nunca aprovava nada.
+
+### Correção
+- Pedidos de aprovação vão para o dono e para o aprovador. Um SIM ou NÃO com número, de qualquer um dos dois, aprova ou recusa.
+- Antes de virar comando, a mensagem do dono é checada como resposta de aprovação (webhook e worker).
+- Regra de criar grupo atualizada no banco.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

@@ -7,6 +7,11 @@ import type { Db } from "./store.ts";
 export const APPROVAL_TTL_MS = 10 * 60 * 1000;
 const POLL_MS = 1_500;
 
+// Quem recebe os pedidos de aprovação e pode responder: o dono e o aprovador (sem repetição).
+export function approvalRecipients(): string[] {
+  return [...new Set([process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER].filter((n): n is string => Boolean(n)))];
+}
+
 export type ApprovalKind = "ferramenta" | "grupo";
 
 export interface ApprovalRow {

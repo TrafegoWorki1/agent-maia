@@ -2,7 +2,7 @@ import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL } from "./maiaImageTool.ts";
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
-import { createApproval, openApprovals, waitApproval } from "./approvals.ts";
+import { approvalRecipients, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import {
   addTaskEvent,
@@ -52,7 +52,6 @@ function makeWhatsAppPermission(taskId: number): CanUseTool {
       return { behavior: "deny", message: "Já existe outra ação aguardando aprovação do dono." };
     }
 
-    const approver = process.env.EVOLUTION_APPROVER_NUMBER!;
     const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: preview(input), taskId });
     await setTaskStatus(db, taskId, "aguardando_aprovacao");
     await addTaskEvent(db, taskId, "approval_requested", toolName, null);
@@ -62,7 +61,9 @@ ${preview(input)}
 
 Responda SIM ${approval.id} para aprovar só esta ação ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusada.`;
     await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });
-    sendOwnerText(approver, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));
+    for (const to of approvalRecipients()) {
+      sendOwnerText(to, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));
+    }
 
     const outcome = await waitApproval(db, approval.id, approval.expiresAt);
     await setTaskStatus(db, taskId, "em_andamento");

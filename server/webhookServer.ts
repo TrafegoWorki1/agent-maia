@@ -91,7 +91,10 @@ const server = createServer(async (req, res) => {
       outcome = "handled";
       await recordMessage(db, { channel: "whatsapp", author: "owner", text: msg.text });
       // Agrupa com as mensagens seguidas do dono (15 s de silêncio, máximo de 60 s) antes de executar.
-      void addOwnerText(db, null, msg.text).catch((error) => console.error("[lotes] falha ao agrupar:", error instanceof Error ? error.message : error));
+      // Resposta de aprovação do dono (SIM ou NÃO com número) é decidida antes de virar pedido.
+      const ownerAnswered = await handleApproverText({ db, notifyOwner }, msg.text).catch(() => false);
+      if (ownerAnswered) outcome = "approval_answer";
+      else void addOwnerText(db, null, msg.text).catch((error) => console.error("[lotes] falha ao agrupar:", error instanceof Error ? error.message : error));
     } else if (samePhone(msg.from, approver)) {
       sender = "approver";
       await recordMessage(db, { channel: "whatsapp", author: "approver", text: msg.text });

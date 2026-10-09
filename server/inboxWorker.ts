@@ -32,6 +32,8 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordMessage(db, { channel: "whatsapp", author: "owner", text: item.payload }, now);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "handled" }, now);
     // Entra no lote da conversa: o despacho é feito pelo laço de lotes, nunca aqui.
+    const ownerAnswered = await handleApproverText({ db, notifyOwner }, item.payload).catch(() => false);
+    if (ownerAnswered) return;
     await addOwnerText(db, item.id, item.payload);
     return;
   }
