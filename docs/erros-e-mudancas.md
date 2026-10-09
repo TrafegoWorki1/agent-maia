@@ -484,3 +484,6 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 ## Migrações versionadas (09/10/2026)
 - **Problema:** 16 de 18 migrações aplicadas no Supabase não tinham arquivo no GitHub. **Correção:** baseline exata recuperada do histórico do Supabase, validação do zero em banco temporário, guarda de PR, detecção de drift (somente leitura) e CI. Regra: toda mudança de banco = migração no mesmo PR, aplicada em produção com aprovação do owner antes do merge. Ver `docs/database-migrations.md` e `docs/database-audit-2026-10-09.md`.
+
+## Transcrição de áudio (09/10/2026)
+- Áudios do dono são transcritos pelo Whisper do owner (EasyPanel). Latência medida de 27 a 64 s; o servidor reinicia após chamadas pesadas. Código em `server/transcribe.ts`. Pendente: teste com áudio real e mídia (imagem, vídeo, documento).

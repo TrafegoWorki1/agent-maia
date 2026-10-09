@@ -47,7 +47,7 @@ export async function routeOwnerText(text: string): Promise<number | null> {
   return handleOwnerMessage(text);
 }
 
-const AUDIO_UNAVAILABLE = "Recebi seu áudio, mas ainda não consigo transcrever áudios nesta Maia. Pode mandar em texto por enquanto.";
+const AUDIO_UNAVAILABLE = "Recebi seu áudio, mas o servidor de transcrição não está configurado (WHISPER_API_URL). Pode mandar em texto por enquanto.";
 
 // Áudio do dono: baixa pela Evolution, transcreve e trata o texto como um comando digitado.
 // O áudio não é gravado; o texto transcrito segue as mesmas regras do texto (guardado só para o dono).
@@ -58,6 +58,8 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
     return;
   }
   try {
+    // A transcrição roda em CPU e pode levar de 20 a 90 segundos: avisa que recebeu.
+    await notifyOwner("Recebi o áudio, transcrevendo (pode levar até um minuto)...");
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
     const text = (await transcribe(data, mimetype)).trim();
     if (!text) {
