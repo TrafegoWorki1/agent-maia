@@ -40,6 +40,11 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (regras importantes que faltavam no painel)
+- Incluídas 10 regras do documento docs/regras-da-maia.md que não estavam no banco: números desconhecidos, regras da aprovação, limites de execução, agrupamento, dados guardados, segredos, triagem do Jev, limites da arte, privacidade nos grupos e acesso ao painel.
+- O banco passa a ter 22 regras ativas, mostradas na página Regras da Maia.
+- Pendente: reiniciar a Maia no PC e confirmar que VITE_MAIA_HOSTED não está na Vercel (sem ela, a página Regras aparece).
+
 ### Alterado (revisão das regras da Maia)
 - Documento de regras: falhas de consulta vão para Ocorrências; aviso ao Herickson só para pedidos que a Maia não faz; correção de português.
 - Regra 3 do banco alinhada ao mesmo comportamento.
