@@ -1,6 +1,6 @@
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { sendOwnerImage } from "./evolutionSend.ts";
+import { sendOwnerImage, sendOwnerText } from "./evolutionSend.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { getDb } from "./store.ts";
@@ -9,6 +9,7 @@ import { getDb } from "./store.ts";
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
 export const IMAGE_TOOL = "mcp__maia__gerar_imagem";
 export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
+export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 
 export function createImageServer(channel: "whatsapp" | "painel") {
   return createSdkMcpServer({
@@ -59,6 +60,25 @@ export function createImageServer(channel: "whatsapp" | "painel") {
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             return { content: [{ type: "text", text: `Não consegui consultar a base agora: ${reason}` }], isError: true };
+          }
+        },
+      ),
+
+      tool(
+        "avisar_dono",
+        "Envia um aviso ao Herickson, no privado dele, quando alguém pedir algo que você não faz ou que precisa de decisão dele. Informe o pedido e quem pediu.",
+        {
+          pedido: z.string().min(3).max(500).describe("O que foi pedido, em poucas palavras."),
+          quem_pediu: z.string().max(100).optional().describe("Nome ou número de quem pediu, se souber."),
+        },
+        async (args) => {
+          const quem = args.quem_pediu ? ` (pedido por ${args.quem_pediu})` : "";
+          try {
+            await sendOwnerText(process.env.EVOLUTION_OWNER_NUMBER ?? "", `Pedido fora do que a Maia faz${quem}: ${args.pedido}`);
+            return { content: [{ type: "text", text: "Aviso enviado ao Herickson." }] };
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            return { content: [{ type: "text", text: `Não consegui enviar o aviso agora: ${reason}` }], isError: true };
           }
         },
       ),
