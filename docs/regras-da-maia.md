@@ -19,7 +19,8 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 ## 3. Aprovação de escrita
 
-- **O que pede aprovação (decisão de 09/10/2026):** só publicar ou postar (Instagram), enviar mensagem (e-mail, privado, outro grupo) e subir ou ativar anúncios. Lista em `server/approvalPolicy.ts`. Leituras e as demais ações (rascunhos, etiquetas, tarefas) rodam direto. Criar grupo continua com aprovação.
+- **O que pede aprovação (decisão de 09/10/2026):** publicar ou postar (Instagram), enviar mensagem (e-mail, privado, texto ou enquete em grupo, agendamentos), subir ou ativar anúncios, apagar e criar/alterar convites de agenda. Lista em `server/approvalPolicy.ts`. Leituras (inclusive ler enquetes) e as demais ações (rascunhos, etiquetas, tarefas) rodam direto. Criar grupo continua com aprovação.
+- **Grupos:** texto com menção, enquete e agendamento (aprovado ao agendar; sai sozinho no horário, uma vez). Ver `server/groupTools.ts`.
 - Cada ação de escrita vira um pedido com número, enviado ao aprovador: `OK` (ou `SIM`) para aprovar e `NÃO` para recusar. O número é opcional quando só há um pedido aberto; com mais de um, use `OK <número>`.
 - A aprovação vale só para aquela ação, uma única vez.
 - Sem resposta em 10 minutos, o pedido expira e a ação não é executada.

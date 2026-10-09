@@ -40,6 +40,14 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (ações em grupos, apagar e convites com aprovação)
+- **Política:** agora também pedem aprovação (OK/NÃO): apagar (qualquer ferramenta de conector com delete/trash no nome), criar/alterar/responder evento da agenda (convites) e as ações novas de grupo.
+- **Ferramentas de grupo** (`server/groupTools.ts`, expostas em `maiaImageTool.ts`): `grupo_enviar_texto` (com menção por número ou por nome de Pessoas; o texto ganha @número), `grupo_enviar_enquete`, `grupo_ler_enquetes` (livre; lê pela Evolution as enquetes e a contagem, e mostra "—" quando a Evolution não informa votos) e `grupo_agendar` (texto ou enquete em horário futuro, até 90 dias). O grupo é achado pelo nome na lista da instância (JID), com nome único.
+- **Agendamento:** tabela `scheduled_actions` + função `claim_due_actions` (migration `maia_scheduled_actions_v1`, também em `supabase/migrations/`). A aprovação é pedida ao agendar; o worker confere a cada 30 s e envia uma vez. Falha avisa o dono e não repete; envio interrompido por reinício vira falha.
+- **Conferência:** envio só conta como entregue com o id da mensagem aceito pela Evolution (`task_verified`).
+- Regras do banco: `aprovacao` reescrita, `grupos_acoes` nova (28), `identidade` atualizada.
+- **Não testado ao vivo:** envio de texto/enquete e a contagem de votos (nenhuma enquete existia no grupo). A leitura rodou contra a Evolution e voltou vazia. **Pendente:** reiniciar a Maia; testar uma enquete no grupo Operacional.
+
 ### Alterado (aprovar com OK)
 - O aprovador agora responde **OK** (ou SIM) para aprovar e NÃO para recusar; os pedidos passam a dizer "Responda OK ... ou NÃO". Número só é necessário com mais de um pedido aberto. "OK" só vale com um pedido aberto e a mensagem inteira sendo "ok" (frases como "ok, muda a legenda" não aprovam).
 
