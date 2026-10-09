@@ -1,4 +1,4 @@
-import { isReadTool } from "./maiaOwnerAgent.ts";
+import { requiresApproval } from "./approvalPolicy.ts";
 import type { TaskEventRow, TaskRow } from "./store.ts";
 
 // Qualidade operacional da Maia, no mesmo contrato do Bryan (docs/indicadores.md), calculada só
@@ -84,7 +84,7 @@ export function previousWeek(week: string): string {
   return isoWeek(new Date(Date.parse(isoWeekBounds(week).from) - 86400000));
 }
 
-// Regra de escrita: qualquer ferramenta fora das leituras precisa de aprovação registrada na tarefa.
+// Regra de escrita: publicar, enviar mensagem e subir anúncio precisam de aprovação registrada na tarefa.
 function writeWithoutApproval(events: TaskEventRow[]): Incident[] {
   const byTask = new Map<number, TaskEventRow[]>();
   for (const event of events) byTask.set(event.task_id, [...(byTask.get(event.task_id) ?? []), event]);
@@ -92,7 +92,7 @@ function writeWithoutApproval(events: TaskEventRow[]): Incident[] {
   for (const [taskId, list] of byTask) {
     const approved = list.some((e) => e.type === "approval_approved");
     for (const event of list) {
-      if (event.type !== "tool_use" || !event.operation || isReadTool(event.operation)) continue;
+      if (event.type !== "tool_use" || !event.operation || !requiresApproval(event.operation)) continue;
       if (!approved) incidents.push({ taskId, operation: event.operation, errorCode: "APPROVAL_MISSING", timestamp: event.at });
     }
   }

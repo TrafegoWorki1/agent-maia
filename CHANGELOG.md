@@ -40,6 +40,12 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (política de aprovação reduzida)
+- **Decisão do owner:** aprovação só para publicar/postar, enviar mensagem (e-mail, privado, outro grupo) e subir anúncios. Antes, qualquer ferramenta fora das leituras pedia SIM/NÃO.
+- Novo `server/approvalPolicy.ts` (`requiresApproval`), usado na permissão do WhatsApp e na detecção de escrita sem aprovação do indicador de risco (que também deixa de acusar ferramentas locais seguras). Regras `aprovacao`, `aprovacao_regras` e `proatividade` do banco reescritas. Pelo painel, escrita continua recusada.
+- Sem aprovação agora: ações internas dos conectores (rascunhos, etiquetas, eventos de agenda, apagar/arquivar). Atenção: apagar não está na lista.
+- **Pendente:** reiniciar a Maia.
+
 ### Alterado (objetivo da Maia)
 - Regra `identidade` no banco e seção Objetivo do manual (`src/data/manual.ts`, página Operação) reescritas: incluem Instagram, artes, precisão e conferência, proatividade e aviso ao Herickson. Lista de "ainda não faz" mantida.
 
