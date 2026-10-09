@@ -214,6 +214,19 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (regras no banco e no painel)
+
+### Mudanças
+- Regras da Maia na tabela maia_rules, lidas pelo prompt e exibidas na página Regras da Maia.
+- O prompt antigo fixo no código foi removido.
+
+### Verificado
+- 12 regras no banco, 12 ativas; o prompt vem do banco.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+2. Edição das regras pelo painel (próxima etapa).
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

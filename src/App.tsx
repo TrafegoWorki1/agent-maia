@@ -25,6 +25,7 @@ import { LiveChatPage } from "./features/chat/LiveChatPage";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
 import { GruposPage } from "./features/operacao/GruposPage";
 import { PeoplePage } from "./features/people/PeoplePage";
+import { RegrasPage } from "./features/operacao/RegrasPage";
 import {
   CampanhasPage,
   IndicadoresPage,
@@ -62,6 +63,7 @@ const navItems: NavItem[] = [
   { id: "grupos", label: "Grupos", icon: Users },
   { id: "agente", label: "Conversa com Maia", icon: Bot },
   { id: "pessoas", label: "Pessoas", icon: Users },
+  { id: "regras", label: "Regras da Maia", icon: Settings },
 ];
 
 const pageNames: Record<PageId, string> = Object.fromEntries(navItems.map((item) => [item.id, item.label])) as Record<PageId, string>;
@@ -419,6 +421,7 @@ export default function App() {
       case "grupos": return <GruposPage />;
       case "agente": return <LiveChatPage />;
       case "pessoas": return <PeoplePage />;
+      case "regras": return <RegrasPage />;
     }
   }
 

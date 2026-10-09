@@ -21,6 +21,15 @@ export interface SheetsData {
   sheets: { name: string; modified_at: string }[];
 }
 
+export interface MaiaRuleView {
+  codigo: string;
+  categoria: string;
+  titulo: string;
+  texto: string;
+  ordem: number;
+  ativa: boolean;
+}
+
 export interface JevData {
   error?: string;
   triadas: number;
@@ -53,6 +62,7 @@ export interface Snapshot {
   quality: { current: Scorecard; previous: { week: string; overall: number | null } };
   groups: { groups: { jid: string; subject: string; size: number | null; messages7d: number; lastActivity: string | null }[]; error: string | null; total: number };
   jev: JevData;
+  regras: MaiaRuleView[];
   incidents: { at: string; kind: string; taskId: number | null; summary: string }[];
   conversation: {
     total7d: number;
