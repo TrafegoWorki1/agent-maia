@@ -1,6 +1,6 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
-import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
+import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL } from "./maiaImageTool.ts";
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import { createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
@@ -45,7 +45,7 @@ function preview(input: Record<string, unknown>): string {
 // O pedido fica no banco, com prazo: a resposta pode chegar por outro processo.
 function makeWhatsAppPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL || toolName === OWNER_NOTICE_TOOL) return { behavior: "allow", updatedInput: input };
     const db = getDb();
     if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
@@ -78,7 +78,7 @@ Responda SIM ${approval.id} para aprovar só esta ação ou NÃO ${approval.id} 
 // Conversa do painel: só leitura. Escrita é feita pelo WhatsApp, onde passa pela aprovação do aprovador.
 function makePanelPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL || toolName === OWNER_NOTICE_TOOL) return { behavior: "allow", updatedInput: input };
     await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
     return { behavior: "deny", message: "Ações de escrita são feitas pelo WhatsApp, com aprovação do aprovador." };
   };

@@ -236,6 +236,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC para carregar a regra.
 
+## Atualização (aviso ao Herickson)
+
+### Mudanças
+- Ferramenta avisar_dono e regra 7 atualizada: pedido que a Maia não faz vai ao privado do Herickson, com quem pediu.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
