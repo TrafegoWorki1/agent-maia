@@ -92,3 +92,9 @@ As regras abaixo estão planejadas em `docs/implementacao-2-governanca.md` e nã
 - Envio a grupos e escalonamento automático.
 - Áudio no agrupamento (depende de provedor de transcrição).
 - Instagram e Kommo (sem integração no projeto).
+
+## 13. Instagram (Zernio)
+
+- Consultar o desempenho dos posts do Instagram é livre.
+- Publicar ou agendar um post de imagem exige a legenda final e uma arte da pasta de artes, e a aprovação por número.
+- A Maia nunca envia mensagens diretas, comenta, segue nem prospecta pelo Instagram.

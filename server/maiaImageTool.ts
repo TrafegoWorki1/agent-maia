@@ -1,6 +1,8 @@
+import { relative } from "node:path";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { sendOwnerImage, sendOwnerText } from "./evolutionSend.ts";
+import { instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { getDb } from "./store.ts";
@@ -10,6 +12,12 @@ import { getDb } from "./store.ts";
 export const IMAGE_TOOL = "mcp__maia__gerar_imagem";
 export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
+export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
+// Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes"]);
+export function isLocalSafeTool(name: string): boolean {
+  return LOCAL_SAFE_TOOLS.has(name);
+}
 
 export function createImageServer(channel: "whatsapp" | "painel") {
   return createSdkMcpServer({
@@ -35,7 +43,7 @@ export function createImageServer(channel: "whatsapp" | "painel") {
           }
           try {
             await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", result.path, `Arte ${FORMATS[args.formato]}`);
-            return { content: [{ type: "text", text: "Arte criada e enviada no WhatsApp." }] };
+            return { content: [{ type: "text", text: `Arte criada e enviada no WhatsApp. Arquivo: ${relative(ARTE_ROOT, result.path).split("\\").join("/")}` }] };
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             return { content: [{ type: "text", text: `Arte criada em ${result.path}, mas não consegui enviar no WhatsApp: ${reason}` }] };
@@ -79,6 +87,61 @@ export function createImageServer(channel: "whatsapp" | "painel") {
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             return { content: [{ type: "text", text: `Não consegui enviar o aviso agora: ${reason}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_desempenho",
+        "Mostra o desempenho dos posts mais recentes do Instagram da Worki (alcance, visualizações, curtidas, comentários, compartilhamentos e salvamentos). Só leitura.",
+        { limite: z.number().int().min(1).max(20).optional().describe("Quantos posts mostrar. Padrão 5.") },
+        async (args) => {
+          try {
+            const { posts, totalPosts } = await instagramPerformance(args.limite ?? 5);
+            if (posts.length === 0) return { content: [{ type: "text", text: "Nenhum post do Instagram encontrado na Zernio." }] };
+            const n = (v: number | null) => (v === null ? "—" : String(v));
+            const lines = posts.map((p) => {
+              const when = p.publishedAt ? p.publishedAt.slice(0, 10) : "sem data";
+              return `${when} (${p.mediaType ?? "post"}): "${p.caption}" | alcance ${n(p.alcance)}, visualizações ${n(p.visualizacoes)}, curtidas ${n(p.curtidas)}, comentários ${n(p.comentarios)}, compartilhamentos ${n(p.compartilhamentos)}, salvamentos ${n(p.salvamentos)}${p.url ? ` | ${p.url}` : ""}`;
+            });
+            return { content: [{ type: "text", text: `Total de posts conhecidos: ${totalPosts ?? "—"}.\n${lines.join("\n")}` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar o Instagram: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "artes_recentes",
+        "Lista as últimas artes geradas pela Maia (caminho dentro da pasta de artes). Use para escolher qual arte publicar no Instagram. Só leitura.",
+        {},
+        async () => {
+          const arts = recentArts(5);
+          if (arts.length === 0) return { content: [{ type: "text", text: "Nenhuma arte gerada ainda." }] };
+          return { content: [{ type: "text", text: arts.map((a) => `${a.path} (${a.modifiedAt.slice(0, 16).replace("T", " ")} UTC)`).join("\n") }] };
+        },
+      ),
+      tool(
+        "instagram_publicar",
+        "Publica (ou agenda) UM post de imagem no Instagram da Worki, com a legenda dada e uma arte da pasta de artes. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador. Nunca publique sem a legenda final aprovada pelo dono.",
+        {
+          legenda: z.string().min(1).max(2200).describe("Legenda final do post."),
+          arte: z.string().min(3).max(200).describe("Caminho da arte dentro da pasta de artes, como em artes_recentes (ex.: pedidos/2026-10-09-abc123/arte.png)."),
+          agendar_para: z.string().max(40).optional().describe("Data e hora ISO no futuro, para agendar. Sem isso, publica agora."),
+        },
+        async (args) => {
+          try {
+            const art = resolveArtPath(args.arte);
+            if (!art.ok) return { content: [{ type: "text", text: `Não publiquei: ${art.error}.` }], isError: true };
+            const accounts = (await listInstagramAccounts()).filter((a) => a.active);
+            if (accounts.length !== 1) {
+              return { content: [{ type: "text", text: accounts.length === 0 ? "Não publiquei: nenhuma conta de Instagram ativa na Zernio." : "Não publiquei: há mais de uma conta de Instagram ativa e a escolha ainda não é suportada." }], isError: true };
+            }
+            const imageUrl = await uploadImage(art.path);
+            const result = await publishInstagramPost({ accountId: accounts[0].id, caption: args.legenda, imageUrl, scheduledFor: args.agendar_para ?? null });
+            const where = result.url ? ` Link: ${result.url}` : "";
+            return { content: [{ type: "text", text: `${result.scheduled ? "Post agendado" : "Post publicado"} no Instagram (@${accounts[0].username}). Status: ${result.status}.${where}` }] };
+          } catch (error) {
+            // Não repete sozinho: quem pediu decide se tenta de novo, depois de conferir no Instagram.
+            return { content: [{ type: "text", text: `A publicação falhou: ${error instanceof Error ? error.message : String(error)}. Confira o Instagram antes de tentar de novo.` }], isError: true };
           }
         },
       ),

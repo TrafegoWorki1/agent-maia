@@ -396,6 +396,28 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 2. Decidir renderizador e identidade visual para o carrossel.
 3. Decidir se o Jev passa a rotear (jev.activeRouting), depois de revisar a concordância.
 
+## Atualização (Instagram pela Zernio)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Integração | server/integrations/zernio.ts: contas, desempenho, artes recentes, envio de imagem e publicação. |
+| Ferramentas | instagram_desempenho e artes_recentes (leitura); instagram_publicar (com aprovação por número). |
+| Regras | Regra 1 atualizada e regra instagram nova, no banco. |
+
+### Erro encontrado e corrigido
+- Propriedade declarada no construtor da classe de erro (ZernioError). O Node em modo de remoção de tipos não executa essa sintaxe, então o worker não iniciaria, e os testes não pegaram porque usam outro compilador. Corrigido, e os módulos agora carregam em Node puro.
+
+### Verificado de verdade
+- Conta ativa, posts reais com métricas, upload de imagem com endereço público (200, PNG). 108 testes.
+
+### Limitações
+- A publicação não foi testada ao vivo. Mensagens diretas, comentários e prospecção não foram implementados.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+2. Decidir se a Maia pode ler a caixa de entrada do Instagram (conversas de terceiros).
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
