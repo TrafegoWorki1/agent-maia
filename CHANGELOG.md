@@ -29,6 +29,11 @@ bug, qual era o sintoma e a causa.
 - Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
 - Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
 
+### Decidido (envio a grupos com aprovação)
+- Regra no CLAUDE.md: envio a grupos só com `SIM <número>` do aprovador, por ação, a grupo validado pelo JID. Nada foi implementado ainda.
+- Pendente: JID do grupo Operacional Worki Digital; decisão sobre o escalonamento automático.
+- Achado: a instância da Evolution estava com estado `close` (WhatsApp desconectado) no momento da consulta. Reconectar pelo QR code.
+
 ### Alterado (estilo de resposta da Maia)
 - Regra no prompt: resposta breve, sem listar capacidades a menos que peçam, sem mencionar conectores indisponíveis, com sugestão de próximo passo.
 - Pendente: reiniciar a Maia no PC para carregar o prompt.
