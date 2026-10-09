@@ -1,6 +1,7 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { createImageServer, IMAGE_TOOL } from "./maiaImageTool.ts";
+import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import {
   addTaskEvent,
   createTask,
@@ -14,6 +15,7 @@ import {
   setTaskStatus,
   startApproval,
   startRun,
+  toolsUsed,
   type Db,
 } from "./store.ts";
 
@@ -172,16 +174,43 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool, ch
   }
 }
 
+// Jev em modo sombra: a triagem começa junto com a tarefa e é registrada depois da resposta.
+// Nunca bloqueia nem altera o que a Maia responde.
+type JevShadow = Promise<{ jev: JevResult | null; erro: string | null }>;
+
+function startJevShadow(text: string): JevShadow {
+  return triageText(text).then(
+    (jev) => ({ jev, erro: null }),
+    (error) => ({ jev: null, erro: error instanceof Error ? error.message : String(error) }),
+  );
+}
+
+function toolCategory(name: string): string {
+  if (name === IMAGE_TOOL) return "arte";
+  if (isReadTool(name)) return "consulta";
+  return "escrita";
+}
+
+function recordJevShadow(db: ReturnType<typeof getDb>, taskId: number, channel: "whatsapp" | "painel", pending: JevShadow): void {
+  void (async () => {
+    const { jev, erro } = await pending;
+    const tools = await toolsUsed(db, taskId);
+    await recordJev(db, { channel, taskId, jev, erro, ferramentas: tools, concordou: agreement(jev, tools.map(toolCategory)) });
+  })().catch((error) => console.error("[jev] falha ao registrar:", error instanceof Error ? error.message : error));
+}
+
 // Processa uma mensagem do dono por vez, na ordem em que chegaram.
 export async function handleOwnerMessage(text: string): Promise<void> {
   const owner = process.env.EVOLUTION_OWNER_NUMBER!;
   const db = getDb();
   const taskId = await createTask(db, { channel: "whatsapp", summary: text });
+  const jevPending = startJevShadow(text);
   queue = queue
     .then(async () => {
       await setTaskStatus(db, taskId, "em_andamento");
       await addTaskEvent(db, taskId, "task_started", null, null);
       const reply = await runAgent(text, taskId, makeWhatsAppPermission(taskId), "whatsapp");
+      recordJevShadow(db, taskId, "whatsapp", jevPending);
       await sendOwnerText(owner, reply);
       await recordMessage(db, { channel: "whatsapp", author: "maia", text: reply });
       await markTaskReplied(db, taskId);
@@ -191,6 +220,7 @@ export async function handleOwnerMessage(text: string): Promise<void> {
     .catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[maia] erro ao responder:", message);
+      recordJevShadow(db, taskId, "whatsapp", jevPending);
       await failTask(db, taskId, message).catch(() => {});
       await addTaskEvent(db, taskId, "task_failed", null, message).catch(() => {});
       const fallback = "Não consegui concluir agora. Tente de novo em instantes.";
@@ -205,10 +235,12 @@ export async function answerFromPanel(text: string): Promise<string> {
   const db: Db = getDb();
   await recordMessage(db, { channel: "painel", author: "owner", text });
   const taskId = await createTask(db, { channel: "painel", summary: text });
+  const jevPending = startJevShadow(text);
   await setTaskStatus(db, taskId, "em_andamento");
   await addTaskEvent(db, taskId, "task_started", null, null);
   try {
     const reply = await runAgent(text, taskId, makePanelPermission(taskId), "painel");
+    recordJevShadow(db, taskId, "painel", jevPending);
     await recordMessage(db, { channel: "painel", author: "maia", text: reply });
     await markTaskReplied(db, taskId);
     await addTaskEvent(db, taskId, "replied", null, null);
@@ -218,6 +250,7 @@ export async function answerFromPanel(text: string): Promise<string> {
     const message = error instanceof Error ? error.message : String(error);
     await failTask(db, taskId, message).catch(() => {});
     await addTaskEvent(db, taskId, "task_failed", null, message).catch(() => {});
+    recordJevShadow(db, taskId, "painel", jevPending);
     throw error;
   }
 }

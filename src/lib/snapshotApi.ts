@@ -21,6 +21,17 @@ export interface SheetsData {
   sheets: { name: string; modified_at: string }[];
 }
 
+export interface JevData {
+  error?: string;
+  triadas: number;
+  comparaveis: number;
+  concordancia: number | null;
+  meta: number;
+  alertasManipulacao: number;
+  falhas: number;
+  ultimas: { at: string; canal: string; categoria: string | null; confianca: number | null; manipulacao: number | null; urgencia: number | null; ferramentas: string[]; concordou: boolean | null; erro: string | null }[];
+}
+
 export interface Snapshot {
   generatedAt: string;
   refreshing: boolean;
@@ -41,6 +52,7 @@ export interface Snapshot {
   };
   quality: { current: Scorecard; previous: { week: string; overall: number | null } };
   groups: { groups: { jid: string; subject: string; size: number | null; messages7d: number; lastActivity: string | null }[]; error: string | null; total: number };
+  jev: JevData;
   incidents: { at: string; kind: string; taskId: number | null; summary: string }[];
   conversation: {
     total7d: number;

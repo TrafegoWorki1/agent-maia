@@ -1,6 +1,7 @@
 import { isRefreshing } from "./refreshJob.ts";
 import { brtDayStart } from "./proactive.ts";
 import { fetchLiveGroups } from "./groups.ts";
+import { jevView } from "./jev.ts";
 import { buildScorecard, isoWeek, isoWeekBounds, previousWeek, type Scorecard } from "./quality.ts";
 import {
   approvalsBetween,
@@ -138,6 +139,7 @@ export async function buildSnapshot(db: Db, now = new Date()): Promise<Record<st
     incidents: incidents.slice(0, 50),
     conversation: await conversationStats(db, now),
     groups: await groupsView(db, now),
+    jev: await jevView(db, now),
   };
 }
 

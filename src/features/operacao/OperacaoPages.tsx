@@ -3,6 +3,7 @@ import { PageHeader, Panel } from "../../components/ui";
 import { MANUAL_SECTIONS } from "../../data/manual";
 import { formatMoney, formatWhen, type Snapshot } from "../../lib/snapshotApi";
 import { useSnapshot } from "../../lib/useSnapshot";
+import { JevPanel } from "./JevPanel";
 
 // Páginas com dados reais da operação. Todas leem o mesmo snapshot do servidor local.
 // Sem amostra ou sem fonte, o valor é "sem dado": nunca um número de demonstração.
@@ -133,6 +134,7 @@ export function ResumoPage() {
                   empty="Nenhuma tarefa ainda. Quando você pedir algo à Maia, ela aparece aqui."
                 />
               </Panel>
+              <JevPanel data={s.jev} />
             </>
           );
         }}
