@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { loadLocalEnv } from "./loadEnv.ts";
 import { audioFrom, incomingText, normalizeEvent, recordEvent, recentEvents, samePhone, tokenFromRequest, tokenMatches, type AudioRef } from "./evolutionWebhook.ts";
 import { handleApproverText } from "./groups.ts";
+import { isApprover } from "./approvals.ts";
 import { notifyOwner, routeOwnerText, handleOwnerAudio } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { runProactive } from "./proactive.ts";
@@ -95,7 +96,7 @@ const server = createServer(async (req, res) => {
       const ownerAnswered = await handleApproverText({ db, notifyOwner }, msg.text).catch(() => false);
       if (ownerAnswered) outcome = "approval_answer";
       else void addOwnerText(db, null, msg.text).catch((error) => console.error("[lotes] falha ao agrupar:", error instanceof Error ? error.message : error));
-    } else if (samePhone(msg.from, approver)) {
+    } else if (await isApprover(db, msg.from)) {
       sender = "approver";
       await recordMessage(db, { channel: "whatsapp", author: "approver", text: msg.text });
       // Resposta de aprovação (SIM ou NÃO, com número): decidida pelo banco. Erro não derruba o webhook.

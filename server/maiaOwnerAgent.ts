@@ -2,7 +2,7 @@ import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL } from "./maiaImageTool.ts";
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
-import { approvalRecipients, createApproval, openApprovals, waitApproval } from "./approvals.ts";
+import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import {
   addTaskEvent,
@@ -61,7 +61,7 @@ ${preview(input)}
 
 Responda SIM ${approval.id} para aprovar só esta ação ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusada.`;
     await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });
-    for (const to of approvalRecipients()) {
+    for (const to of await approverNumbers(db)) {
       sendOwnerText(to, request).catch((error) => console.error("[maia] falha ao pedir aprovação:", error instanceof Error ? error.message : error));
     }
 
