@@ -29,6 +29,12 @@ bug, qual era o sintoma e a causa.
 - Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
 - Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
 
+### Adicionado (atualização automática da base de conhecimento)
+- **server/knowledgeSync.ts:** lê os três documentos aprovados e reindexa só o que mudou (comparação pelo conteúdo). Roda 1 minuto depois de iniciar e depois a cada hora, no webhook local e no worker.
+- **Evita trabalho duplicado:** uma marca no banco impede duas sincronizações seguidas quando os dois processos estão no ar.
+- **Verificado:** primeira sincronização reindexou os dois documentos que mudaram; a segunda não encontrou mudança. 57 testes.
+- **Pendente:** reiniciar a Maia no PC para começar a sincronização automática.
+
 ### Alterado (aprovações persistidas no banco)
 - **Tabela approvals:** agora guarda tipo (ferramenta ou grupo), resumo, dados do pedido, tarefa, prazo, processo que espera e quem decidiu.
 - **server/approvals.ts:** cria o pedido com número, espera a decisão lendo o banco (funciona mesmo se a resposta chegar por outro processo) e aplica o SIM ou NÃO.
