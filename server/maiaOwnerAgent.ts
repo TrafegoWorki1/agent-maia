@@ -5,7 +5,10 @@ import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import { isReadTool } from "./approvalPolicy.ts";
-import { decideAccess, ownerRequester, resolveRequester, type Requester } from "./access.ts";
+import { decideAccess, decideBuiltin, ownerRequester, resolveRequester, type Requester } from "./access.ts";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { MEDIA_DIR } from "./media.ts";
 import { accessContext } from "./accessContext.ts";
 import { convMessages, formatConv, recentConversations, recordConvMessage } from "./conversations.ts";
 import { conversationContext } from "./context.ts";
@@ -44,6 +47,8 @@ import {
 
 const MAX_PREVIEW = 300;
 
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
 let queue: Promise<void> = Promise.resolve();
 
 function preview(input: Record<string, unknown>): string {
@@ -56,6 +61,13 @@ function preview(input: Record<string, unknown>): string {
 // O pedido fica no banco, com prazo: a resposta pode chegar por outro processo.
 function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(), inGroup = false): CanUseTool {
   return async (toolName, input) => {
+    // Ferramentas internas do agente (Read, Grep, Glob...): leitura de arquivo limitada por quem pediu.
+    if (!toolName.startsWith("mcp__")) {
+      const builtin = decideBuiltin(toolName, input, who, { projectRoot: PROJECT_ROOT, mediaDir: MEDIA_DIR }, (p) => resolve(PROJECT_ROOT, p));
+      if (builtin.decision === "allow") return { behavior: "allow", updatedInput: input };
+      await addTaskEvent(getDb(), taskId, "access_denied", toolName, builtin.reason);
+      return { behavior: "deny", message: `Não permitido: ${builtin.reason}.` };
+    }
     const readOnly = isReadTool(toolName) || isLocalSafeTool(toolName);
     const verdict = decideAccess(toolName, who, await accessContext(getDb(), taskId, toolName, input), readOnly);
     if (verdict.decision === "allow") return { behavior: "allow", updatedInput: input };

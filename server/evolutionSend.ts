@@ -17,6 +17,11 @@ export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 // Baixa o arquivo de um áudio recebido, pela mesma instância. Fica só em memória: não é gravado em disco.
 export async function downloadAudio(key: Record<string, unknown>, fallbackMimetype: string): Promise<{ data: Buffer; mimetype: string }> {
+  return downloadMedia(key, fallbackMimetype, MAX_AUDIO_BYTES);
+}
+
+// Baixa o arquivo (áudio, imagem, vídeo ou documento) de uma mensagem recebida, pela mesma instância. Só em memória.
+export async function downloadMedia(key: Record<string, unknown>, fallbackMimetype: string, maxBytes: number): Promise<{ data: Buffer; mimetype: string }> {
   const base = process.env.EVOLUTION_API_URL;
   const apiKey = process.env.EVOLUTION_API_KEY;
   const instance = process.env.EVOLUTION_INSTANCE;
@@ -31,7 +36,7 @@ export async function downloadAudio(key: Record<string, unknown>, fallbackMimety
   const json = (await response.json()) as { base64?: unknown; mimetype?: unknown };
   if (typeof json.base64 !== "string" || !json.base64) throw new Error("Evolution não devolveu o áudio");
   const data = Buffer.from(json.base64, "base64");
-  if (data.length > MAX_AUDIO_BYTES) throw new Error("áudio maior que 25 MB");
+  if (data.length > maxBytes) throw new Error(`arquivo maior que ${Math.round(maxBytes / 1024 / 1024)} MB`);
   return { data, mimetype: typeof json.mimetype === "string" ? json.mimetype : fallbackMimetype };
 }
 

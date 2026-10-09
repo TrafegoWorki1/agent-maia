@@ -40,6 +40,16 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (a Maia entende imagem, vídeo e documento do WhatsApp)
+- **Pedido do owner (2026-10-09):** o agente precisa ler imagens, vídeos e documentos enviados no WhatsApp. Só do número do dono; de outros números nada é baixado.
+- **Fluxo:** o webhook grava só a referência (tipo `media` na fila `inbox`); o worker baixa pela Evolution (limites: imagem 10 MB, documento 20 MB, vídeo 50 MB), salva em `data/midia` (apagado em 24 h), avisa "Recebi…, analisando" e trata o resultado como um pedido do dono, com as mesmas permissões e aprovações do texto. A legenda é o pedido.
+- **Imagem e PDF:** o agente lê pelo caminho com a ferramenta Read. **Texto, CSV, JSON:** conteúdo inline (até 12 mil caracteres). **Word (.docx) e Excel (.xlsx):** texto extraído (biblioteca `fflate`). **Vídeo:** 4 quadros (ffmpeg) + áudio transcrito pelo Whisper do owner (até 180 s de áudio; acima de 10 min só quadros). Outros formatos: a Maia diz quais aceita.
+- **Segurança:** o conteúdo do arquivo é tratado como dado, nunca como instrução. As ferramentas internas do agente passaram a ser limitadas por quem pede (`decideBuiltin`): o dono lê o projeto (nunca `.env`, `.git`, `.ssh`, `node_modules`); membros e visitantes só leem `data/midia`; ferramentas internas desconhecidas só para o dono. Antes, Read/Grep estavam liberados sem limite.
+- **Banco:** migração `20261009224229_maia_inbox_kind_media` amplia `inbox.kind` para aceitar `media` (só amplia valores; sem perda de dados). **Aplicada em produção em 09/10/2026 com o OK do owner** (versão 20261009224229 no histórico do Supabase; `db:drift` sem divergência), antes do merge do código.
+- `classify` do webhook passou a reconhecer imagem, vídeo e documento como mensagem (antes caíam em "desconhecido").
+- Testes: 14 novos (referência de mídia, fila só do dono, docx/xlsx, prompts, limites de leitura, vídeo com ffmpeg real); os testes de banco rodam no executor nativo do Node (`pnpm test:db`, com uma nova tentativa automática) porque o PGlite derrubava os workers do Vitest no Windows com pouca memória livre.
+- **Pendente:** reiniciar a Maia; testar com arquivos reais (a transcrição do vídeo leva de 30 a 90 s).
+
 ### Adicionado (transcrição de áudio do WhatsApp pelo Whisper do owner)
 - **Decisão do owner (2026-10-09):** áudios do dono são transcritos pelo servidor Whisper dele no EasyPanel ("Whisper Official API", modelo small, CPU). `WHISPER_API_URL` e `WHISPER_API_KEY` ficam só no `.env`; o áudio não vai para terceiros nem é gravado.
 - `server/transcribe.ts`: `POST /transcribe?language=pt&task=transcribe` (multipart `audio_file`), com tentativa extra se o servidor estiver reiniciando (502/503/504), tempo máximo de 240 s e erros sem a chave. A Maia avisa "Recebi o áudio, transcrevendo…", mostra o que entendeu ("Entendi: …") e trata o texto como se tivesse sido digitado (mesmas permissões e aprovações).
@@ -54,7 +64,7 @@ bug, qual era o sintoma e a causa.
 - **Guarda de PR (`pnpm db:guard`):** migração existente alterada/apagada, comando destrutivo sem `-- destrutivo-aprovado:` e migração sem CHANGELOG falham.
 - **Drift (`pnpm db:drift`):** compara o Supabase real com as migrações, somente leitura (consulta recusa qualquer escrita), sem imprimir segredos; gera `db-drift-report.md`. Nunca altera a produção.
 - **CI (`.github/workflows`):** `ci.yml` (typecheck, db:validate, db:guard, testes) em todo PR; `db-drift.yml` diário; `db-apply.yml` manual, em ambiente protegido, com simulação antes de aplicar. PR com checklist de banco.
-- **Testes de banco:** `tests/db.migrations.test.ts` (23 testes): reconstrução do zero, RPCs (fila `inbox`, lotes, cota de imagens, agendamentos, memória das conversas, busca de conhecimento), RLS (anon/authenticated sem acesso), constraints (inclui regressão do `people_role_check`) e drift.
+- **Testes de banco:** `tests/db/migrations.nodetest.ts` (executor nativo do Node: `pnpm test:db`) (23 testes): reconstrução do zero, RPCs (fila `inbox`, lotes, cota de imagens, agendamentos, memória das conversas, busca de conhecimento), RLS (anon/authenticated sem acesso), constraints (inclui regressão do `people_role_check`) e drift.
 - **Edge Function `embed`** versionada em `supabase/functions/embed/index.ts` (só existia no Supabase). `supabase/config.toml` mínimo para o CLI.
 - **Regra permanente** em `CLAUDE.md` e `docs/database-migrations.md`. Comandos novos: `db:new`, `db:validate`, `db:guard`, `db:drift`.
 - **Pendente (precisa do owner):** segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` no GitHub, ambiente `production` com revisor, proteção da `main` exigindo o check "CI / validate". Corrigir o nome `SUPABASE_ACCESS_TOKKEN` no `.env`.

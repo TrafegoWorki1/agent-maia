@@ -487,3 +487,8 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 ## Transcrição de áudio (09/10/2026)
 - Áudios do dono são transcritos pelo Whisper do owner (EasyPanel). Latência medida de 27 a 64 s; o servidor reinicia após chamadas pesadas. Código em `server/transcribe.ts`. Pendente: teste com áudio real e mídia (imagem, vídeo, documento).
+
+## Mídia do WhatsApp (09/10/2026)
+- Imagem, vídeo e documento do dono agora são entendidos pela Maia (`server/media.ts`). Exige a migração `20261009224229_maia_inbox_kind_media` (amplia `inbox.kind`), ainda não aplicada em produção. Leitura de arquivos pelo agente passou a ser limitada por papel (antes Read/Grep eram livres).
+
+- Corrigido: o drift comparava o texto das funções com fim de linha CRLF (checkout no Windows) e acusava divergência falsa. Agora o hash ignora CR e há `.gitattributes` forçando LF nas migrações. Regra do banco `midia` (31) criada.

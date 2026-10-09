@@ -79,3 +79,32 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   }
   return who.permissions.has("escrita.pedir") ? { decision: "allow", reason: "tem escrita.pedir" } : { decision: "approve", reason: "sem a permissão escrita.pedir" };
 }
+
+// Ferramentas internas do agente (as que não vêm de conectores nem de mcp__maia__). Leitura de arquivo do computador é
+// limitada: visitante e membro só leem a pasta de mídia temporária; o dono lê o projeto, menos segredos.
+const SAFE_BUILTIN = new Set(["ToolSearch", "TodoWrite"]);
+const FILE_BUILTIN = new Set(["Read", "Grep", "Glob"]);
+const SECRET_PATH = /(^|[\\/])(\.env[^\\/]*|\.git|node_modules|\.claude[^\\/]*|\.ssh|\.aws|\.config)([\\/]|$)/i;
+
+export interface BuiltinRoots {
+  projectRoot: string;
+  mediaDir: string;
+}
+
+function inside(path: string, root: string): boolean {
+  const norm = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  return norm(path) === norm(root) || norm(path).startsWith(`${norm(root)}/`);
+}
+
+export function decideBuiltin(toolName: string, input: Record<string, unknown>, who: Requester, roots: BuiltinRoots, resolvePath: (p: string) => string): { decision: "allow" | "deny"; reason: string } {
+  if (SAFE_BUILTIN.has(toolName)) return { decision: "allow", reason: "ferramenta interna segura" };
+  if (FILE_BUILTIN.has(toolName)) {
+    const raw = typeof input.file_path === "string" ? input.file_path : typeof input.path === "string" ? input.path : "";
+    const target = raw ? resolvePath(raw) : roots.projectRoot;
+    if (SECRET_PATH.test(target)) return { decision: "deny", reason: "arquivo de segredos ou configuração" };
+    if (who.role === "owner") return inside(target, roots.projectRoot) ? { decision: "allow", reason: "dono lê o projeto" } : { decision: "deny", reason: "fora do projeto" };
+    if (toolName === "Read" && inside(target, roots.mediaDir)) return { decision: "allow", reason: "mídia enviada" };
+    return { decision: "deny", reason: "só o dono lê arquivos do projeto" };
+  }
+  return who.role === "owner" ? { decision: "allow", reason: "ferramenta interna do dono" } : { decision: "deny", reason: "ferramenta interna só para o dono" };
+}
