@@ -307,6 +307,25 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (webhook na Vercel e launcher com worker)
+
+### Mudanças
+- Webhook da Evolution apontando para a Vercel (/api/webhook), com o token.
+- Worker assume os avisos automáticos (resumo diário, alertas de conexão e aprovação parada).
+- Novo launcher scripts/start-worker.ts; Iniciar Maia.bat agora chama esse launcher.
+- Sem túnel e sem registro automático do webhook.
+
+### Erro observado
+- Mensagem das 00:13 se perdeu: o webhook ainda apontava para o túnel do PC, cujo endereço tinha mudado. Causa: o launcher antigo registrava o túnel a cada início. Com a fila na Vercel, mensagem não se perde mais quando o PC está desligado.
+
+### Verificado
+- Teste ponta a ponta pela Vercel: fila, lote, resposta da Maia no WhatsApp.
+- Registro na Evolution conferido (aponta para a Vercel, com token).
+
+### Pendências
+1. Fechar a janela antiga da Maia e abrir o Iniciar Maia.bat.
+2. Mandar uma mensagem real do seu WhatsApp e confirmar a resposta.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

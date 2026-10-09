@@ -40,6 +40,13 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (webhook da Evolution trocado para a Vercel)
+- Instância `wt_yrxexuou6jwp` agora envia os eventos para https://agent-maia.vercel.app/api/webhook (com o token). Mensagens entram na fila do Supabase e o worker responde.
+- Teste ponta a ponta: mensagem do dono pela Vercel entrou na fila, o lote foi despachado e a Maia respondeu no WhatsApp.
+- Novo launcher scripts/start-worker.ts (Iniciar Maia.bat): sobe o worker e o painel local; não sobe túnel nem registra webhook.
+- Os avisos automáticos (resumo diário e alertas) passaram para o worker.
+- Pendente: fechar a janela antiga do launcher e abrir o Iniciar Maia.bat novo.
+
 ### Alterado (aprovadores vêm da página Pessoas)
 - approverNumbers e isApprover (server/approvals.ts): quem tem escrita.aprovar, ativo e com número. Pedidos de aprovação vão a eles e a resposta deles decide.
 - Reserva: dono e aprovador do .env se o banco não responder.

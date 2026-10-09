@@ -5,6 +5,7 @@ import { handleApproverText } from "./groups.ts";
 import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
+import { runProactive } from "./proactive.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -108,6 +109,10 @@ async function main(): Promise<void> {
   if (batchesRecovered > 0) console.warn(`[worker] ${batchesRecovered} lote(s) interrompido(s) marcado(s) como incerto(s)`);
   void runBatchDispatcher(db, (text) => routeOwnerText(text));
   startKnowledgeSync(db);
+  // Avisos automáticos (resumo diário, conexões, aprovações paradas). Antes ficavam só no webhook local.
+  const proactive = () => runProactive(db, notifyOwner).catch((error) => console.error("[proativo]", error instanceof Error ? error.message : error));
+  setTimeout(proactive, 30_000);
+  setInterval(proactive, 5 * 60 * 1000);
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);
