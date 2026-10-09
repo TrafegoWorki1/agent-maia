@@ -18,6 +18,8 @@ export interface InboxRow {
 // Grupos da Maia (tabela maia_groups): só neles, e só quando a mensagem chama a Maia, o texto entra na fila (apagado em 24 h).
 const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
 
+const REGISTER_GROUP = /(cadastr|atend|registr)\w*\s+(este|esse|neste|nesse|o)?\s*grupo|passa\s+a\s+atender/i;
+
 export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlySet<string>): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
@@ -40,6 +42,17 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
         const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
         return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text }) };
+      }
+    }
+    // Grupo novo: só o dono, chamando a Maia para atender ali ("Maia, cadastra/atende este grupo"), cadastra o grupo.
+    if (!groups?.has(remoteJid) && key.fromMe !== true) {
+      const message = ((data.message ?? {}) as Record<string, unknown>);
+      const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
+      const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
+      const text = typeof raw === "string" ? raw.trim() : "";
+      const who = [key.participant, key.participantAlt].filter((v): v is string => typeof v === "string").map((v) => v.split("@")[0]);
+      if (text && CALLS_MAIA.test(text) && REGISTER_GROUP.test(text) && who.some((n) => samePhone(n, owner))) {
+        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, register: true, text }) };
       }
     }
     return { kind: "event", sender: "group", key_id: keyId, payload: remoteJid };
