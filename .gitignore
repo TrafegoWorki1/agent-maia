@@ -14,3 +14,4 @@ coverage/
 
 # Registros do launcher (saída do webhook, painel e túnel)
 logs/
+db-drift-report.md
