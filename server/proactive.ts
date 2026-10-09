@@ -1,4 +1,4 @@
-import { kvGet, kvSet, pendingApprovals, readSnapshots, tasksBetween, type Db, type StoredSnapshot } from "./store.ts";
+import { addTaskEvent, createTask, failTask, kvGet, kvSet, pendingApprovals, readSnapshots, setTaskStatus, tasksBetween, type Db, type StoredSnapshot } from "./store.ts";
 
 // Avisos proativos da Maia para o dono. Tudo é gerado localmente, a partir do banco e das
 // fontes em cache: não consome o plano do Claude. Cada aviso é enviado uma vez por ocorrência.
@@ -70,10 +70,29 @@ export interface ProactiveSender {
   (text: string): Promise<void>;
 }
 
+// Cada aviso automático vira um registro mensurável: um evento "handoff" quando a Maia avisa por conta própria e
+// "handoff_confirmed" quando a entrega é confirmada. O indicador Proatividade do painel é confirmados sobre enviados.
+// A tarefa é do tipo conversa, para não entrar na amostra de tarefas operacionais.
+export async function deliverProactive(db: Db, kind: string, send: ProactiveSender, text: string): Promise<void> {
+  const taskId = await createTask(db, { channel: "whatsapp", summary: `aviso proativo: ${kind}` });
+  await addTaskEvent(db, taskId, "handoff", kind, null);
+  try {
+    await send(text);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await addTaskEvent(db, taskId, "handoff_failed", kind, message).catch(() => {});
+    await failTask(db, taskId, message).catch(() => {});
+    throw error;
+  }
+  await addTaskEvent(db, taskId, "handoff_confirmed", kind, null);
+  await setTaskStatus(db, taskId, "concluida");
+}
+
 export async function runProactive(db: Db, send: ProactiveSender, now = new Date()): Promise<void> {
+  const notify = (kind: string, text: string) => deliverProactive(db, kind, send, text);
   // Resumo diário: uma vez por dia, a partir da hora configurada.
   if (brtHour(now) >= SUMMARY_HOUR_BRT && (await kvGet(db, "summary:last_day")) !== brtDay(now)) {
-    await send(await buildDailySummary(db, now));
+    await notify("resumo_diario", await buildDailySummary(db, now));
     await kvSet(db, "summary:last_day", brtDay(now), now);
   }
 
@@ -86,7 +105,7 @@ export async function runProactive(db: Db, send: ProactiveSender, now = new Date
     const message = change.to === "error"
       ? `Alerta: a conexão ${change.source} está com erro. Veja em Conexões e dados.`
       : `A conexão ${change.source} voltou a funcionar.`;
-    await send(message);
+    await notify("conexao", message);
     await kvSet(db, `source:${change.source}`, change.to, now);
   }
 
@@ -95,7 +114,7 @@ export async function runProactive(db: Db, send: ProactiveSender, now = new Date
     const ageMin = (now.getTime() - Date.parse(approval.requested_at)) / 60000;
     const key = `approval:${approval.requested_at}`;
     if (ageMin >= APPROVAL_ALERT_MIN && (await kvGet(db, key)) === null) {
-      await send(`Aprovação pendente há ${Math.round(ageMin)} min: ${approval.tool_name}. Responda SIM ou NÃO ao aprovador.`);
+      await notify("aprovacao_parada", `Aprovação pendente há ${Math.round(ageMin)} min: ${approval.tool_name}. Responda SIM ou NÃO ao aprovador.`);
       await kvSet(db, key, "sent", now);
     }
   }
@@ -106,7 +125,7 @@ export async function runProactive(db: Db, send: ProactiveSender, now = new Date
   if (threshold > 0 && meta?.status === "ok" && Array.isArray((meta.data as { accounts?: unknown[] })?.accounts)) {
     const total = (meta.data as { accounts: { spend_7d: number }[] }).accounts.reduce((sum, a) => sum + a.spend_7d, 0);
     if (total > threshold && (await kvGet(db, "meta:spend_alert_day")) !== brtDay(now)) {
-      await send(`Alerta: gasto do Meta Ads nos últimos 7 dias chegou a ${total.toFixed(2)}, acima do limite de ${threshold}.`);
+      await notify("gasto_meta", `Alerta: gasto do Meta Ads nos últimos 7 dias chegou a ${total.toFixed(2)}, acima do limite de ${threshold}.`);
       await kvSet(db, "meta:spend_alert_day", brtDay(now), now);
     }
   }

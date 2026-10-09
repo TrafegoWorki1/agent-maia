@@ -418,6 +418,26 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 1. Reiniciar a Maia no PC.
 2. Decidir se a Maia pode ler a caixa de entrada do Instagram (conversas de terceiros).
 
+## Atualização (proatividade)
+
+### O que faltava
+- Não havia instrução de proatividade para a Maia.
+- O indicador Proatividade existia (15% da nota), mas sem dados: nenhum aviso gravava os eventos handoff e handoff_confirmed.
+
+### Correção
+- Regra proatividade no banco.
+- Todo aviso automático agora é registrado e medido (enviado e entrega confirmada). Falha de entrega entra em Ocorrências.
+
+### Verificado de verdade
+- Antes: sem nota. Com 1 aviso entregue e 1 falho: 5 de 10. Depois da limpeza: sem nota de novo. 108 testes.
+
+### Achado
+- Precisão e conferência está em 0: há ações externas concluídas e nenhuma conferência registrada (task_verified). Falta decidir o que conta como conferência.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+2. Decidir o que conta como conferência para o indicador Precisão e conferência.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

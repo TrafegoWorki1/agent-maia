@@ -40,6 +40,14 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (proatividade: instrução e indicador)
+- **Regra no banco:** `proatividade` (26). A Maia avisa o Herickson, sem pedido, de conexão com erro, aprovação parada, gasto fora do esperado e riscos ou oportunidades que perceber, e sugere o próximo passo. Proatividade é avisar e propor: nunca age sem aprovação nem contata terceiros por conta própria.
+- **Indicador Proatividade (15% da nota):** já existia no painel, mas nunca tinha dados, porque nenhum aviso gravava os eventos que ele conta. Agora todo aviso automático (resumo diário, alerta de conexão, aprovação parada, gasto do Meta Ads) vira uma tarefa de conversa com os eventos `handoff` (enviado) e `handoff_confirmed` (entrega confirmada). Falha de entrega grava `handoff_failed` e aparece em Ocorrências.
+- **Cálculo:** avisos confirmados sobre avisos enviados, na semana. Sem aviso enviado, continua sem nota.
+- **Verificado de verdade:** com um aviso entregue e outro que falhou, a nota da semana foi de sem nota para 5 de 10; os registros de teste foram apagados e a nota voltou ao estado anterior. 108 testes.
+- **Achado, não corrigido:** a dimensão Precisão e conferência está em 0, porque há ações externas concluídas (artes enviadas) e nenhuma conferência registrada (`task_verified`). O ponto já estava pendente no plano do painel. Decidir o que conta como conferência antes de ligar isso.
+- **Pendente:** reiniciar a Maia no PC para os avisos passarem a ser registrados.
+
 ### Adicionado (integração com o Instagram pela Zernio)
 - **server/integrations/zernio.ts:** cliente da API (`zernio.com/api/v1`, chave Bearer). Consulta de contas, desempenho dos posts, artes recentes e envio de imagem; publicação de um post com legenda e imagem, imediata ou agendada.
 - **Ferramentas da Maia:** `instagram_desempenho` e `artes_recentes` (leitura, sem aprovação) e `instagram_publicar` (escrita: passa pelo fluxo de aprovação por número, com a legenda e a arte no pedido).
