@@ -32,6 +32,7 @@ Leia `plan.md`, `TODO.md`, `README.md` e `docs/analise-da-referencia.md` antes d
 - Seeds fictícios vivem em `src/data/seed.ts`; persistência demonstrativa em `src/lib/persistence.ts`.
 - Prefira módulos pequenos e acessíveis. Adicione testes às regras de permissão, escalonamento, aprovação pontual e reset.
 - Não marque um resultado como real se veio de simulação.
+- Resumo para consulta: a cada implementação ou correção, atualize também `docs/erros-e-mudancas.md` (mudanças, erros com causa e correção, verificações e pendências). Esse arquivo é um resumo do CHANGELOG, não um histórico paralelo.
 - Registro de mudanças: a cada alteração no código, atualize `CHANGELOG.md` (entrada com data no topo: o que mudou, bugs com sintoma e causa, pendências). Não crie outro arquivo de histórico.
 - Launcher: `Iniciar Maia.bat` ou `pnpm start` sobem webhook, túnel, registro na Evolution e app (`127.0.0.1:3000`).
 

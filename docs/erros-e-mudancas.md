@@ -57,6 +57,45 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Testes de banco dependiam do SQLite em memória.** 15 casos removidos, porque não há banco de teste. Restaram 41 testes de lógica pura.
 - **Conversa com a Maia no painel da Vercel** ainda não funciona (ver pendências).
 
+## Atualização (mesmo dia, depois da primeira versão)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Números | Dono: 5585992494552 (conversa com a Maia). Aprovador: 5585998372658 (SIM/NÃO). Trocados no Supabase, no `.env` local e no CLAUDE.md. |
+| Launcher | Ao iniciar, abre `https://agent-maia.vercel.app` em vez de `localhost:3000`. |
+| Painel na Vercel | `api/snapshot.ts`: monta o painel a partir do Supabase, só para o proprietário (`is_owner`). O painel envia o login da sessão. |
+| Arte | `server/imagegen.ts` e `server/maiaImageTool.ts`: a Maia cria artes com o Codex CLI, em processo separado, só para o dono. Ferramenta `mcp__maia__gerar_imagem`. Envio pelo WhatsApp com `sendOwnerImage`. |
+| Jev (TypeSafe) | `server/jev.ts`: triagem em modo sombra das mensagens do dono, nos canais WhatsApp e painel. Não altera respostas. Tabela `jev_triage` (sem texto). Bloco "Triagem Jev (modo sombra)" no Resumo. |
+| Dependências | `zod@4.6.5` declarado diretamente (versão já usada pelo Agent SDK). |
+
+### Erros e correções
+- **Vercel: `/api/snapshot` e `/api/webhook` falhavam (`config_missing`, `storage_failed`).** Causa: faltavam `SUPABASE_URL` e `EVOLUTION_APPROVER_NUMBER` na Vercel (só existia `VITE_SUPABASE_URL`). Correção: variáveis cadastradas pela API da Vercel e redeploy feito pela API. Deploy ficou READY.
+- **Aprovador não reconhecido pelo webhook da Vercel.** Causa: `EVOLUTION_APPROVER_NUMBER` ausente. Correção: cadastrada.
+- **Painel mostrava o número do dono antigo.** Causa: a página Pessoas lê o banco, não a variável da Vercel. Correção: números trocados na tabela `person_numbers`.
+- **Jev devolvia probabilidades, não sim/não.** Causa: o código esperava booleanos para manipulação. Correção: campos viraram probabilidade (0 a 1), coluna migrada, alerta a partir de 50%.
+- **Aviso `DEP0190` do Node ao gerar arte.** O Codex é um `.cmd` no Windows e precisa de shell. Os argumentos são fixos e validados. Aviso aceito, sem correção.
+- **Erro 404 com a mensagem "Confirme que a Maia está rodando".** Trocado por texto neutro nas telas sem dados.
+
+### Verificado
+- Arte real gerada com o Codex em 84 segundos (conferida visualmente).
+- Chamada real à API do Jev (categoria, confiança e probabilidades devolvidas).
+- Rota do painel na Vercel: sem login 401, token inválido 403, proprietário 200.
+- Webhook da Vercel: token aceito, gravação na fila e remoção do teste.
+- 46 testes passando.
+
+### Pendências (atualizadas)
+1. Reiniciar a Maia no PC (`Iniciar Maia.bat`) para carregar arte e Jev.
+2. Testar o envio de arte pelo WhatsApp (`/message/sendMedia`, ainda não testado).
+3. Trocar o Site URL no Supabase para `https://agent-maia.vercel.app` e desligar o cadastro público.
+4. Trocar o webhook da Evolution para a Vercel, depois do worker estar rodando e do resumo diário sair do webhook local.
+5. Conversa com a Maia pela Vercel (rota de envio com checagem de proprietário).
+6. Reconectar o Meta Ads no claude.ai.
+7. Trocar a chave da Evolution, exposta no chat.
+8. Testar a criação de grupo com um grupo de teste.
+9. Decidir sobre o texto do dono enviado à TypeSafe (hoje sim, em modo sombra).
+10. Revogar o token da Vercel guardado na Área de Trabalho, se não for mais usado.
+
 ## Pendências
 
 1. Trocar o Site URL no Supabase para `https://agent-maia.vercel.app` e desligar o cadastro público.
