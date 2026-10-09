@@ -15,7 +15,10 @@ export interface InboxRow {
   payload: string | null;
 }
 
-export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined): InboxRow | null {
+// Grupo operacional: só nele, e só quando a mensagem chama a Maia, o texto entra na fila (apagado em 24 h).
+const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
+
+export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, operationalGroup?: string): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
   const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
@@ -27,7 +30,20 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
 
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
   // O endereço do grupo (não o texto) vai no payload, para o worker contar a atividade.
-  if (remoteJid.endsWith("@g.us")) return { kind: "event", sender: "group", key_id: keyId, payload: remoteJid };
+  if (remoteJid.endsWith("@g.us")) {
+    if (operationalGroup && remoteJid === operationalGroup && key.fromMe !== true) {
+      const message = ((data.message ?? {}) as Record<string, unknown>);
+      const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
+      const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
+      const text = typeof raw === "string" ? raw.trim() : "";
+      if (text && CALLS_MAIA.test(text)) {
+        const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
+        const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text }) };
+      }
+    }
+    return { kind: "event", sender: "group", key_id: keyId, payload: remoteJid };
+  }
 
   const text = incomingText(body);
   if (text) {

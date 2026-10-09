@@ -24,3 +24,12 @@ describe("respostas de aprovação", () => {
     expect(processAlive(999999)).toBe(false);
   });
 });
+
+import { startWithName } from "../server/maiaOwnerAgent.ts";
+describe("resposta no grupo", () => {
+  it("começa com o nome de quem pediu", () => {
+    expect(startWithName("Herickson", "Registrado.")).toBe("Herickson, registrado.");
+    expect(startWithName("Herickson", "Herickson, registrado.")).toBe("Herickson, registrado.");
+    expect(startWithName("", "Ok.")).toBe("Ok.");
+  });
+});

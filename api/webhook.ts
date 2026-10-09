@@ -47,7 +47,7 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
     return send(res, 400, { error: "invalid_json" });
   }
 
-  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER);
+  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, process.env.EVOLUTION_OPERATIONAL_GROUP_JID);
   if (!row) return send(res, 400, { error: "invalid_event" });
 
   try {
