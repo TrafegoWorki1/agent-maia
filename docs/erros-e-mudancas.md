@@ -265,6 +265,20 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 1. Reiniciar a Maia no PC.
 2. Confirmar que VITE_MAIA_HOSTED não está na Vercel.
 
+## Atualização (contexto e respostas da Maia, pedido de grupo)
+
+### Erros observados
+- Na conversa de criar grupo, a Maia não entendeu "me coloca no grupo" (incluir o dono), pediu de novo o número do dono e respondeu com menu longo.
+- A Maia disse que o dono aprovaria a criação. A regra é do aprovador (EVOLUTION_APPROVER_NUMBER).
+
+### Correções
+- Regra nova: número do dono (EVOLUTION_OWNER_NUMBER) usado sem perguntar de novo quando pedirem para incluir o dono.
+- Regra nova: respostas com no máximo três linhas, sem menus, uma pergunta só.
+- Regra de criar grupo: aprovação do aprovador, sem dizer que o dono aprova.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

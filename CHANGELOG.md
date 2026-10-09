@@ -40,6 +40,10 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (contexto e respostas curtas da Maia)
+- Regras no banco: número do dono usado sem perguntar de novo; respostas com no máximo três linhas, sem menu; criar grupo com aprovação do aprovador.
+- Pendente: reiniciar a Maia no PC.
+
 ### Alterado (regras importantes que faltavam no painel)
 - Incluídas 10 regras do documento docs/regras-da-maia.md que não estavam no banco: números desconhecidos, regras da aprovação, limites de execução, agrupamento, dados guardados, segredos, triagem do Jev, limites da arte, privacidade nos grupos e acesso ao painel.
 - O banco passa a ter 22 regras ativas, mostradas na página Regras da Maia.
