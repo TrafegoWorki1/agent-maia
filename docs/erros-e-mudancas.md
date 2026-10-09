@@ -481,3 +481,6 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Erro: cadastro de membro (Max Hellen) falhou com people_role_check.** Causa: papel "membro" nao existe no CHECK (so proprietario, aprovador, equipe). Correcao: papel "equipe"; Max Hellen cadastrada no banco.
 
 - **Erro: 500 em fetchAllGroups.** Causa: `rate-overlimit` do WhatsApp (consultas demais). Correção: grupos cadastrados resolvidos pelo banco, cache de 15 min, pausa de 10 min após o limite, conferência da criação pelo id da resposta.
+
+## Migrações versionadas (09/10/2026)
+- **Problema:** 16 de 18 migrações aplicadas no Supabase não tinham arquivo no GitHub. **Correção:** baseline exata recuperada do histórico do Supabase, validação do zero em banco temporário, guarda de PR, detecção de drift (somente leitura) e CI. Regra: toda mudança de banco = migração no mesmo PR, aplicada em produção com aprovação do owner antes do merge. Ver `docs/database-migrations.md` e `docs/database-audit-2026-10-09.md`.

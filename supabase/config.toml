@@ -1,0 +1,10 @@
+# Configuração mínima para o Supabase CLI (supabase db push / migration list). O banco real é o projeto Agent Maia.
+# A fonte de verdade do esquema são os arquivos de supabase/migrations. Ver docs/database-migrations.md.
+project_id = "agent-maia"
+
+[db]
+port = 54322
+major_version = 17
+
+[functions.embed]
+verify_jwt = true

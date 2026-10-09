@@ -1,4 +1,3 @@
--- Aplicada no Supabase em 2026-10-09 (envios agendados em grupos).
 create table public.scheduled_actions (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
