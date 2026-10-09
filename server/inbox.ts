@@ -48,7 +48,7 @@ function addressedToMaia(body: Record<string, unknown>, data: Record<string, unk
   return Boolean(state.lastReplyTo && participant && digitsOf(state.lastReplyTo) === digitsOf(participant) && !Number.isNaN(last) && now.getTime() - last <= CONVERSATION_WINDOW_MS);
 }
 
-export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlyMap<string, GroupState>, now = new Date()): InboxRow | null {
+export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlyMap<string, GroupState>, now = new Date(), contacted?: ReadonlySet<string>): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
   const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
@@ -67,9 +67,11 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
       const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
       const text = typeof raw === "string" ? raw.trim() : "";
       const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
-      if (text && addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now)) {
+      if (text) {
+        // Grupo cadastrado: todo texto entra (memória de 7 dias, com autoria). Só responde quando chamada.
+        const addressed = addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now);
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
-        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text }) };
+        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text, addressed }) };
       }
     }
     // Grupo novo: só o dono, chamando a Maia para atender ali ("Maia, cadastra/atende este grupo"), cadastra o grupo.
@@ -90,6 +92,11 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
   if (text) {
     if (samePhone(text.from, owner)) return { kind: "text", sender: "owner", key_id: keyId, payload: text.text };
     if (samePhone(text.from, approver)) return { kind: "text", sender: "approver", key_id: keyId, payload: text.text };
+    // Resposta de alguém que a Maia contatou nas últimas 48 h: o texto entra para ser repassado ao dono.
+    if (contacted && [...contacted].some((n) => samePhone(n, text.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "text", sender: "other", key_id: keyId, payload: JSON.stringify({ from: text.from, name, text: text.text }) };
+    }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }
 

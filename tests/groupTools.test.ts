@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { parsePoll, pickGroup, validatePoll, validateRunAt, validateText, withMentionTags } from "../server/groupTools.ts";
-import { requiresApproval } from "../server/approvalPolicy.ts";
 
 const groups = [
   { jid: "1@g.us", subject: "Operacional Worki Digital", size: 2 },
@@ -63,10 +62,3 @@ describe("leitura de enquete", () => {
   });
 });
 
-describe("aprovação das ações novas", () => {
-  it("grupo, apagar e convite pedem aprovação; ler enquete não", () => {
-    for (const t of ["mcp__maia__grupo_enviar_texto", "mcp__maia__grupo_enviar_enquete", "mcp__maia__grupo_agendar", "mcp__claude_ai_Gmail__trash_message", "mcp__claude_ai_Google_Calendar__delete_event", "mcp__claude_ai_Google_Drive__trash_file", "mcp__claude_ai_Meta_ADS__ads_delete_custom_audience", "mcp__claude_ai_Google_Calendar__create_event", "mcp__claude_ai_Google_Calendar__update_event"]) expect(requiresApproval(t), t).toBe(true);
-    expect(requiresApproval("mcp__maia__grupo_ler_enquetes")).toBe(false);
-    expect(requiresApproval("mcp__claude_ai_Google_Calendar__list_events")).toBe(false);
-  });
-});

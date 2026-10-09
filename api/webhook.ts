@@ -45,6 +45,20 @@ async function maiaGroups(): Promise<Map<string, GroupState>> {
   return groupsCache.jids;
 }
 
+// Números que a Maia contatou nas últimas 48 h (tabela outreach). A resposta deles entra na fila com texto.
+let contactedCache: { at: number; numbers: Set<string> } | null = null;
+async function contactedNumbers(): Promise<Set<string>> {
+  if (contactedCache && Date.now() - contactedCache.at < 10_000) return contactedCache.numbers;
+  try {
+    const since = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const { data } = await supabaseFromEnv().from("outreach").select("number").gte("at", since);
+    contactedCache = { at: Date.now(), numbers: new Set((data ?? []).map((r) => String(r.number))) };
+  } catch {
+    contactedCache = { at: Date.now(), numbers: contactedCache?.numbers ?? new Set() };
+  }
+  return contactedCache.numbers;
+}
+
 export default async function handler(req: Req, res: ServerResponse): Promise<void> {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
 
@@ -62,7 +76,7 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
     return send(res, 400, { error: "invalid_json" });
   }
 
-  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, await maiaGroups());
+  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, await maiaGroups(), new Date(), await contactedNumbers());
   if (!row) return send(res, 400, { error: "invalid_event" });
 
   try {

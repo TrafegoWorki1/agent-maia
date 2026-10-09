@@ -19,7 +19,8 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 ## 3. Aprovação de escrita
 
-- **O que pede aprovação (decisão de 09/10/2026):** publicar ou postar (Instagram), enviar mensagem (e-mail, privado, texto ou enquete em grupo, agendamentos), subir ou ativar anúncios, apagar e criar/alterar convites de agenda. Lista em `server/approvalPolicy.ts`. Leituras (inclusive ler enquetes) e as demais ações (rascunhos, etiquetas, tarefas) rodam direto. Criar grupo continua com aprovação.
+- **Modelo atual (decisão de 09/10/2026, mais recente):** o owner tem autonomia no que é interno e privado (mensagem a contato, mensagem em grupo cadastrado, planilha, tarefa, e-mail, evento, apagar). Pedem OK só ações públicas ou de risco (Instagram, anúncios, compartilhar arquivo, DM de Instagram), mensagem em grupo não cadastrado e mais de 3 contatos no mesmo pedido. Membros têm permissões próprias (página Pessoas); fora delas a Maia pede o OK do owner. Código: `server/access.ts` e `server/approvalPolicy.ts`. O parágrafo seguinte é o modelo anterior, mantido como histórico.
+- **Modelo anterior (09/10/2026, superado):** publicar ou postar (Instagram), enviar mensagem (e-mail, privado, texto ou enquete em grupo, agendamentos), subir ou ativar anúncios, apagar e criar/alterar convites de agenda. Lista em `server/approvalPolicy.ts`. Leituras (inclusive ler enquetes) e as demais ações (rascunhos, etiquetas, tarefas) rodam direto. Criar grupo continua com aprovação.
 - **Grupos:** texto com menção, enquete e agendamento (aprovado ao agendar; sai sozinho no horário, uma vez). Ver `server/groupTools.ts`.
 - Cada ação de escrita vira um pedido com número, enviado ao aprovador: `OK` (ou `SIM`) para aprovar e `NÃO` para recusar. O número é opcional quando só há um pedido aberto; com mais de um, use `OK <número>`.
 - A aprovação vale só para aquela ação, uma única vez.

@@ -54,3 +54,21 @@ export async function sendOwnerImage(number: string, path: string, caption: stri
   const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
   return typeof body?.key?.id === "string" ? body.key.id : null;
 }
+
+// Envia texto e devolve o id da mensagem aceita pelo WhatsApp (conferência da entrega). Sem id, não está conferido.
+export async function sendTextChecked(number: string, text: string): Promise<string> {
+  const base = process.env.EVOLUTION_API_URL;
+  const key = process.env.EVOLUTION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
+  const response = await fetch(`${base}/message/sendText/${instance}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({ number, text }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
+  const id = typeof body?.key?.id === "string" ? body.key.id : null;
+  if (!response.ok || !id) throw new Error(`a Evolution não confirmou o envio (HTTP ${response.status})`);
+  return id;
+}

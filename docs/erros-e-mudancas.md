@@ -472,3 +472,8 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Erro: Maia não respondeu "Cria uma planilha…" no grupo (14:13).** Causa: o texto só entrava na fila com a palavra "Maia". Correção: vale também citar/mencionar a Maia e continuar a conversa da mesma pessoa em até 10 min; ela lembra as últimas falas do grupo.
 
 - **Erro: Maia disse que não lê grupos e que não tinha acesso a planilhas.** Causas: regra velha `grupos_privacidade` no banco; privado sem contexto dos grupos; ela não procurou a ferramenta (ToolSearch) e nenhuma regra dizia que o Drive cria planilhas. Correção: regras `grupos_privacidade` e `conectores_ferramentas` + contexto dos grupos no privado.
+
+## Permissões por pessoa e conversas (09/10/2026)
+- Aprovação só para ação pública/de risco; o owner tem autonomia no resto. Permissões por membro checadas no código (`server/access.ts`).
+- Memória dos grupos cadastrados (7 dias, com autoria), agenda de contatos automática, mensagem direta a contato com resposta repassada ao owner, cadastro de membro por comando.
+- **Pendente:** reiniciar a Maia; testar mensagem direta, resposta de contato e reconhecimento do owner no grupo; avisar o grupo da retenção de 7 dias.
