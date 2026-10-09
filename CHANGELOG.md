@@ -40,6 +40,10 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (revisão das regras da Maia)
+- Documento de regras: falhas de consulta vão para Ocorrências; aviso ao Herickson só para pedidos que a Maia não faz; correção de português.
+- Regra 3 do banco alinhada ao mesmo comportamento.
+
 ### Alterado (objetivo e capacidades da Maia)
 - Regra 1 do banco: objetivo e lista do que a Maia faz hoje; prospecção no WhatsApp e no Instagram constam como não disponível.
 

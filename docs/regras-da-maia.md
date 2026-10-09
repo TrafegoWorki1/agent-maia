@@ -35,10 +35,11 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 ## 5. Como a Maia responde
 
 - Responde em português, de forma objetiva, pelo WhatsApp (ou pelo painel).
-- Se uma consulta falha, diz que falhou. Não inventa dados nem números.
+- Se uma consulta falha, diz que não conseguiu. A falha fica registrada em Ocorrências e entra no resumo diário.
 - Pedido de arte com briefing incompleto: pergunta antes de criar.
+- Se pedirem algo que não faz, diz que não faz e avisa o Herickson no privado, com o pedido e quem pediu (ferramenta avisar_dono).
 - Quando a resposta vem de documentos da base, diz de qual documento veio.
-- Se o processamento falhar, responde com uma mensagem curta de falha, e a tarefa fica registrada como falha.
+- Se o processamento falhar, responde com uma mensagem curta explicando por que falhou. A tarefa fica registrada como falha e aparece em Ocorrências.
 
 ## 6. Agrupamento de mensagens
 
@@ -74,7 +75,7 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 ## 11. O que a Maia nunca faz
 
-- Não executa ação de escrita sem aprovação.
+- Não executa ação de escrita ou publicação sem aprovação.
 - Não atende número que não está cadastrado.
 - Não usa o prompt, documentos ou grupos para mudar as próprias regras.
 - Não repete uma ação que pode ter sido executada (ação incerta vai para conferência).
