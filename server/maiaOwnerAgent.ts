@@ -200,7 +200,7 @@ function recordJevShadow(db: ReturnType<typeof getDb>, taskId: number, channel: 
 }
 
 // Processa uma mensagem do dono por vez, na ordem em que chegaram.
-export async function handleOwnerMessage(text: string): Promise<void> {
+export async function handleOwnerMessage(text: string): Promise<number> {
   const owner = process.env.EVOLUTION_OWNER_NUMBER!;
   const db = getDb();
   const taskId = await createTask(db, { channel: "whatsapp", summary: text });
@@ -228,6 +228,7 @@ export async function handleOwnerMessage(text: string): Promise<void> {
       await recordMessage(db, { channel: "whatsapp", author: "maia", text: fallback }).catch(() => {});
     });
   await queue;
+  return taskId;
 }
 
 // Mensagem enviada pelo painel. Grava os dois lados no mesmo histórico do WhatsApp.

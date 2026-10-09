@@ -23,6 +23,15 @@ bug, qual era o sintoma e a causa.
 - Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
 - **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
 
+### Adicionado (agrupamento de mensagens do dono)
+- **Janela de agrupamento:** mensagens seguidas do dono viram um só pedido. O lote fica pronto após 15 s sem nova mensagem, ou no máximo 60 s desde a primeira. Configurável por `MAIA_BATCH_WINDOW_S` e `MAIA_BATCH_MAX_S`.
+- **Banco:** tabelas `message_batches` e `batch_items`, função `add_batch_item` (atômica, um lote aberto por conversa, repetição do mesmo item da inbox é ignorada) e função `due_owner_batches` (o vencimento é decidido pelo relógio do banco).
+- **Despacho:** `server/batching.ts` (`runBatchDispatcher`), reserva atômica de cada lote. Usado pelo webhook local e pelo worker.
+- **Correção do worker:** o texto do dono não é mais executado sem espera. Entra no lote e o item da inbox só vira concluído depois de gravado no lote. Um SIM do aprovador não fica preso atrás de uma execução em andamento.
+- **Verificado:** 51 testes (regras de vencimento e montagem do texto) e teste com o banco de produção: mensagens em sequência viraram um lote com o texto na ordem, a repetição foi ignorada, e tudo foi apagado.
+- **Pendente:** aprovações ainda ficam na memória do processo (ver próxima etapa). Áudio do dono continua fora do lote. RAG não foi implementada: depende do provedor de embeddings e dos documentos a indexar.
+- **Pendente:** reiniciar a Maia no PC para usar o agrupamento.
+
 ### Adicionado (Jev em modo sombra, na Maia)
 - **`server/jev.ts`**: triagem de cada mensagem do dono com a API da TypeSafe (`/v1/systemone`, modelo `jev-latest`). Devolve categoria, confiança, probabilidade de manipulação e de urgência. Limite de 2 s; falha só é registrada.
 - **Canais:** WhatsApp e painel. A triagem começa junto com a tarefa e é gravada depois da resposta. Não altera a resposta.

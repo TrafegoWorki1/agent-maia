@@ -16,22 +16,22 @@ export async function notifyOwner(text: string): Promise<void> {
   await recordMessage(getDb(), { channel: "whatsapp", author: "maia", text });
 }
 
-export async function routeOwnerText(text: string): Promise<void> {
+export async function routeOwnerText(text: string): Promise<number | null> {
   const db = getDb();
   const deps = { db, notifyOwner };
   const groupRequest = parseCreateGroup(text);
   if (groupRequest) {
     const reply = await requestCreateGroup(deps, groupRequest.name, groupRequest.participants);
     await notifyOwner(reply);
-    return;
+    return null;
   }
   const task = parseOwnerTask(text);
   if (task) {
     const taskId = await createOwnerTask(db, { title: task.title, groupName: task.groupName });
     await notifyOwner(`Tarefa #${taskId} criada: ${task.title}${task.groupName ? ` (grupo ${task.groupName})` : ""}.`);
-    return;
+    return null;
   }
-  await handleOwnerMessage(text);
+  return handleOwnerMessage(text);
 }
 
 const AUDIO_UNAVAILABLE = "Recebi seu áudio, mas ainda não consigo transcrever áudios nesta Maia. Pode mandar em texto por enquanto.";
