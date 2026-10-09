@@ -4,6 +4,7 @@ import type { AudioRef } from "./evolutionWebhook.ts";
 import { handleApproverText } from "./groups.ts";
 import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
+import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
   const batchesRecovered = await recoverBatches(db);
   if (batchesRecovered > 0) console.warn(`[worker] ${batchesRecovered} lote(s) interrompido(s) marcado(s) como incerto(s)`);
   void runBatchDispatcher(db, (text) => routeOwnerText(text));
+  startKnowledgeSync(db);
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);

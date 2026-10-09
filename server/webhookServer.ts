@@ -5,6 +5,7 @@ import { handleApproverText } from "./groups.ts";
 import { notifyOwner, routeOwnerText, handleOwnerAudio } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { runProactive } from "./proactive.ts";
+import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { getDb, markMessageSeen, recordEvent as persistEvent, recordGroupActivity, recordMessage, recoverStaleTasks, type Sender } from "./store.ts";
 
 // Servidor separado do `pnpm dev`: expõe somente /webhook, para ser o único endereço
@@ -113,6 +114,7 @@ server.listen(PORT, "127.0.0.1", () => {
   const db = getDb();
   void recoverBatches(db).catch((error) => console.error("[lotes] recuperação:", error instanceof Error ? error.message : error));
   void runBatchDispatcher(db, (text) => routeOwnerText(text));
+  startKnowledgeSync(db);
   // Tarefas do WhatsApp que estavam em andamento antes deste processo: viram "incerta", sem reexecutar.
   void recoverStaleTasks(db, "whatsapp").then((interrupted) => {
     if (interrupted > 0) console.warn(`[webhook] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);

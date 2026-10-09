@@ -110,6 +110,19 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 3. Decidir se o modelo gte-small basta ou se vale um modelo multilíngue externo.
 4. Indexar mais documentos quando você aprovar.
 
+## Atualização (atualização automática da base)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Base de conhecimento | Sincronização automática ao iniciar e a cada hora, só nos documentos que mudaram. |
+
+### Verificado
+- Duas sincronizações seguidas: a primeira atualizou dois documentos, a segunda não mudou nada. 57 testes.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Atualização (aprovações persistidas)
 
 ### Mudanças
