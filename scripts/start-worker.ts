@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadLocalEnv } from "../server/loadEnv.ts";
 
 // Launcher da Maia pelo caminho novo: as mensagens chegam à Vercel e entram na fila do Supabase.
-// Este launcher sobe o worker (que processa a fila) e o painel local. Não sobe túnel e não registra
+// Este launcher sobe só o worker (que processa a fila); o painel é o da Vercel. A porta 3000 fica livre para outros projetos. Não sobe túnel e não registra
 // webhook: a Evolution aponta para a Vercel.
 loadLocalEnv();
 const env = process.env;
@@ -17,7 +17,6 @@ if (missing.length) {
 }
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
-const APP_PORT = 3000;
 const PUBLIC_URL = "https://agent-maia.vercel.app";
 const children: ChildProcess[] = [];
 let stopping = false;
@@ -86,30 +85,8 @@ function startWorker(): void {
   });
 }
 
-// O painel local reinicia sozinho se cair (até 5 vezes seguidas).
-let appRestarts = 0;
-function startApp(): void {
-  const app = spawn(process.execPath, [here("../node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {
-    cwd: here(".."),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  children.push(app);
-  capture(app, "painel");
-  app.on("exit", (code, signal) => {
-    if (stopping) return;
-    log("launcher", `painel saiu (código ${code}, sinal ${signal ?? "nenhum"})`);
-    if (appRestarts >= 5) {
-      log("launcher", "painel caiu 5 vezes seguidas e não será reiniciado. O worker segue ativo.");
-      return;
-    }
-    appRestarts += 1;
-    setTimeout(startApp, 3_000);
-  });
-}
-
 log("launcher", `iniciando (pid ${process.pid}, Node ${process.version})`);
 startWorker();
-startApp();
-log("launcher", `Maia ativa: mensagens chegam pela Vercel (${PUBLIC_URL}). Painel local: http://localhost:${APP_PORT}`);
+log("launcher", `Maia ativa: mensagens chegam pela Vercel (${PUBLIC_URL}). O painel local (porta 3000) não sobe mais por aqui; use pnpm dev se precisar.`);
 log("launcher", "Feche esta janela (ou Ctrl+C) para desligar.");
 spawn("cmd", ["/c", "start", "", PUBLIC_URL], { stdio: "ignore" });
