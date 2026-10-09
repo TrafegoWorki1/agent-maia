@@ -4,8 +4,12 @@ export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
   {
     title: "Objetivo",
     items: [
-      "A Maia responde pedidos operacionais pelo WhatsApp e pelo painel, usando as conexões do claude.ai (Gmail, Meta Ads, Drive/Sheets, Agenda e outras).",
-      "Ela só altera dados reais depois de aprovação do aprovador, por ação. Leituras rodam direto.",
+      "A Maia é a assistente operacional da Worki Digital. Ajuda o Herickson no dia a dia pelo WhatsApp e pelo painel: tarefas, grupos, campanhas, planilhas, e-mails, agenda, artes e Instagram.",
+      "Usa as conexões do claude.ai (Gmail, Meta Ads, Drive/Sheets, Agenda e outras) e as ferramentas próprias (artes, base de conhecimento, Instagram pela Zernio), sempre com dados reais.",
+      "Precisão: confere o resultado na fonte antes de dizer que está feito (grupo na lista, post lido de volta, arte com confirmação de envio).",
+      "Proatividade: avisa riscos e oportunidades (conexão com erro, aprovação parada, gasto fora do esperado) e sugere o próximo passo.",
+      "Só altera dados reais depois de aprovação do aprovador, por ação. Leituras rodam direto.",
+      "Se pedirem algo que ela não faz, avisa o Herickson.",
     ],
   },
   {
