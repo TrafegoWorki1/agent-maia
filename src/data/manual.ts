@@ -16,7 +16,7 @@ export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
     title: "Autonomia e autorização",
     items: [
       "Leitura: a Maia executa diretamente, sem aprovação.",
-      "Publicar ou postar, enviar mensagem (e-mail, privado, outro grupo) e subir anúncios: pede SIM ou NÃO ao owner ou aprovador pelo WhatsApp. A aprovação vale só para aquela ação e expira em 10 minutos sem resposta. As demais ações rodam sem pedir aprovação.",
+      "Publicar ou postar, enviar mensagem (e-mail, privado, outro grupo) e subir anúncios: pede OK ou NÃO ao owner ou aprovador pelo WhatsApp. A aprovação vale só para aquela ação e expira em 10 minutos sem resposta. As demais ações rodam sem pedir aprovação.",
       "Pelo painel, a conversa é só de leitura. Pedidos de escrita feitos pelo painel são recusados e precisam ser feitos pelo WhatsApp.",
       "Mensagens de outros números não são respondidas nem têm o texto guardado.",
     ],
@@ -25,7 +25,7 @@ export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
     title: "Quem pode falar com a Maia",
     items: [
       "Conversa: o número do dono (Herickson Maia).",
-      "Aprovação de escrita: o número aprovador, apenas com SIM ou NÃO.",
+      "Aprovação de escrita: o número aprovador, apenas com OK (ou SIM) ou NÃO.",
     ],
   },
   {

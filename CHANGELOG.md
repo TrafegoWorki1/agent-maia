@@ -40,6 +40,9 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (aprovar com OK)
+- O aprovador agora responde **OK** (ou SIM) para aprovar e NÃO para recusar; os pedidos passam a dizer "Responda OK ... ou NÃO". Número só é necessário com mais de um pedido aberto. "OK" só vale com um pedido aberto e a mensagem inteira sendo "ok" (frases como "ok, muda a legenda" não aprovam).
+
 ### Alterado (política de aprovação reduzida)
 - **Decisão do owner:** aprovação só para publicar/postar, enviar mensagem (e-mail, privado, outro grupo) e subir anúncios. Antes, qualquer ferramenta fora das leituras pedia SIM/NÃO.
 - Novo `server/approvalPolicy.ts` (`requiresApproval`), usado na permissão do WhatsApp e na detecção de escrita sem aprovação do indicador de risco (que também deixa de acusar ferramentas locais seguras). Regras `aprovacao`, `aprovacao_regras` e `proatividade` do banco reescritas. Pelo painel, escrita continua recusada.

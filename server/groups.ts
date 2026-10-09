@@ -135,7 +135,7 @@ export async function requestCreateGroup(deps: GroupDeps, name: string, particip
   await addTaskEvent(deps.db, taskId, "approval_requested", "whatsapp.create_group", null);
 
   const request = `Pedido para criar o grupo "${name}" com ${participants.length} participante(s) (#${approval.id}).
-Responda SIM ${approval.id} para criar ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusado.`;
+Responda OK para criar ou NÃO para recusar. Sem resposta em 10 minutos, é recusado.`;
   await recordMessage(deps.db, { channel: "whatsapp", author: "maia", text: request });
   for (const to of await approverNumbers(deps.db)) await sendOwnerText(to, request);
 
