@@ -58,6 +58,25 @@ export function parseCreateGroup(text: string): { name: string; participants: st
   return { name: match[1].trim().slice(0, 100), participants };
 }
 
+// Pedido natural de criar grupo: "criar grupo Nome e me coloca no grupo" (ou "com você").
+// Sem o dono na frase, faltam participantes: o roteador pede os números em vez de deixar o agente improvisar.
+export function parseGroupIntent(text: string, ownerNumber?: string): { name: string; participants: string[] } | null {
+  const trimmed = text.trim();
+  const explicit = parseCreateGroup(trimmed);
+  if (explicit) return explicit;
+  const match = /^criar\s+grupo\s+(.+)$/is.exec(trimmed);
+  if (!match) return null;
+  const rest = match[1].trim();
+  const wantsOwner = /(?:^|\s)(me\s+coloca|me\s+adiciona|comigo|com\s+(?:eu|voc[eê]))(?=\s|$)/i.test(rest);
+  const name = rest
+    .replace(/\s+e\s+(me\s+(coloca|adiciona)|coloca\s+eu|adiciona\s+eu)\b.*$/i, "")
+    .replace(/\s+(com\s+(eu|voc[eê])|comigo)\s*$/i, "")
+    .trim()
+    .slice(0, 100);
+  if (!name) return null;
+  return { name, participants: wantsOwner && ownerNumber ? [ownerNumber] : [] };
+}
+
 export function parseOwnerTask(text: string): { title: string; groupName: string | null } | null {
   const match = /^tarefa\s+(.+?)(?:\s+grupo\s+(.+))?$/is.exec(text.trim());
   if (!match) return null;

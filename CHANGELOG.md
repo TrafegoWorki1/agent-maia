@@ -40,6 +40,12 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (pedido natural de criar grupo prometido sem aprovação)
+- Causa: pedido fora do formato ia para o agente, que não tem ferramenta de grupo e confirmou sem criar aprovação.
+- Correção: parseGroupIntent no roteador; com "me coloca" ou "com você", o dono entra como participante e a aprovação é criada de verdade.
+- Testes: 62 passando.
+- Pendente: reiniciar a Maia.
+
 ### Alterado (webhook da Evolution trocado para a Vercel)
 - Instância `wt_yrxexuou6jwp` agora envia os eventos para https://agent-maia.vercel.app/api/webhook (com o token). Mensagens entram na fila do Supabase e o worker responde.
 - Teste ponta a ponta: mensagem do dono pela Vercel entrou na fila, o lote foi despachado e a Maia respondeu no WhatsApp.

@@ -326,6 +326,29 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 1. Fechar a janela antiga da Maia e abrir o Iniciar Maia.bat.
 2. Mandar uma mensagem real do seu WhatsApp e confirmar a resposta.
 
+## Atualização (pedido de grupo prometido e não criado)
+
+### O que aconteceu
+- Pedido "criar grupo Operacional Worki Digital e me coloca no grupo" recebeu uma confirmação de aprovação (SIM ou NÃO), mas nenhuma aprovação foi criada no banco. Nenhum grupo foi criado.
+- "Colocar a Gessica" pediu o grupo de novo, sem dizer que a Maia não adiciona pessoas a grupos existentes.
+
+### Causa
+- Frase fora do formato criar grupo Nome | números não era reconhecida pelo roteador e ia para o agente.
+- O agente não tem ferramenta para criar grupo. Ele escreveu uma confirmação que parecia ação, mas não existia o pedido de aprovação.
+- Regex de intenção perdia a fronteira depois de "você" (letra acentuada), e uma barra invertida se perdeu numa edição; ambos corrigidos e testados.
+
+### Correção
+- Pedido natural de criar grupo é tratado no roteador (parseGroupIntent), sem o agente. Com "me coloca" ou "com você", o dono entra como participante e o pedido vira aprovação real (requestCreateGroup).
+- Sem participantes, a Maia pede os números com um exemplo.
+- "Colocar" pessoa em grupo existente: resposta fixa explicando que não é possível ainda.
+
+### Verificado
+- Testes de intenção (5 casos) e suíte completa: 62 passando.
+
+### Pendências
+1. Reiniciar a Maia (Iniciar Maia.bat).
+2. Gessica (5585986139044) não está cadastrada em Pessoas; para adicionar a grupos, falta o recurso de incluir participante em grupo existente.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
