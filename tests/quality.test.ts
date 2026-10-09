@@ -65,6 +65,12 @@ describe("nota da semana", () => {
     expect(card.overall).toBeNull();
   });
 
+  it("precisão = ações externas conferidas sobre ações externas feitas", () => {
+    const tasks = [1, 2, 3, 4, 5].map((i) => task(i));
+    const card = buildScorecard(input(tasks, [ev(1, "external_done", "x"), ev(1, "external_done", "y"), ev(1, "task_verified", "x")]), WEEK);
+    expect(card.dimensions.precisaoConferencia).toBe(5);
+  });
+
   it("velocidade conta respostas em até 120 s", () => {
     const fast = task(1);
     const slow = task(2, { replied_at: new Date(base + 2 * 1000 + 200_000).toISOString() });

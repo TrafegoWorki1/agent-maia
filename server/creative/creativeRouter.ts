@@ -84,8 +84,10 @@ export async function handleDirectImage(deps: CreativeDeps, text: string): Promi
   await recordProviderEvent(db, "codex", { type: "success" }, cfg.health);
   try {
     const owner = process.env.EVOLUTION_OWNER_NUMBER ?? "";
-    await sendOwnerImage(owner, result.path, `Arte ${format}`);
+    const messageId = await sendOwnerImage(owner, result.path, `Arte ${format}`);
     await addTaskEvent(db, taskId, "external_done", "enviar_arte", null);
+    // Conferência: o WhatsApp devolveu o id da mensagem. Sem id, a entrega fica sem conferência.
+    if (messageId) await addTaskEvent(db, taskId, "task_verified", "enviar_arte", `mensagem ${messageId}`);
     await markTaskReplied(db, taskId);
     await setTaskStatus(db, taskId, "concluida");
     await finishRun(db, runId, "ok", null, null);

@@ -180,6 +180,16 @@ export function buildInstagramPost(input: InstagramPostInput, now = new Date()):
   return { ok: true, body };
 }
 
+// Lê o post na Zernio depois de criado. É a conferência da publicação: confirma o status real, não o do pedido.
+export async function getPostStatus(postId: string): Promise<{ status: string; url: string | null }> {
+  const { status, json } = await request("GET", `/posts/${encodeURIComponent(postId)}`);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  const post = ((json as { post?: Record<string, unknown> })?.post ?? json ?? {}) as Record<string, unknown>;
+  const platforms = (post.platforms ?? []) as Record<string, unknown>[];
+  const url = typeof platforms[0]?.platformPostUrl === "string" ? (platforms[0].platformPostUrl as string) : null;
+  return { status: String(post.status ?? ""), url };
+}
+
 export interface PublishResult {
   postId: string | null;
   status: string;

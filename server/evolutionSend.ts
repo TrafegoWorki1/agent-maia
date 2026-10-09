@@ -36,7 +36,7 @@ export async function downloadAudio(key: Record<string, unknown>, fallbackMimety
 }
 
 // Envia uma imagem ao dono pela instância da Evolution (arte gerada pela Maia).
-export async function sendOwnerImage(number: string, path: string, caption: string): Promise<void> {
+export async function sendOwnerImage(number: string, path: string, caption: string): Promise<string | null> {
   const base = process.env.EVOLUTION_API_URL;
   const key = process.env.EVOLUTION_API_KEY;
   const instance = process.env.EVOLUTION_INSTANCE;
@@ -50,4 +50,7 @@ export async function sendOwnerImage(number: string, path: string, caption: stri
     signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`Evolution sendMedia falhou: HTTP ${response.status}`);
+  // O id da mensagem confirma que o WhatsApp aceitou o envio. Sem id, a entrega não está conferida.
+  const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
+  return typeof body?.key?.id === "string" ? body.key.id : null;
 }

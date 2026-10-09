@@ -130,7 +130,7 @@ async function runClaudeOnce(
         persistSession: false,
         canUseTool: permission,
         // Ferramenta de arte (Codex, em processo separado). Só o dono chega aqui.
-        mcpServers: { maia: createImageServer(channel) },
+        mcpServers: { maia: createImageServer(channel, taskId) },
         // Só os conectores do claude.ai: sem configurações locais, sem servidores MCP do computador.
         settingSources: [],
         disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"],

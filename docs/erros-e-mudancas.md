@@ -454,3 +454,8 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 7. Áudio do dono no agrupamento e transcrição: sem provedor escolhido.
 8. Proteção contra senhas vazadas do Supabase: não disponível no plano atual (risco aceito).
 9. Quedas do launcher: observar a próxima e confirmar a causa pelos logs em `logs/`.
+
+## Precisão e conferência (09/10/2026)
+- **Problema:** indicador zerado. Havia `external_done` (feito) mas nada gravava `task_verified` (conferido), e nenhuma regra mandava conferir.
+- **Correção:** regra `precisao_conferencia` no banco; conferência real em grupo (lista da instância), Instagram (status lido na Zernio) e arte (id da mensagem do WhatsApp). Detalhes no CHANGELOG.
+- **Pendente:** reiniciar a Maia (`Iniciar Maia.bat`) para carregar o código novo.
