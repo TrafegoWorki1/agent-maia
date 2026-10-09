@@ -244,6 +244,18 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (revisão das regras da Maia)
+
+### Mudanças
+- Regra 3 (Dados) e documento de regras corrigidos: falha de consulta fica registrada em Ocorrências; a Maia avisa o Herickson só quando pedem algo que ela não faz (ferramenta avisar_dono).
+- Erro de português corrigido na regra de escrita e publicação.
+
+### Verificado
+- Ocorrências: falhas e tarefas incertas já aparecem no painel (snapshot de incidentes).
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
