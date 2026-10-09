@@ -40,6 +40,9 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Alterado (launcher não sobe mais a porta 3000)
+- **Sintoma:** ao iniciar a Maia, a porta 3000 era ocupada pelo painel local (Vite), conflitando com o Bryan, que também usa a 3000. **Causa:** `scripts/start-worker.ts` subia o painel local junto com o worker. **Correção:** o launcher sobe só o worker; o painel é o da Vercel. Para o painel local, `pnpm dev`.
+
 ### Adicionado (precisão e conferência: instrução e indicador)
 - **Problema:** o indicador Precisão e conferência (25% da nota) ficava zerado: o sistema registrava `external_done` (ação feita) mas nunca `task_verified` (ação conferida), e nenhuma regra mandava conferir.
 - **Regra no banco:** `precisao_conferencia` (27): conferir na fonte antes de dizer "feito", dizer com clareza quando não der para conferir, perguntar quando faltar dado.
