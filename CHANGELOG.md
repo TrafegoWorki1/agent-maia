@@ -35,6 +35,9 @@ bug, qual era o sintoma e a causa.
 - Achado: a instância `wt_yrxexuou6jwp` apareceu com estado `close` numa consulta e `open` em outras, com o perfil "Herickson Maia". Ou seja, a queda foi intermitente, não permanente. Confirmado `open` no fim da sessão.
 - Grupo operacional: o pedido autorizado dentro do grupo é o 5585992494552. Criar o grupo passa pela aprovação. Pendente: escopo de conectores dentro do grupo.
 
+### Alterado (objetivo e capacidades da Maia)
+- Regra 1 do banco: objetivo e lista do que a Maia faz hoje; prospecção no WhatsApp e no Instagram constam como não disponível.
+
 ### Adicionado (regras da Maia no banco e no painel)
 - Tabela maia_rules (12 regras ativas), com leitura só do proprietário (RLS).
 - O prompt de sistema é montado a partir da tabela (cache de 60 segundos). Se o banco não responder, usa a cópia de reserva.

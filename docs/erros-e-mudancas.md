@@ -227,6 +227,15 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 1. Reiniciar a Maia no PC.
 2. Edição das regras pelo painel (próxima etapa).
 
+## Atualização (objetivo e capacidades da Maia nas regras)
+
+### Mudanças
+- A regra 1 (Objetivo e capacidades) foi atualizada no banco: objetivo da operação, o que a Maia faz hoje e o que ainda não faz.
+- Prospecção no WhatsApp e no Instagram constam como não disponíveis: não há integração de Instagram e a regra do projeto não permite contato comercial automático.
+
+### Pendências
+1. Reiniciar a Maia no PC para carregar a regra.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
