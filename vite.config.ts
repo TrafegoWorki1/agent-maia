@@ -143,7 +143,5 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     clearMocks: true,
-    // O PGlite (Postgres em WebAssembly) usa muita memória ao iniciar; poucos processos em paralelo evitam queda do worker no Windows.
-    maxWorkers: 3,
   },
 });
