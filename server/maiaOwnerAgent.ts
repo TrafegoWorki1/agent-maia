@@ -55,7 +55,7 @@ function preview(input: Record<string, unknown>): string {
 
 // Permissão do WhatsApp: leitura direta; escrita espera SIM <número> ou NÃO <número> do aprovador.
 // O pedido fica no banco, com prazo: a resposta pode chegar por outro processo.
-function makeWhatsAppPermission(taskId: number): CanUseTool {
+function makeWhatsAppPermission(taskId: number, requester?: string): CanUseTool {
   return async (toolName, input) => {
     if (isReadTool(toolName) || isLocalSafeTool(toolName)) return { behavior: "allow", updatedInput: input };
     // Só publicar, enviar mensagem e subir anúncio pedem aprovação. O resto roda direto, registrado na tarefa.
@@ -69,7 +69,7 @@ function makeWhatsAppPermission(taskId: number): CanUseTool {
     const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: preview(input), taskId });
     await setTaskStatus(db, taskId, "aguardando_aprovacao");
     await addTaskEvent(db, taskId, "approval_requested", toolName, null);
-    const request = `Pedido de ação de escrita (#${approval.id}):
+    const request = `Pedido de ação de escrita (#${approval.id})${requester ? ` feito por ${requester} no grupo` : ""}:
 ${toolName}
 ${preview(input)}
 
@@ -310,6 +310,48 @@ export async function handleOwnerMessage(text: string): Promise<number> {
       const fallback = "Não consegui concluir agora. Tente de novo em instantes.";
       await sendOwnerText(owner, fallback).catch(() => {});
       await recordMessage(db, { channel: "whatsapp", author: "maia", text: fallback }).catch(() => {});
+    });
+  await queue;
+  return taskId;
+}
+
+// Pedido feito no grupo operacional. Consulta roda direto; ação que altera algo pede OK do owner no privado, com o
+// nome de quem pediu. A resposta sai no grupo e sempre começa pelo nome de quem pediu.
+export interface GroupRequest {
+  jid: string;
+  participant: string;
+  name: string;
+  text: string;
+}
+
+export function startWithName(name: string, reply: string): string {
+  const clean = reply.trim();
+  if (!name) return clean;
+  return clean.toLowerCase().startsWith(name.toLowerCase()) ? clean : `${name}, ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
+}
+
+export async function handleGroupMessage(request: GroupRequest): Promise<number> {
+  const db = getDb();
+  const requester = request.name || (request.participant ? `+${request.participant}` : "Alguém");
+  const prompt = `[Grupo operacional Worki Digital] ${requester} escreveu: "${request.text}"
+Responda no grupo, curto, começando pelo nome de quem pediu (${requester}). Consultas você faz direto. Se for ação que altera algo, a aprovação é pedida ao owner no privado, então diga que está aguardando o OK dele. Se a mensagem for um relato e não um pedido, reconheça em uma frase e pergunte o que fazer com a informação, sem inventar nada. Não revele dados pessoais de terceiros no grupo.`;
+  const taskId = await createTask(db, { channel: "whatsapp", summary: `grupo: ${request.text}`.slice(0, 200) });
+  queue = queue
+    .then(async () => {
+      await setTaskStatus(db, taskId, "em_andamento");
+      await addTaskEvent(db, taskId, "task_started", null, null);
+      const reply = startWithName(requester, await runAgent(prompt, taskId, makeWhatsAppPermission(taskId, requester), "whatsapp"));
+      await sendOwnerText(request.jid, reply);
+      await markTaskReplied(db, taskId);
+      await addTaskEvent(db, taskId, "replied", null, null);
+      await setTaskStatus(db, taskId, "concluida");
+    })
+    .catch(async (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[maia] erro no grupo:", message);
+      await failTask(db, taskId, message).catch(() => {});
+      await addTaskEvent(db, taskId, "task_failed", null, message).catch(() => {});
+      await sendOwnerText(request.jid, `${requester}, não consegui concluir agora. Tente de novo em instantes.`).catch(() => {});
     });
   await queue;
   return taskId;

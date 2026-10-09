@@ -6,6 +6,7 @@ import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts"
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
+import { handleGroupMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { runProactive } from "./proactive.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
@@ -56,6 +57,14 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     });
     const outcome = handled ? "approval_answer" : "ignored";
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "approver", outcome }, now);
+    return;
+  }
+
+  if (item.sender === "group" && item.kind === "text" && item.payload) {
+    // Grupo operacional: alguém chamou a Maia. Responde no grupo, começando pelo nome de quem pediu.
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "handled" }, now);
+    const request = JSON.parse(item.payload) as GroupRequest;
+    void handleGroupMessage(request).catch((error) => console.error("[worker] grupo:", error instanceof Error ? error.message : error));
     return;
   }
 
