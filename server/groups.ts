@@ -5,7 +5,10 @@ import { APPROVAL_TTL_MS, approverNumbers, createApproval, decideFromText, openA
 // Grupos do WhatsApp pela Evolution. Leitura com cache de 5 minutos (como no Bryan). Criar grupo é
 // ação de escrita: pede SIM ou NÃO ao aprovador antes de executar. Só o dono envia os comandos.
 
-const CACHE_MS = 5 * 60 * 1000;
+const CACHE_MS = 15 * 60 * 1000;
+// O WhatsApp limita a consulta de grupos (rate-overlimit). Ao receber o limite, para de consultar por um tempo e usa a última lista.
+const COOLDOWN_MS = 10 * 60 * 1000;
+let blockedUntil = 0;
 
 export interface LiveGroup {
   jid: string;
@@ -24,6 +27,7 @@ function evoConfig(): { url: string; instance: string; apikey: string } | null {
 
 export async function fetchLiveGroups(now = Date.now()): Promise<{ groups: LiveGroup[]; error: string | null }> {
   if (cache && now - cache.at < CACHE_MS) return { groups: cache.groups, error: null };
+  if (now < blockedUntil) return { groups: cache?.groups ?? [], error: "o WhatsApp limitou a consulta de grupos (rate-overlimit); tento de novo em alguns minutos" };
   const config = evoConfig();
   if (!config) return { groups: [], error: "Evolution não configurada no .env" };
   try {
@@ -31,7 +35,12 @@ export async function fetchLiveGroups(now = Date.now()): Promise<{ groups: LiveG
       headers: { apikey: config.apikey },
       signal: AbortSignal.timeout(8_000),
     });
-    if (!response.ok) return { groups: cache?.groups ?? [], error: `Evolution respondeu HTTP ${response.status}` };
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      const limited = /rate-overlimit/i.test(body) || response.status === 429;
+      if (limited) blockedUntil = now + COOLDOWN_MS;
+      return { groups: cache?.groups ?? [], error: limited ? "o WhatsApp limitou a consulta de grupos (rate-overlimit); tento de novo em alguns minutos" : `Evolution respondeu HTTP ${response.status}` };
+    }
     const raw = (await response.json()) as { id?: string; subject?: string; size?: number }[];
     const groups = raw
       .filter((g) => typeof g.id === "string")
@@ -83,7 +92,7 @@ export function parseOwnerTask(text: string): { title: string; groupName: string
   return { title: match[1].trim(), groupName: match[2]?.trim() || null };
 }
 
-async function executeCreateGroup(name: string, participants: string[]): Promise<{ ok: boolean; detail: string }> {
+async function executeCreateGroup(name: string, participants: string[]): Promise<{ ok: boolean; detail: string; jid?: string; subject?: string }> {
   const config = evoConfig();
   if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
   try {
@@ -95,7 +104,10 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
     });
     if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
     cache = null;
-    return { ok: true, detail: "grupo criado" };
+    // A resposta da criação traz o identificador do grupo: é a primeira evidência de que ele existe.
+    const body = (await response.json().catch(() => null)) as { id?: unknown; subject?: unknown } | null;
+    const jid = typeof body?.id === "string" && body.id.endsWith("@g.us") ? body.id : undefined;
+    return { ok: true, detail: "grupo criado", jid, subject: typeof body?.subject === "string" ? body.subject : undefined };
   } catch (error) {
     return { ok: false, detail: error instanceof Error ? error.message : "falha ao criar o grupo" };
   }
@@ -104,6 +116,11 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
 // A conferência de grupo criado: o nome aparece na lista da instância (comparação sem acento e sem maiúsculas).
 export function resetGroupCache(): void {
   cache = null;
+}
+
+// Só para teste.
+export function resetGroupCooldown(): void {
+  blockedUntil = 0;
 }
 
 export function groupExists(groups: { subject: string }[], name: string): boolean {
@@ -192,11 +209,13 @@ export async function handleApproverText(deps: GroupDeps, text: string): Promise
     await deps.notifyOwner(`Não consegui criar o grupo "${payload.name}": ${result.detail}`);
     return true;
   }
-  // Conferência: o grupo precisa aparecer na lista da instância. Só então vale como confirmado.
-  const live = await fetchLiveGroups();
-  const confirmed = !live.error && groupExists(live.groups, payload.name);
+  // Conferência: a Evolution devolveu o id do grupo com o nome pedido, ou o grupo aparece na lista da instância.
+  const answeredOk = Boolean(result.jid) && groupExists([{ subject: result.subject ?? payload.name }], payload.name);
+  const live = answeredOk ? { groups: [], error: null } : await fetchLiveGroups();
+  const inList = !answeredOk && !live.error && groupExists(live.groups, payload.name);
+  const confirmed = answeredOk || inList;
   // O grupo criado pela Maia passa a ser atendido por ela, sem configurar nada à mão.
-  const created = confirmed ? live.groups.find((g) => groupExists([g], payload.name)) : undefined;
+  const created = answeredOk ? { jid: result.jid!, subject: result.subject ?? payload.name } : inList ? live.groups.find((g) => groupExists([g], payload.name)) : undefined;
   if (created) await registerGroup(deps.db, created.jid, created.subject, "criado").catch((error) => console.error("[grupos]", error instanceof Error ? error.message : error));
   if (taskId) await addTaskEvent(deps.db, taskId, confirmed ? "task_verified" : "verification_failed", "whatsapp.create_group", confirmed ? null : live.error ?? "grupo não apareceu na lista");
   await deps.notifyOwner(confirmed ? `Grupo "${payload.name}" criado e conferido na lista da instância.` : `O pedido de criação do grupo "${payload.name}" foi aceito, mas não consegui confirmar que ele existe. Confira no WhatsApp antes de pedir de novo.`);
