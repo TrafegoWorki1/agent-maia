@@ -256,6 +256,15 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (regras que faltavam no painel)
+
+### Erros e correções
+- Regras importantes do documento não estavam no banco, então não apareciam na página Regras. Causa: a tabela tinha só 12 regras-resumo. Correção: 10 regras incluídas, com o texto do documento. Total: 22 ativas.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+2. Confirmar que VITE_MAIA_HOSTED não está na Vercel.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
