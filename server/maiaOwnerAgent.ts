@@ -1,6 +1,6 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import { sendOwnerText } from "./evolutionSend.ts";
-import { createImageServer, IMAGE_TOOL } from "./maiaImageTool.ts";
+import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import {
   addTaskEvent,
@@ -65,7 +65,7 @@ function record(promise: PromiseLike<unknown>): void {
 // Permissão do WhatsApp: leitura direta; escrita espera SIM/NÃO do aprovador. Cada evento vai para a tarefa.
 function makeWhatsAppPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || toolName === IMAGE_TOOL) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL) return { behavior: "allow", updatedInput: input };
     const db = getDb();
     if (pending) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
@@ -113,12 +113,13 @@ const systemPrompt = [
   "Nunca invente dados: se uma consulta falhar, diga que falhou.",
   "Não exponha dados pessoais de terceiros além do necessário para a resposta.",
   "Você cria artes com a ferramenta gerar_imagem (formatos feed, story ou quadrado) quando o dono pedir. Se o briefing estiver incompleto, pergunte antes de criar.",
+  "Para regras, decisões e histórico do projeto, use buscar_conhecimento e diga de qual documento veio a informação. Para números atuais, use os conectores.",
 ].join(" ");
 
 // Conversa do painel: só leitura. Escrita é feita pelo WhatsApp, onde passa pela aprovação do aprovador.
 function makePanelPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || toolName === IMAGE_TOOL) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || toolName === IMAGE_TOOL || toolName === KNOWLEDGE_TOOL) return { behavior: "allow", updatedInput: input };
     await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
     return { behavior: "deny", message: "Ações de escrita são feitas pelo WhatsApp, com aprovação do aprovador." };
   };
@@ -187,7 +188,7 @@ function startJevShadow(text: string): JevShadow {
 
 function toolCategory(name: string): string {
   if (name === IMAGE_TOOL) return "arte";
-  if (isReadTool(name)) return "consulta";
+  if (name === KNOWLEDGE_TOOL || isReadTool(name)) return "consulta";
   return "escrita";
 }
 

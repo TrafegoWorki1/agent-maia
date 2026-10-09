@@ -84,7 +84,33 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Webhook da Vercel: token aceito, gravação na fila e remoção do teste.
 - 46 testes passando.
 
-### Atualização (agrupamento de mensagens)
+### Atualização (base de conhecimento com RAG)
+
+### Mudanças
+| Área | O que mudou |
+|---|---|
+| Banco | Extensão vector, tabelas knowledge_sources e knowledge_chunks, função search_knowledge (busca híbrida). RLS ligado. |
+| Função embed | Edge Function no Supabase com o modelo gte-small. Sem provedor externo. |
+| Agente | Ferramenta buscar_conhecimento (só leitura), com a fonte de cada trecho. |
+| Documentos | CLAUDE.md, docs/erros-e-mudancas.md e plan.md: 39 trechos indexados. |
+
+### Erros e correções
+- **Busca por palavra-chave exigia todas as palavras.** Causa: websearch_to_tsquery usa E entre os termos. Correção: termos combinados com OU.
+- **Parágrafo longo passava do tamanho do trecho.** Causa: o divisor não cortava parágrafos maiores que o limite. Correção: corte nos espaços, com teste.
+- **Comandos com aspas quebraram a edição por script.** Causa: escape de aspas e de quebras de linha. Correção: edição direta do arquivo.
+
+### Verificado
+- Função embed respondeu com 384 valores.
+- Indexação dos três documentos e buscas em português (4 de 4 com o documento certo entre os dois primeiros).
+- 54 testes passando. Advisor de segurança: só avisos informativos e a proteção contra senhas vazadas desligada.
+
+### Pendências
+1. Reiniciar a Maia no PC para carregar a ferramenta de busca.
+2. Ativar a proteção contra senhas vazadas no Supabase Auth (Authentication, Passwords).
+3. Decidir se o modelo gte-small basta ou se vale um modelo multilíngue externo.
+4. Indexar mais documentos quando você aprovar.
+
+## Atualização (agrupamento de mensagens)
 
 ### Mudanças
 | Área | O que mudou |
