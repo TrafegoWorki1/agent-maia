@@ -23,6 +23,12 @@ bug, qual era o sintoma e a causa.
 - Trocados: tabela `person_numbers` no Supabase (página Pessoas), `.env` local e CLAUDE.md.
 - **Pendente:** na Vercel, ajustar `EVOLUTION_OWNER_NUMBER` = 5585992494552 e `EVOLUTION_APPROVER_NUMBER` = 5585998372658, e fazer Redeploy.
 
+### Alterado (configuração de autenticação do Supabase)
+- Site URL trocado para https://agent-maia.vercel.app (links de convite e recuperação agora abrem o painel da Vercel).
+- Endereços permitidos: a Vercel e o localhost:3000 (para testes locais).
+- Cadastro público desligado. O proprietário continua entrando, e convites feitos pelo administrador continuam funcionando.
+- Feito pela API de gestão do Supabase, com o token guardado no .env. Login do proprietário confirmado depois da mudança.
+
 ### Adicionado (base de conhecimento com RAG no Supabase)
 - **Banco:** extensão vector (schema extensions), tabelas knowledge_sources e knowledge_chunks (embedding 384 dimensões, índice HNSW, índice textual em português), função search_knowledge (busca híbrida por RRF). RLS ligado, sem políticas: só a service role.
 - **Função embed** no Supabase (Edge Function, modelo gte-small, verify_jwt ligado). Não usa provedor externo nem chave nova.
