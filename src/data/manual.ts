@@ -16,7 +16,7 @@ export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
     title: "Autonomia e autorização",
     items: [
       "Leitura: a Maia executa diretamente, sem aprovação.",
-      "Escrita (enviar, editar, alterar, apagar, publicar): pede SIM ou NÃO ao aprovador pelo WhatsApp. A aprovação vale só para aquela ação e expira em 10 minutos sem resposta.",
+      "Publicar ou postar, enviar mensagem (e-mail, privado, outro grupo) e subir anúncios: pede SIM ou NÃO ao owner ou aprovador pelo WhatsApp. A aprovação vale só para aquela ação e expira em 10 minutos sem resposta. As demais ações rodam sem pedir aprovação.",
       "Pelo painel, a conversa é só de leitura. Pedidos de escrita feitos pelo painel são recusados e precisam ser feitos pelo WhatsApp.",
       "Mensagens de outros números não são respondidas nem têm o texto guardado.",
     ],

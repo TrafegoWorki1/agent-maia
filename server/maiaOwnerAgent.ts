@@ -4,6 +4,7 @@ import { createImageServer, IMAGE_TOOL, isLocalSafeTool, KNOWLEDGE_TOOL } from "
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
+import { requiresApproval } from "./approvalPolicy.ts";
 import { conversationContext } from "./context.ts";
 import { loadRoutingConfig } from "./ai/config.ts";
 import { classifyByRules } from "./ai/rulesClassifier.ts";
@@ -57,6 +58,8 @@ function preview(input: Record<string, unknown>): string {
 function makeWhatsAppPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
     if (isReadTool(toolName) || isLocalSafeTool(toolName)) return { behavior: "allow", updatedInput: input };
+    // Só publicar, enviar mensagem e subir anúncio pedem aprovação. O resto roda direto, registrado na tarefa.
+    if (!requiresApproval(toolName)) return { behavior: "allow", updatedInput: input };
     const db = getDb();
     if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
