@@ -292,6 +292,21 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC.
 
+## Atualização (aprovadores vêm do painel)
+
+### Mudança
+- Quem recebe e responde aos pedidos de aprovação é quem tem a permissão escrita.aprovar na página Pessoas (ativo e com número), e não números fixos do .env. O .env é só reserva se o banco não responder.
+- Se o dono pede uma ação, ele mesmo revisa e aprova; a Maia executa.
+
+### Verificado
+- Lista de aprovadores lida do banco: dono e aprovador. Número desconhecido não aprova. 57 testes.
+
+### Limite conhecido
+- No caminho da Vercel (fila), a triagem ainda reconhece só o aprovador do .env como remetente de aprovação; o dono é reconhecido pelo caminho de mensagens do dono.
+
+### Pendências
+1. Reiniciar a Maia no PC.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

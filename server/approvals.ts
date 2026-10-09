@@ -7,9 +7,30 @@ import type { Db } from "./store.ts";
 export const APPROVAL_TTL_MS = 10 * 60 * 1000;
 const POLL_MS = 1_500;
 
-// Quem recebe os pedidos de aprovação e pode responder: o dono e o aprovador (sem repetição).
-export function approvalRecipients(): string[] {
+// Quem aprova ações: quem tem a permissão escrita.aprovar no painel (Pessoas), ativo e com número.
+// Sem resposta do banco, usa o dono e o aprovador do .env.
+export async function approverNumbers(db: Db): Promise<string[]> {
+  const perms = await db.from("person_permissions").select("person_id").eq("permission_code", "escrita.aprovar");
+  if (perms.error || !perms.data) return envApprovers();
+  const ids = (perms.data as { person_id: string }[]).map((p) => p.person_id);
+  if (ids.length === 0) return envApprovers();
+  const people = await db.from("people").select("id").in("id", ids).eq("active", true);
+  if (people.error || !people.data) return envApprovers();
+  const activeIds = (people.data as { id: string }[]).map((p) => p.id);
+  const numbers = await db.from("person_numbers").select("number").in("person_id", activeIds);
+  if (numbers.error || !numbers.data) return envApprovers();
+  const list = [...new Set((numbers.data as { number: string }[]).map((n) => n.number))];
+  return list.length ? list : envApprovers();
+}
+
+function envApprovers(): string[] {
   return [...new Set([process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER].filter((n): n is string => Boolean(n)))];
+}
+
+export async function isApprover(db: Db, number: string | undefined): Promise<boolean> {
+  if (!number) return false;
+  const digits = number.replace(/D/g, "");
+  return (await approverNumbers(db)).some((n) => n.replace(/D/g, "") === digits);
 }
 
 export type ApprovalKind = "ferramenta" | "grupo";
