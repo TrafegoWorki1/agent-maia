@@ -1,8 +1,9 @@
 import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./loadEnv.ts";
-import type { AudioRef } from "./evolutionWebhook.ts";
+import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
+import { purgeOldMedia } from "./media.ts";
 import { handleApproverText } from "./groups.ts";
-import { handleOwnerAudio, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
+import { handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
@@ -20,7 +21,7 @@ import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMe
 
 export interface InboxItem {
   id: number;
-  kind: "text" | "audio" | "event";
+  kind: "text" | "audio" | "event" | "media";
   sender: "owner" | "approver" | "other" | "group" | "none";
   payload: string | null;
   key_id: string | null;
@@ -49,6 +50,13 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     const ref = JSON.parse(item.payload) as Omit<AudioRef, "from">;
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "audio" }, now);
     void handleOwnerAudio({ ...ref, from: owner }).catch((error) => console.error("[worker] áudio:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "owner" && item.kind === "media" && item.payload) {
+    const ref = JSON.parse(item.payload) as Omit<MediaRef, "from">;
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "media" }, now);
+    void handleOwnerMedia({ ...ref, from: owner }).catch((error) => console.error("[worker] mídia:", error instanceof Error ? error.message : error));
     return;
   }
 
@@ -181,6 +189,8 @@ async function main(): Promise<void> {
         lastPurge = Date.now();
         const purged = await db.rpc("purge_inbox_payloads");
         if (purged.error) console.error("[worker] limpeza do texto:", purged.error.message);
+        const mediaPurged = purgeOldMedia();
+        if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia com mais de 24 h apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
       }

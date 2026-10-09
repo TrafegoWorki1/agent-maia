@@ -1,0 +1,3 @@
+# Migrações e scripts de banco sempre com fim de linha LF (o Windows converteria para CRLF e mudaria o texto das funções)
+supabase/migrations/*.sql text eol=lf
+supabase/ci/*.sql text eol=lf

@@ -1,5 +1,6 @@
-import { downloadAudio, sendOwnerText } from "./evolutionSend.ts";
-import type { AudioRef } from "./evolutionWebhook.ts";
+import { downloadAudio, downloadMedia, sendOwnerText } from "./evolutionSend.ts";
+import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
+import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
 import { handleOwnerMessage } from "./maiaOwnerAgent.ts";
 import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
@@ -72,5 +73,53 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
   } catch (error) {
     console.error("[audio]", error instanceof Error ? error.message : error);
     await notifyOwner("Não consegui processar o áudio agora. Tente de novo ou mande em texto.");
+  }
+}
+
+const MEDIA_LABEL: Record<MediaKind, string> = { image: "a imagem", video: "o vídeo", document: "o documento" };
+const MEDIA_EXT: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "application/pdf": ".pdf" };
+
+// Imagem, vídeo ou documento do dono: baixa, entende (ver server/media.ts) e trata como um pedido dele, com as mesmas
+// permissões do texto. O arquivo fica em data/midia por 24 h e é apagado depois.
+export async function handleOwnerMedia(ref: MediaRef): Promise<void> {
+  const kind = ref.mediaType;
+  const limit = MAX_BYTES[kind];
+  if (ref.size !== null && ref.size > limit) {
+    await notifyOwner(`${MEDIA_LABEL[kind][0].toUpperCase()}${MEDIA_LABEL[kind].slice(1)} passa de ${Math.round(limit / 1024 / 1024)} MB. Mande um arquivo menor.`);
+    return;
+  }
+  try {
+    await notifyOwner(`Recebi ${MEDIA_LABEL[kind]}, analisando${kind === "video" ? " (vídeos podem levar até 1 ou 2 minutos)" : ""}...`);
+    const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
+    const name = ref.fileName || `${kind === "image" ? "imagem" : kind === "video" ? "video" : "documento"}${MEDIA_EXT[mimetype] ?? ""}`;
+    const path = saveMedia(data, name);
+    const base = { mediaType: kind, fileName: ref.fileName, caption: ref.caption, path } as const;
+    let prompt: string;
+    if (kind === "image") {
+      prompt = buildMediaPrompt(base);
+    } else if (kind === "document") {
+      const docType = classifyDocument(mimetype, ref.fileName);
+      if (docType === "unsupported") {
+        await notifyOwner(`Não consigo ler esse tipo de arquivo (${ref.fileName || mimetype}). Aceito PDF, Word (.docx), Excel (.xlsx), texto, CSV e JSON.`);
+        return;
+      }
+      const text = docType === "pdf" ? undefined : docType === "docx" ? docxToText(data) : docType === "xlsx" ? xlsxToText(data) : data.toString("utf8");
+      prompt = buildMediaPrompt({ ...base, docType, text });
+    } else {
+      const duration = await videoDuration(path);
+      const parts = await extractVideoParts(path, duration);
+      const transcribe = transcriberFromEnv();
+      let transcript: string | null = null;
+      let note: string | undefined;
+      if (parts.audio && transcribe) transcript = (await transcribe(parts.audio, "audio/mpeg").catch(() => "")) || null;
+      if (duration !== null && duration > MAX_VIDEO_SECONDS) note = `O vídeo tem ${Math.round(duration)} s: só vi os quadros, sem transcrever o áudio.`;
+      else if (duration !== null && duration > MAX_TRANSCRIBE_SECONDS) note = `O vídeo tem ${Math.round(duration)} s: transcrevi só os primeiros ${MAX_TRANSCRIBE_SECONDS} s do áudio.`;
+      prompt = buildMediaPrompt({ ...base, transcript, frames: parts.frames, note });
+    }
+    await recordMessage(getDb(), { channel: "whatsapp", author: "owner", text: `[${kind === "image" ? "imagem" : kind === "video" ? "vídeo" : "documento"}${ref.fileName ? ` ${ref.fileName}` : ""}] ${ref.caption}`.trim() });
+    await handleOwnerMessage(prompt);
+  } catch (error) {
+    console.error("[midia]", error instanceof Error ? error.message : error);
+    await notifyOwner(`Não consegui abrir ${MEDIA_LABEL[kind]} agora${error instanceof Error && /maior que/.test(error.message) ? `: ${error.message}` : ""}. Tente de novo ou me diga o que precisa em texto.`);
   }
 }

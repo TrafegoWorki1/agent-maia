@@ -28,7 +28,7 @@ mexe no banco sem migração não está concluída.
 | `pnpm db:validate` | Aplica **todas** as migrações do zero num Postgres temporário (PGlite), confere tabelas, funções RPC, constraints, RLS e políticas essenciais, e confere que toda tabela/função usada pelo código existe nas migrações |
 | `pnpm db:guard` | (PR) Falha se migração existente foi alterada/apagada, se há comando destrutivo sem marcação ou se faltou o CHANGELOG. Usa `BASE_REF` (padrão `origin/main`) |
 | `pnpm db:drift` | Compara o Supabase **real** com o que as migrações produzem. Somente leitura. Grava `db-drift-report.md` |
-| `pnpm test` | Inclui `tests/db.migrations.test.ts` (reconstrução do zero, RPCs, RLS, constraints, drift) |
+| `pnpm test` | Inclui `tests/db/migrations.nodetest.ts` (executor nativo do Node: `pnpm test:db`) (reconstrução do zero, RPCs, RLS, constraints, drift) |
 
 `db:drift` precisa de `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` (ou `SUPABASE_URL`) no ambiente. O token nunca é impresso.
 No `.env` local o nome gravado hoje é `SUPABASE_ACCESS_TOKKEN` (com erro de digitação); o script aceita os dois nomes. Corrija quando puder.
