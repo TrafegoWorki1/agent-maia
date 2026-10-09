@@ -40,6 +40,19 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (migrações versionadas, validação automática e detecção de drift)
+- **Problema:** das 18 migrações aplicadas no Supabase, só 2 tinham arquivo no repositório (sem versão). As outras 16 existiam só no histórico do Supabase.
+- **Baseline:** as 18 migrações foram recuperadas exatamente de `supabase_migrations.schema_migrations` e gravadas em `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com a versão e o SQL do histórico. As 2 cópias antigas (reformatadas, sem versão) foram trocadas pelas versões exatas. Nada foi aplicado, recriado ou apagado na produção.
+- **Auditoria:** esquema real x migrações = 449 objetos comparados, 0 divergências. Código x banco: as 28 tabelas e 11 funções usadas pelo código existem nas migrações. Relatório em `docs/database-audit-2026-10-09.md`.
+- **Validação (`pnpm db:validate`):** aplica todas as migrações do zero num Postgres temporário (PGlite + pgvector), confere tabelas, RPCs, constraints, RLS e políticas essenciais e barra uso de tabela/função que nenhuma migração cria.
+- **Guarda de PR (`pnpm db:guard`):** migração existente alterada/apagada, comando destrutivo sem `-- destrutivo-aprovado:` e migração sem CHANGELOG falham.
+- **Drift (`pnpm db:drift`):** compara o Supabase real com as migrações, somente leitura (consulta recusa qualquer escrita), sem imprimir segredos; gera `db-drift-report.md`. Nunca altera a produção.
+- **CI (`.github/workflows`):** `ci.yml` (typecheck, db:validate, db:guard, testes) em todo PR; `db-drift.yml` diário; `db-apply.yml` manual, em ambiente protegido, com simulação antes de aplicar. PR com checklist de banco.
+- **Testes de banco:** `tests/db.migrations.test.ts` (23 testes): reconstrução do zero, RPCs (fila `inbox`, lotes, cota de imagens, agendamentos, memória das conversas, busca de conhecimento), RLS (anon/authenticated sem acesso), constraints (inclui regressão do `people_role_check`) e drift.
+- **Edge Function `embed`** versionada em `supabase/functions/embed/index.ts` (só existia no Supabase). `supabase/config.toml` mínimo para o CLI.
+- **Regra permanente** em `CLAUDE.md` e `docs/database-migrations.md`. Comandos novos: `db:new`, `db:validate`, `db:guard`, `db:drift`.
+- **Pendente (precisa do owner):** segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` no GitHub, ambiente `production` com revisor, proteção da `main` exigindo o check "CI / validate". Corrigir o nome `SUPABASE_ACCESS_TOKKEN` no `.env`.
+
 ### Corrigido (erro 500 ao listar grupos: rate-overlimit do WhatsApp)
 - **Sintoma:** a Maia respondeu que `GET /group/fetchAllGroups` devolvia erro 500. O banco não tinha nenhuma ocorrência (a consulta falhou sem virar tarefa com erro).
 - **Causa (confirmada chamando a Evolution direto):** resposta `{"status":500,"response":{"message":"rate-overlimit"}}`. É o limite do próprio WhatsApp para consultas de grupos, não defeito da instância. Valia para `getParticipants` falso e verdadeiro. A Maia consultava a lista a cada resolução de grupo (nome para identificador), a cada checagem de permissão, no painel e na conferência de grupo criado, e repetia a chamada mesmo após o limite.
