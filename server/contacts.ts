@@ -59,7 +59,7 @@ export async function registerMember(db: Db, input: { name: string; number: stri
   if (!name) return { ok: false, error: "falta o nome" };
   const { data: existing } = await db.from("person_numbers").select("person_id").eq("number", number).maybeSingle();
   if (existing) return { ok: false, error: "esse número já está cadastrado em Pessoas" };
-  const created = await db.from("people").insert({ name, role: "membro", active: true }).select("id").single();
+  const created = await db.from("people").insert({ name, role: "equipe", active: true }).select("id").single();
   if (created.error || !created.data) return { ok: false, error: `não consegui cadastrar: ${created.error?.message ?? "sem retorno"}` };
   const id = String(created.data.id);
   const nums = await db.from("person_numbers").insert({ number, person_id: id });

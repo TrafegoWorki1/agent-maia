@@ -477,3 +477,5 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Aprovação só para ação pública/de risco; o owner tem autonomia no resto. Permissões por membro checadas no código (`server/access.ts`).
 - Memória dos grupos cadastrados (7 dias, com autoria), agenda de contatos automática, mensagem direta a contato com resposta repassada ao owner, cadastro de membro por comando.
 - **Pendente:** reiniciar a Maia; testar mensagem direta, resposta de contato e reconhecimento do owner no grupo; avisar o grupo da retenção de 7 dias.
+
+- **Erro: cadastro de membro (Max Hellen) falhou com people_role_check.** Causa: papel "membro" nao existe no CHECK (so proprietario, aprovador, equipe). Correcao: papel "equipe"; Max Hellen cadastrada no banco.
