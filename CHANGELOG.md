@@ -32,7 +32,8 @@ bug, qual era o sintoma e a causa.
 ### Decidido (envio a grupos com aprovação)
 - Regra no CLAUDE.md: envio a grupos só com `SIM <número>` do aprovador, por ação, a grupo validado pelo JID. Nada foi implementado ainda.
 - Pendente: JID do grupo Operacional Worki Digital; decisão sobre o escalonamento automático.
-- Achado: a instância da Evolution estava com estado `close` (WhatsApp desconectado) no momento da consulta. Reconectar pelo QR code.
+- Achado: a instância `wt_yrxexuou6jwp` apareceu com estado `close` numa consulta e `open` em outras, com o perfil "Herickson Maia". Ou seja, a queda foi intermitente, não permanente. Confirmado `open` no fim da sessão.
+- Grupo operacional: o pedido autorizado dentro do grupo é o 5585992494552. Criar o grupo passa pela aprovação. Pendente: escopo de conectores dentro do grupo.
 
 ### Alterado (estilo de resposta da Maia)
 - Regra no prompt: resposta breve, sem listar capacidades a menos que peçam, sem mencionar conectores indisponíveis, com sugestão de próximo passo.

@@ -187,6 +187,24 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Pendências
 1. Reiniciar a Maia no PC para carregar o prompt.
 
+## Atualização (grupo operacional e envio a grupos)
+
+### Decisões
+- Envio a grupos: só com aprovação prévia (`SIM <número>`), por ação, a grupo validado pelo JID.
+- Grupo Operacional Worki Digital: a ser criado pelo comando `criar grupo Operacional Worki Digital | 5585992494552`. O pedido autorizado dentro do grupo é só o 5585992494552, que já tem permissão. Outros participantes são ignorados e o texto deles não é guardado.
+- Pendente: o 5585992494552 pode pedir consultas de Gmail, Meta Ads, Sheets e Agenda pelo grupo?
+
+### Achados
+- A instância `wt_yrxexuou6jwp` apareceu como desconectada numa consulta e conectada em outras. A queda foi intermitente. Um registro anterior dizia que estava desconectada; foi corrigido.
+
+### Não implementado ainda
+- Leitura e resposta dentro do grupo; envio de mensagem ao grupo; escalonamento automático.
+
+### Pendências
+1. Criar o grupo com o comando e aprovar o pedido.
+2. Decidir o escopo de conectores dentro do grupo.
+3. Implementar leitura e resposta no grupo, com a regra acima.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
