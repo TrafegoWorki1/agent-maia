@@ -168,25 +168,19 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 3. Incluir o áudio do dono no lote, depois da transcrição.
 4. RAG: escolher o provedor de embeddings e os documentos iniciais. Depende de decisão sua.
 
-## Pendências (atualizadas)
-1. Reiniciar a Maia no PC (`Iniciar Maia.bat`) para carregar arte e Jev.
-2. Testar o envio de arte pelo WhatsApp (`/message/sendMedia`, ainda não testado).
-3. (Feito) Site URL trocado para a Vercel e cadastro público desligado.
-4. Trocar o webhook da Evolution para a Vercel, depois do worker estar rodando e do resumo diário sair do webhook local.
-5. Conversa com a Maia pela Vercel (rota de envio com checagem de proprietário).
-6. Reconectar o Meta Ads no claude.ai.
-7. Trocar a chave da Evolution, exposta no chat.
-8. Testar a criação de grupo com um grupo de teste.
-9. Decidir sobre o texto do dono enviado à TypeSafe (hoje sim, em modo sombra).
-10. Revogar o token da Vercel guardado na Área de Trabalho, se não for mais usado.
+## Pendências (estado atual)
 
-## Pendências
+### Feito e confirmado
+- Reinício da Maia, números da Vercel, Supabase (Site URL e cadastro público), Meta Ads reconectado, chave da Evolution trocada, token da Vercel revogado.
+- Agrupamento, triagem do Jev, criação de grupo e busca na base testados.
 
-1. Trocar o Site URL no Supabase para `https://agent-maia.vercel.app` e desligar o cadastro público.
-2. Trocar o webhook da Evolution para a Vercel. Antes: worker rodando no PC (`pnpm worker`) e resumo diário e avisos movidos para o worker.
-3. Conversa com a Maia pela Vercel (rota de envio com checagem de proprietário, e leitura da resposta pelo Supabase).
-4. Reconectar o conector do Meta Ads no claude.ai (erro CONNECTION_CLOSED).
-5. Trocar a chave da Evolution, que foi exposta no chat.
-6. Testar a criação de grupo com um grupo de teste.
-7. Escolher o provedor de transcrição de áudio (ou seguir sem).
-8. Revogar o token da Vercel guardado no arquivo da Área de Trabalho, se não for mais usado.
+### Ainda em aberto
+1. Testar a arte pelo WhatsApp (envio de imagem, ainda não testado).
+2. Reiniciar a Maia no PC para carregar a aprovação persistida e a sincronização automática da base.
+3. Trocar o webhook da Evolution para a Vercel: depende do worker estar estável e do resumo diário e avisos saírem do webhook local.
+4. Conversa com a Maia pela Vercel (rota de envio com checagem de proprietário).
+5. Decidir se o texto do dono segue sendo enviado à TypeSafe para a triagem (hoje sim, em modo sombra).
+6. Decidir se o modelo atual da base de conhecimento basta ou se vale um modelo multilíngue externo.
+7. Áudio do dono no agrupamento e transcrição: sem provedor escolhido.
+8. Proteção contra senhas vazadas do Supabase: não disponível no plano atual (risco aceito).
+9. Quedas do launcher: observar a próxima e confirmar a causa pelos logs em `logs/`.
