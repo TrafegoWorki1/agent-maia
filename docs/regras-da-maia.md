@@ -73,7 +73,7 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 - Listar grupos da instância e ver a atividade: sim.
 - Criar grupo: só com aprovação (OK ou NÃO). O grupo criado é conferido na lista da instância e cadastrado sozinho em `maia_groups`.
-- **Atender no grupo:** nos grupos cadastrados, a Maia lê e responde só quando a mensagem a chama pelo nome. A resposta sai no grupo, começa com o nome de quem pediu, e ação que altera algo pede o OK do owner no privado. Texto só entra na fila nesses casos (apagado em 24 h); em outros grupos conta só a atividade.
+- **Atender no grupo:** nos grupos cadastrados, a Maia lê e responde só quando a mensagem a chama pelo nome, a menciona ou cita uma mensagem dela, ou continua a conversa da mesma pessoa nos últimos 10 minutos. A resposta sai no grupo, começa com o nome de quem pediu, e ação que altera algo pede o OK do owner no privado. Texto só entra na fila nesses casos (apagado em 24 h); em outros grupos conta só a atividade.
 - **Cadastrar grupo novo:** o owner escreve no grupo "Maia, cadastra este grupo" (só o número do owner vale) ou usa a ferramenta `grupo_cadastrar` (com OK).
 - Com aprovação: enviar texto (com menção), enviar enquete e agendar envio (`server/groupTools.ts`). Ler enquetes: livre.
 

@@ -330,10 +330,29 @@ export function startWithName(name: string, reply: string): string {
   return clean.toLowerCase().startsWith(name.toLowerCase()) ? clean : `${name}, ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
 }
 
+// Conversa recente por grupo, só em memória (30 min, 8 falas). Serve para a Maia entender "cria a planilha" depois
+// de ter oferecido a planilha. Some quando o worker reinicia; não vai para o banco.
+const groupHistory = new Map<string, { who: string; text: string; at: number }[]>();
+const HISTORY_MS = 30 * 60 * 1000;
+
+function groupContext(jid: string, now = Date.now()): string {
+  const recent = (groupHistory.get(jid) ?? []).filter((m) => now - m.at <= HISTORY_MS).slice(-8);
+  groupHistory.set(jid, recent);
+  return recent.map((m) => `${m.who}: ${m.text}`).join("\n");
+}
+
+function remember(jid: string, who: string, text: string): void {
+  groupHistory.set(jid, [...(groupHistory.get(jid) ?? []), { who, text: text.slice(0, 600), at: Date.now() }].slice(-8));
+}
+
 export async function handleGroupMessage(request: GroupRequest): Promise<number> {
   const db = getDb();
   const requester = request.name || (request.participant ? `+${request.participant}` : "Alguém");
-  const prompt = `[Grupo operacional Worki Digital] ${requester} escreveu: "${request.text}"
+  const history = groupContext(request.jid);
+  const prompt = `${history ? `Conversa recente no grupo (para entender o pedido; não repita):
+${history}
+
+` : ""}[Grupo operacional Worki Digital] ${requester} escreveu: "${request.text}"
 Responda no grupo, curto, começando pelo nome de quem pediu (${requester}). Consultas você faz direto. Se for ação que altera algo, a aprovação é pedida ao owner no privado, então diga que está aguardando o OK dele. Se a mensagem for um relato e não um pedido, reconheça em uma frase e pergunte o que fazer com a informação, sem inventar nada. Não revele dados pessoais de terceiros no grupo.`;
   const taskId = await createTask(db, { channel: "whatsapp", summary: `grupo: ${request.text}`.slice(0, 200) });
   queue = queue
@@ -342,6 +361,10 @@ Responda no grupo, curto, começando pelo nome de quem pediu (${requester}). Con
       await addTaskEvent(db, taskId, "task_started", null, null);
       const reply = startWithName(requester, await runAgent(prompt, taskId, makeWhatsAppPermission(taskId, requester), "whatsapp"));
       await sendOwnerText(request.jid, reply);
+      remember(request.jid, requester, request.text);
+      remember(request.jid, "Maia", reply);
+      // Conversa em andamento: nos próximos 10 min, a resposta dessa pessoa não precisa chamar a Maia pelo nome.
+      await db.from("maia_groups").update({ last_reply_at: new Date().toISOString(), last_reply_to: request.participant }).eq("jid", request.jid);
       await markTaskReplied(db, taskId);
       await addTaskEvent(db, taskId, "replied", null, null);
       await setTaskStatus(db, taskId, "concluida");

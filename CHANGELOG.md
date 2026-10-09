@@ -40,6 +40,12 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (Maia não respondeu a continuação da conversa no grupo)
+- **Sintoma:** no grupo, a Maia ofereceu criar a planilha de CRM e o Herickson respondeu "Cria uma planilha e depois me envia o link aqui!" (14:13); ela não respondeu. **Causa:** o texto só entrava na fila se a mensagem trouxesse a palavra "Maia"; a resposta não trazia.
+- **Correção:** a mensagem vale como dirigida à Maia se (1) chama pelo nome, (2) menciona ou responde (cita) uma mensagem dela, ou (3) é da mesma pessoa com quem ela falou nos últimos 10 minutos (`maia_groups.last_reply_at` e `last_reply_to`, migration `maia_groups_last_reply`). Pessoas diferentes continuam precisando chamar pelo nome.
+- A Maia agora lembra as últimas falas do grupo (30 min, só em memória) para entender "cria a planilha" depois de oferecer a planilha. Cache do webhook caiu para 10 s.
+- **Pendente:** reiniciar a Maia. Até lá, o pedido do 14:13 não foi atendido: mande de novo.
+
 ### Adicionado (a Maia responde no grupo operacional)
 - **Sintoma:** mensagem "Maia, a reunião com o lead foi sensacional…" no grupo "Operacional Worki Digital" ficou sem resposta (duas vezes). **Causa:** o grupo nunca tinha sido ligado ao agente: o webhook só contava atividade do grupo, sem texto, e o worker não respondia.
 - **Correção:** só no grupo operacional (tabela `maia_groups`), e só quando a mensagem chama "Maia", o texto entra na fila (apagado em 24 h; outros grupos e outras mensagens continuam sem texto). O worker roda o agente, responde no próprio grupo começando pelo nome de quem pediu e, se for ação que altera algo, pede o OK ao owner no privado dizendo quem pediu (`handleGroupMessage`). Relato que não é pedido: a Maia reconhece e pergunta o que fazer.
