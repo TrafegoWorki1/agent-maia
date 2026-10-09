@@ -102,6 +102,10 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
 }
 
 // A conferência de grupo criado: o nome aparece na lista da instância (comparação sem acento e sem maiúsculas).
+export function resetGroupCache(): void {
+  cache = null;
+}
+
 export function groupExists(groups: { subject: string }[], name: string): boolean {
   const norm = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
   return groups.some((g) => norm(g.subject) === norm(name));

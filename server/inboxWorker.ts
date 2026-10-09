@@ -7,6 +7,8 @@ import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts"
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { handleGroupMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
+import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
+import { sendOwnerText } from "./evolutionSend.ts";
 import { runProactive } from "./proactive.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
@@ -63,7 +65,11 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "group" && item.kind === "text" && item.payload) {
     // Grupo operacional: alguém chamou a Maia. Responde no grupo, começando pelo nome de quem pediu.
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "handled" }, now);
-    const request = JSON.parse(item.payload) as GroupRequest;
+    const request = JSON.parse(item.payload) as GroupRequest & { register?: boolean };
+    if (request.register) {
+      void registerGroupFromOwner(db, request.jid).catch((error) => console.error("[worker] cadastro de grupo:", error instanceof Error ? error.message : error));
+      return;
+    }
     void handleGroupMessage(request).catch((error) => console.error("[worker] grupo:", error instanceof Error ? error.message : error));
     return;
   }
@@ -78,6 +84,15 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   // Demais eventos (conexão, mensagens de outros números, mensagens da própria conta): só o tipo.
   const kind = item.kind === "event" ? "event" : "message";
   await recordEvent(db, { event: item.kind === "event" ? "evento" : "messages.upsert", kind, sender: item.sender as Sender, outcome: "logged" }, now);
+}
+
+// O dono pediu, dentro do grupo, para a Maia atender ali. A autoridade é o número do dono.
+async function registerGroupFromOwner(db: Db, jid: string): Promise<void> {
+  resetGroupCache();
+  const live = await fetchLiveGroups();
+  const group = live.groups.find((g) => g.jid === jid);
+  await registerGroup(db, jid, group?.subject ?? jid, "cadastrado");
+  await sendOwnerText(jid, `Pronto, passo a atender neste grupo (${group?.subject ?? "grupo"}) quando me chamarem pelo nome. Só o Herickson aprova ações que alteram algo.`);
 }
 
 // Pega um lote, processa e marca cada item. Um item com erro não derruba os outros.

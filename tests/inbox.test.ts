@@ -53,6 +53,17 @@ describe("triagem do webhook para a fila", () => {
     expect(toInboxRow(msg("Maia, oi"), OWNER, APPROVER)).toMatchObject({ kind: "event", payload: OP });
   });
 
+  it("grupo novo: só o dono, chamando a Maia, cadastra o grupo", () => {
+    const NEW = "120363999@g.us";
+    const msg = (text: string, participant: string) => ({ event: "messages.upsert", instance: "wt_test", data: { key: { id: "G3", remoteJid: NEW, fromMe: false, participant: participant + "@s.whatsapp.net" }, message: { conversation: text } } });
+    const row = toInboxRow(msg("Maia, cadastra este grupo", OWNER), OWNER, APPROVER, new Set());
+    expect(row).toMatchObject({ kind: "text", sender: "group" });
+    expect(JSON.parse(row!.payload!)).toMatchObject({ jid: NEW, register: true });
+    expect(toInboxRow(msg("Maia, passa a atender aqui", OWNER), OWNER, APPROVER, new Set())).toMatchObject({ kind: "text" });
+    expect(toInboxRow(msg("Maia, cadastra este grupo", "5511999999999"), OWNER, APPROVER, new Set())).toMatchObject({ kind: "event", payload: NEW });
+    expect(toInboxRow(msg("Maia, bom dia", OWNER), OWNER, APPROVER, new Set())).toMatchObject({ kind: "event", payload: NEW });
+  });
+
   it("mensagem de grupo vira atividade, sem texto", () => {
     const group = { event: "messages.upsert", instance: "wt_test", data: { key: { id: "G1", remoteJid: "120363@g.us", fromMe: false }, message: { conversation: "oi" } } };
     expect(toInboxRow(group, OWNER, APPROVER)).toEqual({ kind: "event", sender: "group", key_id: "G1", payload: "120363@g.us" });
