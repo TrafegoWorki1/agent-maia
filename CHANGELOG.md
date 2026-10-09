@@ -42,8 +42,9 @@ bug, qual era o sintoma e a causa.
 
 ### Adicionado (a Maia responde no grupo operacional)
 - **Sintoma:** mensagem "Maia, a reunião com o lead foi sensacional…" no grupo "Operacional Worki Digital" ficou sem resposta (duas vezes). **Causa:** o grupo nunca tinha sido ligado ao agente: o webhook só contava atividade do grupo, sem texto, e o worker não respondia.
-- **Correção:** só no grupo operacional (`EVOLUTION_OPERATIONAL_GROUP_JID`), e só quando a mensagem chama "Maia", o texto entra na fila (apagado em 24 h; outros grupos e outras mensagens continuam sem texto). O worker roda o agente, responde no próprio grupo começando pelo nome de quem pediu e, se for ação que altera algo, pede o OK ao owner no privado dizendo quem pediu (`handleGroupMessage`). Relato que não é pedido: a Maia reconhece e pergunta o que fazer.
-- **Pendente:** cadastrar `EVOLUTION_OPERATIONAL_GROUP_JID=120363412181825151@g.us` nas variáveis da Vercel e redeploy (o webhook da Vercel precisa dela para guardar o texto); reiniciar a Maia.
+- **Correção:** só no grupo operacional (tabela `maia_groups`), e só quando a mensagem chama "Maia", o texto entra na fila (apagado em 24 h; outros grupos e outras mensagens continuam sem texto). O worker roda o agente, responde no próprio grupo começando pelo nome de quem pediu e, se for ação que altera algo, pede o OK ao owner no privado dizendo quem pediu (`handleGroupMessage`). Relato que não é pedido: a Maia reconhece e pergunta o que fazer.
+- **Sem configuração manual:** todo grupo que a Maia cria entra sozinho em `maia_groups` (migration `maia_groups_v1`) depois de conferido na lista da instância; o webhook da Vercel consulta a tabela (cache de 60 s). Grupo que já existia pode ser cadastrado pela ferramenta `grupo_cadastrar` (com OK do owner). O grupo Operacional Worki Digital já foi cadastrado.
+- **Pendente:** reiniciar a Maia; o deploy da Vercel sai com o push.
 
 ### Adicionado (ações em grupos, apagar e convites com aprovação)
 - **Política:** agora também pedem aprovação (OK/NÃO): apagar (qualquer ferramenta de conector com delete/trash no nome), criar/alterar/responder evento da agenda (convites) e as ações novas de grupo.

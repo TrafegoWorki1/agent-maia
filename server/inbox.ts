@@ -15,10 +15,10 @@ export interface InboxRow {
   payload: string | null;
 }
 
-// Grupo operacional: só nele, e só quando a mensagem chama a Maia, o texto entra na fila (apagado em 24 h).
+// Grupos da Maia (tabela maia_groups): só neles, e só quando a mensagem chama a Maia, o texto entra na fila (apagado em 24 h).
 const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
 
-export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, operationalGroup?: string): InboxRow | null {
+export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlySet<string>): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
   const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
@@ -31,7 +31,7 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
   // O endereço do grupo (não o texto) vai no payload, para o worker contar a atividade.
   if (remoteJid.endsWith("@g.us")) {
-    if (operationalGroup && remoteJid === operationalGroup && key.fromMe !== true) {
+    if (groups?.has(remoteJid) && key.fromMe !== true) {
       const message = ((data.message ?? {}) as Record<string, unknown>);
       const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
       const raw = typeof message.conversation === "string" ? message.conversation : extended.text;

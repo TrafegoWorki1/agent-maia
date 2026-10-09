@@ -30,6 +30,20 @@ async function readBody(req: Req): Promise<string | null> {
   return raw;
 }
 
+// Grupos em que a Maia atende. Cache de 60 s para não consultar o banco a cada evento.
+let groupsCache: { at: number; jids: Set<string> } | null = null;
+async function maiaGroups(): Promise<Set<string>> {
+  if (groupsCache && Date.now() - groupsCache.at < 60_000) return groupsCache.jids;
+  try {
+    const { data } = await supabaseFromEnv().from("maia_groups").select("jid").eq("active", true);
+    groupsCache = { at: Date.now(), jids: new Set((data ?? []).map((r) => String(r.jid))) };
+  } catch {
+    // Sem o banco, mantém a última lista conhecida; a mensagem ainda é gravada sem texto.
+    groupsCache = { at: Date.now(), jids: groupsCache?.jids ?? new Set() };
+  }
+  return groupsCache.jids;
+}
+
 export default async function handler(req: Req, res: ServerResponse): Promise<void> {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
 
@@ -47,7 +61,7 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
     return send(res, 400, { error: "invalid_json" });
   }
 
-  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, process.env.EVOLUTION_OPERATIONAL_GROUP_JID);
+  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, await maiaGroups());
   if (!row) return send(res, 400, { error: "invalid_event" });
 
   try {

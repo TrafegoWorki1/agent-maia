@@ -10,7 +10,7 @@ const NEEDS_APPROVAL: RegExp[] = [
   // Anúncios: criar, ativar, impulsionar e alterar (alterar pode ativar ou mudar orçamento)
   /^mcp__claude_ai_Meta_ADS__ads_(create_campaign|create_ad_set|create_ad|activate_entity|boost_ig_post|update_entity)$/,
   // Grupos do WhatsApp: texto, enquete e agendamento (ler enquete é livre)
-  /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar)$/,
+  /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_cadastrar)$/,
   // Apagar: qualquer ferramenta de conector com delete ou trash no nome (e-mail, evento, arquivo, anúncio, público, documento)
   /^mcp__claude_ai_.+__.*(delete|trash)/,
   // Convites: criar, alterar e responder evento da agenda avisam os convidados

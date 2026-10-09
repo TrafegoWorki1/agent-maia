@@ -107,6 +107,12 @@ export function groupExists(groups: { subject: string }[], name: string): boolea
   return groups.some((g) => norm(g.subject) === norm(name));
 }
 
+// Grupos em que a Maia atende (criados por ela ou cadastrados). O webhook consulta esta tabela.
+export async function registerGroup(db: Db, jid: string, name: string, source: "criado" | "cadastrado"): Promise<void> {
+  const { error } = await db.from("maia_groups").upsert({ jid, name, source, active: true }, { onConflict: "jid" });
+  if (error) throw new Error(`cadastrar grupo: ${error.message}`);
+}
+
 export interface GroupDeps {
   db: Db;
   notifyOwner: (text: string) => Promise<void>;
@@ -185,6 +191,9 @@ export async function handleApproverText(deps: GroupDeps, text: string): Promise
   // Conferência: o grupo precisa aparecer na lista da instância. Só então vale como confirmado.
   const live = await fetchLiveGroups();
   const confirmed = !live.error && groupExists(live.groups, payload.name);
+  // O grupo criado pela Maia passa a ser atendido por ela, sem configurar nada à mão.
+  const created = confirmed ? live.groups.find((g) => groupExists([g], payload.name)) : undefined;
+  if (created) await registerGroup(deps.db, created.jid, created.subject, "criado").catch((error) => console.error("[grupos]", error instanceof Error ? error.message : error));
   if (taskId) await addTaskEvent(deps.db, taskId, confirmed ? "task_verified" : "verification_failed", "whatsapp.create_group", confirmed ? null : live.error ?? "grupo não apareceu na lista");
   await deps.notifyOwner(confirmed ? `Grupo "${payload.name}" criado e conferido na lista da instância.` : `O pedido de criação do grupo "${payload.name}" foi aceito, mas não consegui confirmar que ele existe. Confira no WhatsApp antes de pedir de novo.`);
   return true;
