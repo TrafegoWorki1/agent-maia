@@ -118,7 +118,13 @@ async function runClaudeOnce(
   const db = getDb();
   // Contexto recente: o agente não guarda o histórico entre pedidos.
   const history = await conversationContext(db, text);
-  const prompt = history ? `Conversa recente (para entender o pedido atual, não repita):\n${history}\n\nPedido atual:\n${text}` : text;
+  // No privado, o dono pode se referir ao que foi pedido no grupo: junta as falas recentes dos grupos.
+  const groups = text.includes("[Grupo operacional") ? "" : recentGroupsContext();
+  const parts = [
+    history ? `Conversa recente (para entender o pedido atual, não repita):\n${history}` : "",
+    groups ? `Conversa recente nos grupos (a Maia lê e responde nos grupos em que foi chamada):\n${groups}` : "",
+  ].filter(Boolean);
+  const prompt = parts.length ? `${parts.join("\n\n")}\n\nPedido atual:\n${text}` : text;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   try {
@@ -339,6 +345,16 @@ function groupContext(jid: string, now = Date.now()): string {
   const recent = (groupHistory.get(jid) ?? []).filter((m) => now - m.at <= HISTORY_MS).slice(-8);
   groupHistory.set(jid, recent);
   return recent.map((m) => `${m.who}: ${m.text}`).join("\n");
+}
+
+// Falas recentes de todos os grupos atendidos, para o contexto do privado. Vazio se nada foi dito há 30 min.
+export function recentGroupsContext(now = Date.now()): string {
+  const lines: string[] = [];
+  for (const jid of [...groupHistory.keys()]) {
+    const ctx = groupContext(jid, now);
+    if (ctx) lines.push(ctx);
+  }
+  return lines.join("\n");
 }
 
 function remember(jid: string, who: string, text: string): void {

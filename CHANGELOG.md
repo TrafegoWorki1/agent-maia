@@ -40,6 +40,13 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (Maia dizia que não lê grupos e que não tinha acesso a planilhas)
+- **Sintoma (14:23 e 14:45, privado):** "Crie a planilha que foi solicitado lá no grupo" -> a Maia respondeu "não leio nem guardo as mensagens dos grupos" e "não tenho acesso ao Google Sheets agora".
+- **Causa 1:** a regra `grupos_privacidade` no banco, de antes do atendimento em grupo, dizia que mensagens de grupo não têm texto guardado; o modelo seguiu a regra velha. Além disso o privado não recebia nenhuma fala do grupo, então ela não tinha como saber o pedido.
+- **Causa 2:** nas tarefas 59 e 61 ela nem tentou procurar ferramenta (nenhum `tool_use`); na tarefa 60 (grupo, 14:30) só rodou ToolSearch e respondeu sem criar nada. O Drive cria planilha (`create_file` com `application/vnd.google-apps.spreadsheet` ou CSV), mas nenhuma regra dizia isso, e os conectores são ferramentas adiadas que precisam de ToolSearch.
+- **Correção:** regra `grupos_privacidade` reescrita para a realidade; nova regra `conectores_ferramentas` (29): procurar a ferramenta com ToolSearch antes de dizer que não tem, como criar planilha/documento pelo Drive e devolver o link, propor padrão em vez de só perguntar. O privado agora recebe as falas recentes dos grupos (30 min, em memória).
+- **Limite:** o pedido de 14:13 nunca chegou à Maia (antes da correção do webhook) e a memória dos grupos some se o worker reiniciar. **Pendente:** reiniciar a Maia.
+
 ### Corrigido (Maia não respondeu a continuação da conversa no grupo)
 - **Sintoma:** no grupo, a Maia ofereceu criar a planilha de CRM e o Herickson respondeu "Cria uma planilha e depois me envia o link aqui!" (14:13); ela não respondeu. **Causa:** o texto só entrava na fila se a mensagem trouxesse a palavra "Maia"; a resposta não trazia.
 - **Correção:** a mensagem vale como dirigida à Maia se (1) chama pelo nome, (2) menciona ou responde (cita) uma mensagem dela, ou (3) é da mesma pessoa com quem ela falou nos últimos 10 minutos (`maia_groups.last_reply_at` e `last_reply_to`, migration `maia_groups_last_reply`). Pessoas diferentes continuam precisando chamar pelo nome.
