@@ -40,6 +40,12 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (transcrição de áudio do WhatsApp pelo Whisper do owner)
+- **Decisão do owner (2026-10-09):** áudios do dono são transcritos pelo servidor Whisper dele no EasyPanel ("Whisper Official API", modelo small, CPU). `WHISPER_API_URL` e `WHISPER_API_KEY` ficam só no `.env`; o áudio não vai para terceiros nem é gravado.
+- `server/transcribe.ts`: `POST /transcribe?language=pt&task=transcribe` (multipart `audio_file`), com tentativa extra se o servidor estiver reiniciando (502/503/504), tempo máximo de 240 s e erros sem a chave. A Maia avisa "Recebi o áudio, transcrevendo…", mostra o que entendeu ("Entendi: …") e trata o texto como se tivesse sido digitado (mesmas permissões e aprovações).
+- **Medido:** o servidor leva de 27 a 64 s para 2 s de áudio (CPU, primeiro uso carrega o modelo) e o contêiner reiniciou (502 por ~100 s) após a primeira chamada. Áudios longos podem demorar mais; a chave não é exigida hoje pela API (a Maia envia mesmo assim).
+- Testes: 4 novos (envio, nova tentativa, áudio vazio, erros sem vazar a chave). **Pendente:** reiniciar a Maia e testar com um áudio real; imagens, vídeos e documentos (próxima etapa, exige migração do `inbox`).
+
 ### Adicionado (migrações versionadas, validação automática e detecção de drift)
 - **Problema:** das 18 migrações aplicadas no Supabase, só 2 tinham arquivo no repositório (sem versão). As outras 16 existiam só no histórico do Supabase.
 - **Baseline:** as 18 migrações foram recuperadas exatamente de `supabase_migrations.schema_migrations` e gravadas em `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com a versão e o SQL do histórico. As 2 cópias antigas (reformatadas, sem versão) foram trocadas pelas versões exatas. Nada foi aplicado, recriado ou apagado na produção.
