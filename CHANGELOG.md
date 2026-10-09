@@ -40,6 +40,10 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (cadastro de membro falhava com people_role_check)
+- **Sintoma:** ao pedir para cadastrar a Max Hellen (5511982033172), a Maia respondeu que o banco recusou com `people_role_check`; a mensagem para ela também não saiu. **Causa:** meu código (`registerMember`) gravava o papel `membro`, mas a tabela `people` só aceita `proprietario`, `aprovador` e `equipe`. Passou despercebido porque o teste não toca o banco.
+- **Correção:** o cadastro usa o papel `equipe`. A Max Hellen foi cadastrada direto no banco (conversa e resumo) e entrou na agenda de contatos. **Lição:** valores gravados em tabelas com CHECK precisam ser conferidos contra a constraint antes de dizer que está pronto. **Pendente:** reiniciar a Maia; pedir de novo a mensagem para a Max Hellen.
+
 ### Adicionado (permissões por pessoa, memória dos grupos, contatos e mensagem direta)
 - **Decisão do owner:** aprovação (OK) só para ação pública ou de risco. O que o owner pede em privado ou em grupo cadastrado (mensagem a contato, mensagem em grupo cadastrado, planilha, e-mail, evento, apagar) a Maia faz sem pedir confirmação. Membros têm permissões próprias; fora delas, a Maia pede o OK do owner (no grupo ou no privado), dizendo quem pediu.
 - **Controle por código** (`server/access.ts`, `decideAccess`): papéis owner / membro / visitante, permissões da tabela `person_permissions` (nova: `mensagem.enviar`). Lista pública/risco em `server/approvalPolicy.ts` (Instagram, anúncios, compartilhar arquivo, DM de Instagram). Grupo não cadastrado e mais de 3 contatos no mesmo pedido pedem OK. O dono só é reconhecido pelo número real; sem número, vira visitante.
