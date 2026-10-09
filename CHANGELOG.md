@@ -40,6 +40,17 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (integração com o Instagram pela Zernio)
+- **server/integrations/zernio.ts:** cliente da API (`zernio.com/api/v1`, chave Bearer). Consulta de contas, desempenho dos posts, artes recentes e envio de imagem; publicação de um post com legenda e imagem, imediata ou agendada.
+- **Ferramentas da Maia:** `instagram_desempenho` e `artes_recentes` (leitura, sem aprovação) e `instagram_publicar` (escrita: passa pelo fluxo de aprovação por número, com a legenda e a arte no pedido).
+- **Proteções:** só imagens PNG ou JPEG de até 8 MB dentro de `data/arte`; legenda de até 2200 caracteres; endereço da imagem https; agendamento só no futuro; erro da Zernio nunca traz a chave; recusa do Instagram (207 failed) não conta como publicado; falha não repete sozinha.
+- **Regras no banco:** regra 1 atualizada e nova regra `instagram`. O resultado da arte passou a informar o caminho do arquivo, para a Maia poder publicá-la.
+- **Corrigido na revisão:** a classe de erro usava propriedade no construtor, que o Node em modo de remoção de tipos não executa (o worker quebraria ao iniciar, embora os testes passassem). Agora o campo é declarado de forma explícita.
+- **Verificado de verdade:** conta `hericksonmaia` ativa, leitura dos posts reais com métricas, listagem de artes, envio de imagem ao armazenamento da Zernio com endereço público respondendo 200 como PNG. 108 testes, typecheck e build passando.
+- **Não testado ao vivo:** a publicação em si (criaria um post real no Instagram sem a sua aprovação). Está coberta por testes unitários com a rede simulada.
+- **Fora de escopo, de propósito:** mensagens diretas, comentários, seguir e prospecção. A API da Zernio tem caixa de entrada com conversas reais, e ler ou responder exige decisão sua sobre texto de terceiros.
+- **Pendente:** reiniciar a Maia no PC.
+
 ### Adicionado (Maia multi-IA: roteador, fallback seguro e arte direta)
 - **server/ai/**: tipos, configuração (`config/ai-routing.json`), classificador por regras (plano B do Jev), roteador puro, capacidades por provedor, classificador de erros, circuit breaker persistido (`provider_health`), política de fallback, rastreador de uso e provedores (Claude e Codex).
 - **Roteamento:** conversa e resumo simples vão ao modelo econômico (haiku); análises ao principal; arte direto ao executor criativo, sem chamar o Claude; carrossel responde que ainda não existe, sem simular.
