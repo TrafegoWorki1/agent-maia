@@ -1,11 +1,11 @@
 import { sendOwnerText } from "./evolutionSend.ts";
-import { addTaskEvent, createOwnerTask, recordMessage, resolveApproval, startApproval, type Db } from "./store.ts";
+import { addTaskEvent, createOwnerTask, recordMessage, type Db } from "./store.ts";
+import { APPROVAL_TTL_MS, createApproval, decideFromText, openApprovals } from "./approvals.ts";
 
 // Grupos do WhatsApp pela Evolution. Leitura com cache de 5 minutos (como no Bryan). Criar grupo é
 // ação de escrita: pede SIM ou NÃO ao aprovador antes de executar. Só o dono envia os comandos.
 
 const CACHE_MS = 5 * 60 * 1000;
-const APPROVAL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export interface LiveGroup {
   jid: string;
@@ -64,19 +64,6 @@ export function parseOwnerTask(text: string): { title: string; groupName: string
   return { title: match[1].trim(), groupName: match[2]?.trim() || null };
 }
 
-// Pedido de criação aguardando o aprovador. Só um por vez.
-interface PendingGroupAction {
-  name: string;
-  participants: string[];
-  approvalId: number;
-  taskId: number;
-}
-let pendingGroup: PendingGroupAction | null = null;
-
-export function hasPendingGroupAction(): boolean {
-  return pendingGroup !== null;
-}
-
 async function executeCreateGroup(name: string, participants: string[]): Promise<{ ok: boolean; detail: string }> {
   const config = evoConfig();
   if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
@@ -100,48 +87,72 @@ export interface GroupDeps {
   notifyOwner: (text: string) => Promise<void>;
 }
 
-// Recebe o pedido do dono: registra, envia o pedido ao aprovador e espera SIM/NÃO.
+interface GroupPayload {
+  name: string;
+  participants: string[];
+}
+
+// Pedido de criação: vira uma aprovação persistida (número, prazo e processo), não memória do processo.
 export async function requestCreateGroup(deps: GroupDeps, name: string, participants: string[]): Promise<string> {
-  if (pendingGroup) return "Já existe um pedido de grupo aguardando aprovação. Responda antes de pedir outro.";
   const approver = process.env.EVOLUTION_APPROVER_NUMBER;
   if (!approver) return "Número aprovador não configurado no .env.";
+  if ((await openApprovals(deps.db)).some((r) => r.kind === "grupo")) {
+    return "Já existe um pedido de grupo aguardando aprovação. Responda antes de pedir outro.";
+  }
   const taskId = await createOwnerTask(deps.db, { title: `Criar grupo ${name}`, groupName: name });
-  const approvalId = await startApproval(deps.db, "whatsapp.create_group");
+  const approval = await createApproval(deps.db, {
+    kind: "grupo",
+    toolName: "whatsapp.create_group",
+    summary: `criar grupo ${name}`,
+    payload: { name, participants } satisfies GroupPayload,
+    taskId,
+  });
   await addTaskEvent(deps.db, taskId, "approval_requested", "whatsapp.create_group", null);
-  pendingGroup = { name, participants, approvalId, taskId };
 
-  const request = `Pedido para criar o grupo "${name}" com ${participants.length} participante(s).\nResponda SIM para criar ou NÃO para recusar. Sem resposta em 10 minutos, é recusado.`;
+  const request = `Pedido para criar o grupo "${name}" com ${participants.length} participante(s) (#${approval.id}).
+Responda SIM ${approval.id} para criar ou NÃO ${approval.id} para recusar. Sem resposta em 10 minutos, é recusado.`;
   await recordMessage(deps.db, { channel: "whatsapp", author: "maia", text: request });
   await sendOwnerText(approver, request);
 
-  setTimeout(() => {
-    if (pendingGroup?.approvalId !== approvalId) return;
-    pendingGroup = null;
-    void resolveApproval(deps.db, approvalId, "expired");
-    void addTaskEvent(deps.db, taskId, "approval_expired", "whatsapp.create_group", null);
-    void deps.notifyOwner(`O pedido para criar o grupo "${name}" expirou sem resposta do aprovador.`);
-  }, APPROVAL_TIMEOUT_MS).unref();
-  return `Pedido de criação do grupo "${name}" enviado ao aprovador.`;
+  // Aviso de prazo, se este processo ainda estiver no ar. O banco continua sendo a fonte da verdade.
+  setTimeout(() => void expireGroupIfPending(deps, approval.id, name, taskId), APPROVAL_TTL_MS).unref();
+  return `Pedido de criação do grupo "${name}" enviado ao aprovador (#${approval.id}).`;
 }
 
-// Resposta do aprovador para o pedido de grupo. Retorna true se consumiu a mensagem.
-export async function resolveGroupActionFromText(text: string, deps: GroupDeps): Promise<boolean> {
-  if (!pendingGroup) return false;
-  const answer = text.trim().toLowerCase();
-  if (answer !== "sim" && answer !== "não" && answer !== "nao") return false;
-  const current = pendingGroup;
-  pendingGroup = null;
-  const approved = answer === "sim";
-  await resolveApproval(deps.db, current.approvalId, approved ? "approved" : "denied");
-  await addTaskEvent(deps.db, current.taskId, approved ? "approval_approved" : "approval_denied", "whatsapp.create_group", null);
-  if (!approved) {
-    await deps.notifyOwner(`Criação do grupo "${current.name}" recusada pelo aprovador. Nenhum grupo foi criado.`);
+async function expireGroupIfPending(deps: GroupDeps, id: number, name: string, taskId: number): Promise<void> {
+  const updated = await deps.db
+    .from("approvals")
+    .update({ status: "expired", resolved_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id");
+  if (updated.error || !updated.data || updated.data.length === 0) return;
+  await addTaskEvent(deps.db, taskId, "approval_expired", "whatsapp.create_group", null);
+  await deps.notifyOwner(`O pedido para criar o grupo "${name}" expirou sem resposta do aprovador.`);
+}
+
+// Resposta do aprovador (SIM ou NÃO, com número). Retorna true se a mensagem era uma resposta de aprovação.
+export async function handleApproverText(deps: GroupDeps, text: string): Promise<boolean> {
+  const decision = await decideFromText(deps.db, text);
+  if (!decision.handled) return false;
+  const approver = process.env.EVOLUTION_APPROVER_NUMBER;
+  if (decision.reply) {
+    if (approver) await sendOwnerText(approver, decision.reply);
     return true;
   }
-  const result = await executeCreateGroup(current.name, current.participants);
-  await addTaskEvent(deps.db, current.taskId, result.ok ? "external_done" : "task_failed", "whatsapp.create_group", result.detail);
-  await deps.notifyOwner(result.ok ? `Grupo "${current.name}" criado.` : `Não consegui criar o grupo "${current.name}": ${result.detail}`);
+  const row = decision.row!;
+  // Ação de ferramenta: quem espera a resposta é o agente, que lê o banco. Nada a fazer aqui.
+  if (row.kind !== "grupo") return true;
+
+  const payload = row.payload as GroupPayload;
+  const taskId = row.task_id;
+  if (taskId) await addTaskEvent(deps.db, taskId, decision.approved ? "approval_approved" : "approval_denied", "whatsapp.create_group", null);
+  if (!decision.approved) {
+    await deps.notifyOwner(`Criação do grupo "${payload.name}" recusada pelo aprovador. Nenhum grupo foi criado.`);
+    return true;
+  }
+  const result = await executeCreateGroup(payload.name, payload.participants);
+  if (taskId) await addTaskEvent(deps.db, taskId, result.ok ? "external_done" : "task_failed", "whatsapp.create_group", result.detail);
+  await deps.notifyOwner(result.ok ? `Grupo "${payload.name}" criado.` : `Não consegui criar o grupo "${payload.name}": ${result.detail}`);
   return true;
 }
-
-
