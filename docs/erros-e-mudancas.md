@@ -168,6 +168,17 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 3. Incluir o áudio do dono no lote, depois da transcrição.
 4. RAG: escolher o provedor de embeddings e os documentos iniciais. Depende de decisão sua.
 
+## Atualização (regras no prompt da Maia)
+
+### Mudanças
+- O prompt de sistema inclui as regras em vigor (ver docs/regras-da-maia.md).
+
+### Verificado
+- Typecheck e testes passando.
+
+### Pendências
+1. Reiniciar a Maia no PC para carregar o novo prompt.
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado
