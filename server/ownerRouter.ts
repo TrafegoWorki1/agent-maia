@@ -2,7 +2,7 @@ import { downloadAudio, sendOwnerText } from "./evolutionSend.ts";
 import type { AudioRef } from "./evolutionWebhook.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
 import { handleOwnerMessage } from "./maiaOwnerAgent.ts";
-import { parseCreateGroup, parseOwnerTask, requestCreateGroup } from "./groups.ts";
+import { parseGroupIntent, parseOwnerTask, requestCreateGroup } from "./groups.ts";
 import { createOwnerTask, getDb, recordMessage } from "./store.ts";
 
 // Roteamento dos comandos do dono: aviso, criar grupo (com aprovação), tarefa e conversa com a Maia.
@@ -19,10 +19,20 @@ export async function notifyOwner(text: string): Promise<void> {
 export async function routeOwnerText(text: string): Promise<number | null> {
   const db = getDb();
   const deps = { db, notifyOwner };
-  const groupRequest = parseCreateGroup(text);
+  // Pedidos de grupo são tratados aqui, sem o agente: a aprovação é criada de verdade.
+  const owner = process.env.EVOLUTION_OWNER_NUMBER;
+  const groupRequest = parseGroupIntent(text, owner);
   if (groupRequest) {
+    if (groupRequest.participants.length === 0) {
+      await notifyOwner(`Para criar o grupo "${groupRequest.name}", mande os números dos participantes, com DDI e DDD. Exemplo: criar grupo ${groupRequest.name} | ${owner ?? "5585999999999"}`);
+      return null;
+    }
     const reply = await requestCreateGroup(deps, groupRequest.name, groupRequest.participants);
     await notifyOwner(reply);
+    return null;
+  }
+  if (/^s*colocar/i.test(text)) {
+    await notifyOwner("Ainda não consigo adicionar pessoas a um grupo que já existe. Para um grupo novo, mande: criar grupo Nome | 5585999999999, 5585888888888.");
     return null;
   }
   const task = parseOwnerTask(text);
