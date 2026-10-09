@@ -479,3 +479,5 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Pendente:** reiniciar a Maia; testar mensagem direta, resposta de contato e reconhecimento do owner no grupo; avisar o grupo da retenção de 7 dias.
 
 - **Erro: cadastro de membro (Max Hellen) falhou com people_role_check.** Causa: papel "membro" nao existe no CHECK (so proprietario, aprovador, equipe). Correcao: papel "equipe"; Max Hellen cadastrada no banco.
+
+- **Erro: 500 em fetchAllGroups.** Causa: `rate-overlimit` do WhatsApp (consultas demais). Correção: grupos cadastrados resolvidos pelo banco, cache de 15 min, pausa de 10 min após o limite, conferência da criação pelo id da resposta.

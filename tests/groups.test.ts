@@ -36,3 +36,27 @@ describe("conferência do grupo criado", () => {
     expect(groupExists([], "Qualquer")).toBe(false);
   });
 });
+
+import { afterEach, vi } from "vitest";
+import { fetchLiveGroups, resetGroupCache, resetGroupCooldown } from "../server/groups.ts";
+
+describe("limite do WhatsApp na lista de grupos", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetGroupCache();
+    resetGroupCooldown();
+  });
+
+  it("rate-overlimit para as consultas por um tempo e não repete a chamada", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: 500, response: { message: "rate-overlimit" } }), { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const first = await fetchLiveGroups(1_000);
+    expect(first.error).toContain("rate-overlimit");
+    const second = await fetchLiveGroups(2_000);
+    expect(second.error).toContain("rate-overlimit");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

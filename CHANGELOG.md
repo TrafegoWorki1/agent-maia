@@ -40,6 +40,12 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (erro 500 ao listar grupos: rate-overlimit do WhatsApp)
+- **Sintoma:** a Maia respondeu que `GET /group/fetchAllGroups` devolvia erro 500. O banco não tinha nenhuma ocorrência (a consulta falhou sem virar tarefa com erro).
+- **Causa (confirmada chamando a Evolution direto):** resposta `{"status":500,"response":{"message":"rate-overlimit"}}`. É o limite do próprio WhatsApp para consultas de grupos, não defeito da instância. Valia para `getParticipants` falso e verdadeiro. A Maia consultava a lista a cada resolução de grupo (nome para identificador), a cada checagem de permissão, no painel e na conferência de grupo criado, e repetia a chamada mesmo após o limite.
+- **Correção:** (1) o nome do grupo é resolvido primeiro pelos grupos cadastrados no banco (`maia_groups`), sem consultar o WhatsApp; (2) cache da lista de 5 para 15 minutos; (3) ao receber `rate-overlimit`, para de consultar por 10 minutos e usa a última lista; (4) a criação de grupo confere pelo id devolvido na resposta da própria Evolution, e só consulta a lista se esse id faltar; (5) a mensagem de erro diz que é limite do WhatsApp.
+- **O que fazer:** esperar o limite passar (costuma ser minutos) e reiniciar a Maia. Não é preciso mexer na instância. Teste novo cobre o cooldown (137 testes).
+
 ### Corrigido (cadastro de membro falhava com people_role_check)
 - **Sintoma:** ao pedir para cadastrar a Max Hellen (5511982033172), a Maia respondeu que o banco recusou com `people_role_check`; a mensagem para ela também não saiu. **Causa:** meu código (`registerMember`) gravava o papel `membro`, mas a tabela `people` só aceita `proprietario`, `aprovador` e `equipe`. Passou despercebido porque o teste não toca o banco.
 - **Correção:** o cadastro usa o papel `equipe`. A Max Hellen foi cadastrada direto no banco (conversa e resumo) e entrou na agenda de contatos. **Lição:** valores gravados em tabelas com CHECK precisam ser conferidos contra a constraint antes de dizer que está pronto. **Pendente:** reiniciar a Maia; pedir de novo a mensagem para a Max Hellen.

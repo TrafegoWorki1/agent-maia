@@ -1,5 +1,5 @@
 import { fetchLiveGroups, type LiveGroup } from "./groups.ts";
-import { addTaskEvent, type Db } from "./store.ts";
+import { addTaskEvent, getDb, type Db } from "./store.ts";
 
 // Ações da Maia em grupos do WhatsApp (decisão do owner, 2026-10-09): mandar texto com menção, enquete, ler enquetes
 // e agendar texto ou enquete. Enviar e agendar passam pela aprovação (OK ou NÃO). Ler é livre.
@@ -27,6 +27,15 @@ export function pickGroup(groups: LiveGroup[], name: string): { ok: true; group:
 }
 
 export async function resolveGroup(name: string): Promise<{ ok: true; group: LiveGroup } | { ok: false; error: string }> {
+  // Primeiro os grupos já cadastrados (banco): não gasta consulta ao WhatsApp, que limita (rate-overlimit).
+  try {
+    const { data } = await getDb().from("maia_groups").select("jid, name").eq("active", true);
+    const known = (data ?? []).map((r) => ({ jid: String(r.jid), subject: String(r.name), size: null }) as LiveGroup);
+    const hit = pickGroup(known, name);
+    if (hit.ok) return hit;
+  } catch {
+    // sem banco, segue para a lista da instância
+  }
   const live = await fetchLiveGroups();
   if (live.error && live.groups.length === 0) return { ok: false, error: live.error };
   return pickGroup(live.groups, name);
