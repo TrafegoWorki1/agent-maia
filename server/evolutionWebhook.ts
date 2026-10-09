@@ -60,7 +60,7 @@ export function recentEvents(): WebhookEvent[] {
 
 // Número brasileiro sem o nono dígito (55 + DDD + 9 + 8 dígitos). O WhatsApp entrega alguns
 // contatos sem esse 9 e o .env pode ter com ele: os dois formatos são o mesmo número.
-function canonicalPhone(value: string): string {
+export function canonicalPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length === 13 && digits.startsWith("55") && digits[4] === "9") return digits.slice(0, 4) + digits.slice(5);
   return digits;

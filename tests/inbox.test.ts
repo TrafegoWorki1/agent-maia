@@ -41,14 +41,14 @@ describe("triagem do webhook para a fila", () => {
     expect(JSON.parse(row!.payload!)).toMatchObject({ mimetype: "audio/ogg; codecs=opus", key: { id: "KEY1" } });
   });
 
-  it("grupo operacional: só entra o texto de quem chama a Maia", () => {
+  it("grupo cadastrado: todo texto entra, marcando se chamou a Maia", () => {
     const OP = "120363412181825151@g.us";
     const msg = (text: string, fromMe = false) => ({ event: "messages.upsert", instance: "wt_test", data: { pushName: "Herickson", key: { id: "G2", remoteJid: OP, fromMe, participant: "5585992494552@s.whatsapp.net" }, message: { conversation: text } } });
     const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, new Map([[OP, {}]]));
     expect(row).toMatchObject({ kind: "text", sender: "group" });
-    expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "5585992494552", name: "Herickson", text: "Maia, a reunião foi ótima" });
-    expect(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event", payload: OP });
-    expect(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event", payload: OP });
+    expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "5585992494552", name: "Herickson", text: "Maia, a reunião foi ótima", addressed: true });
+    expect(JSON.parse(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Map([[OP, {}]]))!.payload!)).toMatchObject({ text: "Bom dia pessoal", addressed: false });
+    expect(JSON.parse(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Map([[OP, {}]]))!.payload!)).toMatchObject({ addressed: false });
     expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event" });
     expect(toInboxRow(msg("Maia, oi"), OWNER, APPROVER)).toMatchObject({ kind: "event", payload: OP });
   });
@@ -63,13 +63,22 @@ describe("triagem do webhook para a fila", () => {
     const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "5585992494552" }]]);
     // continuação da conversa com a mesma pessoa, sem dizer "Maia"
     expect(toInboxRow(base("Cria uma planilha e depois me envia o link aqui!"), OWNER, APPROVER, state, now)).toMatchObject({ kind: "text" });
-    // outra pessoa, sem chamar: ignorada
-    expect(toInboxRow(base("Cria uma planilha", {}, "5511999999999@s.whatsapp.net"), OWNER, APPROVER, state, now)).toMatchObject({ kind: "event" });
+    // outra pessoa, sem chamar: guardada na memória do grupo, mas sem resposta
+    expect(JSON.parse(toInboxRow(base("Cria uma planilha", {}, "5511999999999@s.whatsapp.net"), OWNER, APPROVER, state, now)!.payload!)).toMatchObject({ addressed: false });
     // fora da janela de 10 minutos
-    expect(toInboxRow(base("Cria uma planilha"), OWNER, APPROVER, state, new Date("2026-10-09T17:30:00Z"))).toMatchObject({ kind: "event" });
+    expect(JSON.parse(toInboxRow(base("Cria uma planilha"), OWNER, APPROVER, state, new Date("2026-10-09T17:30:00Z"))!.payload!)).toMatchObject({ addressed: false });
     // resposta (citação) a uma mensagem da Maia
     const quoted = base("sim", { message: { extendedTextMessage: { text: "sim", contextInfo: { participant: "5585900000000@s.whatsapp.net" } } } });
     expect(toInboxRow(quoted, OWNER, APPROVER, new Map([[OP, {}]]), now)).toMatchObject({ kind: "text" });
+  });
+
+  it("resposta de quem a Maia contatou entra com texto; de outros não", () => {
+    const dm = (from: string) => message(from, { pushName: "Jéssica", message: { conversation: "Já resolvi!" } });
+    const contacted = new Set(["5585911112222"]);
+    const row = toInboxRow(dm("5585911112222"), OWNER, APPROVER, undefined, new Date(), contacted);
+    expect(row).toMatchObject({ kind: "text", sender: "other" });
+    expect(JSON.parse(row!.payload!)).toMatchObject({ name: "Jéssica", text: "Já resolvi!" });
+    expect(toInboxRow(dm("5511999999999"), OWNER, APPROVER, undefined, new Date(), contacted)).toMatchObject({ kind: "event", sender: "other", payload: null });
   });
 
   it("grupo novo: só o dono, chamando a Maia, cadastra o grupo", () => {

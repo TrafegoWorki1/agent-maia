@@ -1,7 +1,9 @@
 import { relative } from "node:path";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { sendOwnerImage, sendOwnerText } from "./evolutionSend.ts";
+import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
+import { recordConvMessage } from "./conversations.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
@@ -16,7 +18,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -142,6 +144,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           if (!mentions.ok) return { content: [{ type: "text", text: `Não enviei: ${mentions.error}.` }], isError: true };
           try {
             const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers);
+            await recordConvMessage(getDb(), { conv: group.group.jid, name: "Maia", text: args.texto, fromMaia: true }).catch(() => {});
             if (taskId) {
               await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});
               await addTaskEvent(getDb(), taskId, "task_verified", "grupo_enviar_texto", `mensagem ${id}`).catch(() => {});
@@ -191,6 +194,63 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui cadastrar: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
+        },
+      ),
+      tool(
+        "contato_buscar",
+        "Procura um contato na agenda da Maia por nome, apelido ou número e mostra os números salvos. Só leitura.",
+        { busca: z.string().min(1).max(80).describe("Nome, apelido ou número.") },
+        async (args) => {
+          const hits = matchContacts(await loadContacts(getDb()), args.busca);
+          if (hits.length === 0) return { content: [{ type: "text", text: `Nenhum contato para "${args.busca}".` }] };
+          return { content: [{ type: "text", text: hits.slice(0, 8).map((c) => `${c.name || "(sem nome)"} +${c.number}${c.aliases.length ? ` (${c.aliases.join(", ")})` : ""}`).join("\n") }] };
+        },
+      ),
+      tool(
+        "contato_enviar_mensagem",
+        "Manda uma mensagem de texto no privado de um contato (WhatsApp). O contato precisa estar na agenda; se houver dúvida de quem é, pergunte antes. O texto sai em nome da Maia, assistente do Herickson. Se o owner pediu, envie sem pedir confirmação.",
+        {
+          contato: z.string().min(1).max(80).describe("Nome, apelido ou número do contato."),
+          texto: z.string().min(1).max(2000).describe("Mensagem final, clara, em português, sem prometer o que o owner não disse."),
+        },
+        async (args) => {
+          const invalid = validateText(args.texto);
+          if (invalid) return { content: [{ type: "text", text: `Não enviei: ${invalid}.` }], isError: true };
+          const db = getDb();
+          const found = await resolveContact(db, args.contato);
+          if (!found.ok) return { content: [{ type: "text", text: `Não enviei: ${found.error}.` }], isError: true };
+          const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+          const { data: dup } = await db.from("outreach").select("id").eq("number", found.contact.number).eq("text", args.texto).gte("at", since).limit(1);
+          if (dup && dup.length > 0) return { content: [{ type: "text", text: "Não enviei: essa mesma mensagem já foi enviada a esse contato nas últimas 24 h." }], isError: true };
+          const { count } = await db.from("outreach").select("id", { count: "exact", head: true }).gte("at", new Date(Date.now() - 3600_000).toISOString());
+          if ((count ?? 0) >= 20) return { content: [{ type: "text", text: "Não enviei: limite de 20 mensagens diretas por hora atingido." }], isError: true };
+          try {
+            const id = await sendTextChecked(found.contact.number, args.texto);
+            await db.from("outreach").insert({ number: found.contact.number, name: found.contact.name, text: args.texto, task_id: taskId ?? null, key_id: id });
+            await recordConvMessage(db, { conv: `dm:${found.contact.number}`, participant: "", name: "Maia", text: args.texto, fromMaia: true }).catch(() => {});
+            if (taskId) {
+              await addTaskEvent(db, taskId, "dm_sent", "contato_enviar_mensagem", found.contact.name).catch(() => {});
+              await addTaskEvent(db, taskId, "external_done", "contato_enviar_mensagem", found.contact.name).catch(() => {});
+              await addTaskEvent(db, taskId, "task_verified", "contato_enviar_mensagem", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `Mensagem enviada para ${found.contact.name || `+${found.contact.number}`} e aceita pelo WhatsApp (mensagem ${id}). Se ele responder, eu repasso ao owner.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "membro_cadastrar",
+        "Cadastra uma pessoa como membro (com número e permissões) para ela poder falar com a Maia. Só o owner cadastra. Começa com conversa e resumo; as demais permissões só se o owner pedir.",
+        {
+          nome: z.string().min(2).max(60),
+          numero: z.string().min(10).max(20).describe("Número com DDI e DDD."),
+          permissoes: z.array(z.string().max(40)).max(12).optional().describe("Códigos extras, ex.: gmail.ler, meta.ler, sheets.ler, agenda.ler, tarefas.criar, escrita.pedir, mensagem.enviar, grupos.criar."),
+        },
+        async (args) => {
+          const result = await registerMember(getDb(), { name: args.nome, number: args.numero, permissions: args.permissoes });
+          if (!result.ok) return { content: [{ type: "text", text: `Não cadastrei: ${result.error}.` }], isError: true };
+          return { content: [{ type: "text", text: `${args.nome} cadastrado(a) como membro. Permissões: conversa e resumo${args.permissoes?.length ? `, ${args.permissoes.join(", ")}` : ""}.` }] };
         },
       ),
       tool(

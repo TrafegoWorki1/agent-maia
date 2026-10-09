@@ -7,6 +7,8 @@ import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts"
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { handleGroupMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
+import { recordConvMessage } from "./conversations.ts";
+import { upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { runProactive } from "./proactive.ts";
@@ -65,12 +67,29 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "group" && item.kind === "text" && item.payload) {
     // Grupo operacional: alguém chamou a Maia. Responde no grupo, começando pelo nome de quem pediu.
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "handled" }, now);
-    const request = JSON.parse(item.payload) as GroupRequest & { register?: boolean };
+    const request = JSON.parse(item.payload) as GroupRequest & { register?: boolean; addressed?: boolean };
+    if (!request.register) {
+      // Memória do grupo (7 dias, com autoria) e agenda de contatos. Falha aqui não impede a resposta.
+      await recordConvMessage(db, { conv: request.jid, participant: request.participant, name: request.name, text: request.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
+      await upsertContact(db, { number: request.participant, name: request.name, conv: request.jid, source: "grupo" }).catch(() => {});
+      if (request.addressed === false) return;
+    }
     if (request.register) {
       void registerGroupFromOwner(db, request.jid).catch((error) => console.error("[worker] cadastro de grupo:", error instanceof Error ? error.message : error));
       return;
     }
     void handleGroupMessage(request).catch((error) => console.error("[worker] grupo:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  // Resposta de um contato que a Maia procurou: guarda na conversa dele e repassa ao dono.
+  if (item.sender === "other" && item.kind === "text" && item.payload) {
+    const reply = JSON.parse(item.payload) as { from: string; name: string; text: string };
+    const digits = reply.from.replace(/\D/g, "");
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_reply" }, now);
+    await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: reply.name, text: reply.text, keyId: item.key_id, at: now }).catch(() => {});
+    await upsertContact(db, { number: digits, name: reply.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
+    await notifyOwner(`${reply.name || `+${digits}`} respondeu: ${reply.text.slice(0, 500)}`).catch((error) => console.error("[worker] repasse:", error instanceof Error ? error.message : error));
     return;
   }
 
@@ -162,6 +181,8 @@ async function main(): Promise<void> {
         lastPurge = Date.now();
         const purged = await db.rpc("purge_inbox_payloads");
         if (purged.error) console.error("[worker] limpeza do texto:", purged.error.message);
+        const convPurged = await db.rpc("purge_group_messages");
+        if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
       }
     } catch (error) {
       console.error("[worker] erro no ciclo:", error instanceof Error ? error.message : error);

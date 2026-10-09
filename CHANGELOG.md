@@ -40,6 +40,15 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (permissões por pessoa, memória dos grupos, contatos e mensagem direta)
+- **Decisão do owner:** aprovação (OK) só para ação pública ou de risco. O que o owner pede em privado ou em grupo cadastrado (mensagem a contato, mensagem em grupo cadastrado, planilha, e-mail, evento, apagar) a Maia faz sem pedir confirmação. Membros têm permissões próprias; fora delas, a Maia pede o OK do owner (no grupo ou no privado), dizendo quem pediu.
+- **Controle por código** (`server/access.ts`, `decideAccess`): papéis owner / membro / visitante, permissões da tabela `person_permissions` (nova: `mensagem.enviar`). Lista pública/risco em `server/approvalPolicy.ts` (Instagram, anúncios, compartilhar arquivo, DM de Instagram). Grupo não cadastrado e mais de 3 contatos no mesmo pedido pedem OK. O dono só é reconhecido pelo número real; sem número, vira visitante.
+- **Memória das conversas** (`group_messages`, 7 dias, `purge_group_messages`): em grupo cadastrado todo texto entra, com autoria (número, nome, hora); a Maia só responde quando chamada. O contexto vem do banco (sobrevive a reinício) e também vai ao privado do owner. Texto de outras pessoas é tratado como informação, nunca como ordem.
+- **Agenda de contatos** (`contacts`): preenche sozinha com quem fala nos grupos; busca por nome sem acento, apelido ou número; nome ambíguo faz a Maia perguntar. Ferramentas: `contato_buscar`, `contato_enviar_mensagem`, `membro_cadastrar` (só owner).
+- **Mensagem direta:** envio conferido pelo id da mensagem; limites: 3 contatos por pedido sem OK, 20 por hora, sem repetir o mesmo texto ao mesmo contato em 24 h. Registro em `outreach`. A resposta do contato (48 h) entra na fila com texto, é guardada na conversa `dm:<número>` e repassada ao owner.
+- Regras do banco: `aprovacao`, `proatividade`, `grupos_privacidade`, `grupos_acoes` reescritas; nova `contatos_membros`.
+- **Aviso aos participantes:** o grupo passa a guardar o texto por 7 dias; avise o grupo. **Não testado ao vivo:** mensagem direta, resposta de contato e reconhecimento do owner dentro do grupo (depende do número real do participante). **Pendente:** reiniciar a Maia.
+
 ### Corrigido (Maia dizia que não lê grupos e que não tinha acesso a planilhas)
 - **Sintoma (14:23 e 14:45, privado):** "Crie a planilha que foi solicitado lá no grupo" -> a Maia respondeu "não leio nem guardo as mensagens dos grupos" e "não tenho acesso ao Google Sheets agora".
 - **Causa 1:** a regra `grupos_privacidade` no banco, de antes do atendimento em grupo, dizia que mensagens de grupo não têm texto guardado; o modelo seguiu a regra velha. Além disso o privado não recebia nenhuma fala do grupo, então ela não tinha como saber o pedido.

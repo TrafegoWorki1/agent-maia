@@ -1,5 +1,5 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
-import { isReadTool } from "./maiaOwnerAgent.ts";
+import { isReadTool } from "./approvalPolicy.ts";
 import { finishRun, readSnapshots, saveSnapshot, startRun, type Db, type SourceId } from "./store.ts";
 
 // Atualização periódica das fontes (Gmail, Meta Ads, Sheets) pelo Agent SDK, com as conexões

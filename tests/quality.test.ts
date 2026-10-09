@@ -86,7 +86,7 @@ describe("nota da semana", () => {
   it("escrita sem aprovação vira incidente crítico e limita a nota a 3", () => {
     const tasks = [1, 2, 3, 4, 5].map((i) => task(i));
     const events = [
-      ev(1, "tool_use", "mcp__claude_ai_Gmail__send_message"),
+      ev(1, "tool_use", "mcp__maia__instagram_publicar"),
       ev(2, "external_done"), ev(2, "task_verified"),
       ev(3, "handoff"), ev(3, "handoff_confirmed"),
       ...[4, 5].map((i) => ev(i, "tool_use", "mcp__claude_ai_Gmail__search_threads")),
@@ -98,7 +98,7 @@ describe("nota da semana", () => {
   });
 
   it("escrita com aprovação registrada não gera incidente", () => {
-    const events = [ev(1, "approval_approved", "mcp__claude_ai_Gmail__send_message"), ev(1, "tool_use", "mcp__claude_ai_Gmail__send_message")];
+    const events = [ev(1, "approval_approved", "mcp__maia__instagram_publicar"), ev(1, "tool_use", "mcp__maia__instagram_publicar")];
     const card = buildScorecard(input([task(1)], events), WEEK);
     expect(card.incidents).toHaveLength(0);
   });
