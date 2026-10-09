@@ -40,6 +40,10 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Corrigido (Maia sem contexto da conversa)
+- O agente não recebia as mensagens recentes e respondia que não lembrava. Agora o pedido leva as mensagens do dono e da Maia dos últimos 30 minutos (server/context.ts).
+- Testes: 65 passando. Pendente: reiniciar a Maia.
+
 ### Corrigido (pedido natural de criar grupo prometido sem aprovação)
 - Causa: pedido fora do formato ia para o agente, que não tem ferramenta de grupo e confirmou sem criar aprovação.
 - Correção: parseGroupIntent no roteador; com "me coloca" ou "com você", o dono entra como participante e a aprovação é criada de verdade.

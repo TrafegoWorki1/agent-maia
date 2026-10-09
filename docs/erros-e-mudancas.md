@@ -349,6 +349,24 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 1. Reiniciar a Maia (Iniciar Maia.bat).
 2. Gessica (5585986139044) não está cadastrada em Pessoas; para adicionar a grupos, falta o recurso de incluir participante em grupo existente.
 
+## Atualização (memória da conversa)
+
+### O que aconteceu
+- A Maia respondeu "não tenho o seu pedido anterior nesta conversa" logo depois de um pedido seu.
+
+### Causa
+- O agente roda cada pedido sozinho, sem histórico. As mensagens estavam no banco, mas não eram enviadas com o pedido.
+
+### Correção
+- Cada pedido do dono leva as mensagens recentes do dono e da Maia (últimos 30 minutos, até 8 linhas). Mensagens de terceiros nunca entram.
+- A mensagem atual não se repete no contexto.
+
+### Verificado
+- 3 testes de contexto (ordem, sem repetição, janela e terceiros). Suíte: 65 passando.
+
+### Pendências
+1. Reiniciar a Maia (Iniciar Maia.bat).
+
 ## Pendências (estado atual)
 
 ### Feito e confirmado

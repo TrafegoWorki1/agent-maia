@@ -4,6 +4,7 @@ import { createImageServer, IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL } from
 import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
+import { conversationContext } from "./context.ts";
 import {
   addTaskEvent,
   createTask,
@@ -91,8 +92,15 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool, ch
   const runId = await startRun(db, "chat");
   let costUsd: number | null = null;
   try {
+    // Contexto recente: o agente não guarda o histórico entre pedidos.
+    const history = await conversationContext(db, text);
+    const prompt = history ? `Conversa recente (para entender o pedido atual, não repita):
+${history}
+
+Pedido atual:
+${text}` : text;
     const run = query({
-      prompt: text,
+      prompt,
       options: {
         systemPrompt: await buildSystemPrompt(db),
         maxTurns: 12,
