@@ -44,12 +44,12 @@ describe("triagem do webhook para a fila", () => {
   it("grupo operacional: só entra o texto de quem chama a Maia", () => {
     const OP = "120363412181825151@g.us";
     const msg = (text: string, fromMe = false) => ({ event: "messages.upsert", instance: "wt_test", data: { pushName: "Herickson", key: { id: "G2", remoteJid: OP, fromMe, participant: "5585992494552@s.whatsapp.net" }, message: { conversation: text } } });
-    const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, OP);
+    const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, new Set([OP]));
     expect(row).toMatchObject({ kind: "text", sender: "group" });
     expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "5585992494552", name: "Herickson", text: "Maia, a reunião foi ótima" });
-    expect(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, OP)).toMatchObject({ kind: "event", payload: OP });
-    expect(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, OP)).toMatchObject({ kind: "event", payload: OP });
-    expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, OP)).toMatchObject({ kind: "event" });
+    expect(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event", payload: OP });
+    expect(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event", payload: OP });
+    expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, new Set([OP]))).toMatchObject({ kind: "event" });
     expect(toInboxRow(msg("Maia, oi"), OWNER, APPROVER)).toMatchObject({ kind: "event", payload: OP });
   });
 

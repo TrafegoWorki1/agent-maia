@@ -6,6 +6,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { addTaskEvent, getDb } from "./store.ts";
+import { registerGroup } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -174,6 +175,21 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: `Enquete enviada no grupo "${group.group.subject}" e aceita pelo WhatsApp (mensagem ${id}).` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar a enquete: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_cadastrar",
+        "Passa a atender (ler quando chamada e responder) em um grupo do WhatsApp que já existe e que a Maia não criou. Grupos criados pela Maia já são cadastrados sozinhos. Só roda depois do OK do owner.",
+        { grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos.") },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não cadastrei: ${group.error}.` }], isError: true };
+          try {
+            await registerGroup(getDb(), group.group.jid, group.group.subject, "cadastrado");
+            return { content: [{ type: "text", text: `Pronto: passo a atender no grupo "${group.group.subject}" quando me chamarem pelo nome.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui cadastrar: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
         },
       ),
