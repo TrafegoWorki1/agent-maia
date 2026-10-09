@@ -72,8 +72,10 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 ## 10. Grupos (o que já existe)
 
 - Listar grupos da instância e ver a atividade: sim.
-- Criar grupo: só com aprovação (`SIM <número>`).
-- Enviar mensagem a grupo: não existe ainda.
+- Criar grupo: só com aprovação (OK ou NÃO). O grupo criado é conferido na lista da instância e cadastrado sozinho em `maia_groups`.
+- **Atender no grupo:** nos grupos cadastrados, a Maia lê e responde só quando a mensagem a chama pelo nome. A resposta sai no grupo, começa com o nome de quem pediu, e ação que altera algo pede o OK do owner no privado. Texto só entra na fila nesses casos (apagado em 24 h); em outros grupos conta só a atividade.
+- **Cadastrar grupo novo:** o owner escreve no grupo "Maia, cadastra este grupo" (só o número do owner vale) ou usa a ferramenta `grupo_cadastrar` (com OK).
+- Com aprovação: enviar texto (com menção), enviar enquete e agendar envio (`server/groupTools.ts`). Ler enquetes: livre.
 
 ## 11. O que a Maia nunca faz
 
@@ -91,7 +93,7 @@ As regras abaixo estão planejadas em `docs/implementacao-2-governanca.md` e nã
 - Aprovação vinculada à impressão digital dos parâmetros.
 - Limite de 10 imagens por dia.
 - Escopo de memória por cliente na base de conhecimento.
-- Envio a grupos e escalonamento automático.
+- Escalonamento automático de pedidos.
 - Áudio no agrupamento (depende de provedor de transcrição).
 - Instagram e Kommo (sem integração no projeto).
 

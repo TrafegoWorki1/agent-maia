@@ -459,3 +459,12 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - **Problema:** indicador zerado. Havia `external_done` (feito) mas nada gravava `task_verified` (conferido), e nenhuma regra mandava conferir.
 - **Correção:** regra `precisao_conferencia` no banco; conferência real em grupo (lista da instância), Instagram (status lido na Zernio) e arte (id da mensagem do WhatsApp). Detalhes no CHANGELOG.
 - **Pendente:** reiniciar a Maia (`Iniciar Maia.bat`) para carregar o código novo.
+
+## Grupos, aprovação e objetivo (09/10/2026)
+- **Aprovação reduzida:** só publicar/postar, enviar mensagem, subir anúncio, apagar e convites de agenda (`server/approvalPolicy.ts`). Aprova-se com **OK** (SIM também vale).
+- **Grupos:** texto com menção, enquete, leitura de enquete e agendamento (`server/groupTools.ts`, tabela `scheduled_actions`). Não testado ao vivo.
+- **Erro: Maia não respondia no grupo.** Causa: o grupo nunca foi ligado ao agente (só contava atividade, sem texto). Correção: nos grupos de `maia_groups`, quando chamada pelo nome, ela responde no grupo com o nome de quem pediu. Grupos que ela cria entram sozinhos; grupo novo: "Maia, cadastra este grupo" dito pelo owner. Risco: identificação do participante (LID) ainda não validada ao vivo.
+- **Erro: launcher ocupava a porta 3000** (conflito com o Bryan). Correção: o launcher sobe só o worker.
+- **Objetivo da Maia** reescrito (banco e manual da página Operação).
+- **WappTrack MCP:** o servidor recusou dois tokens (401). Integração não feita; aguardando token válido.
+- **Pendente:** reiniciar a Maia; testar grupo, enquete e cadastro de grupo novo.
