@@ -37,7 +37,7 @@ export function classify(body: Record<string, unknown>): EventKind {
   if (event === "messages.upsert") {
     const message = (data.message ?? {}) as Record<string, unknown>;
     if (message.pollUpdateMessage) return "poll_vote";
-    if (message.conversation || message.extendedTextMessage || message.audioMessage) return "message";
+    if (message.conversation || message.extendedTextMessage || message.audioMessage || message.imageMessage || message.videoMessage || message.documentMessage || message.documentWithCaptionMessage) return "message";
   }
   return "unknown";
 }
@@ -120,4 +120,47 @@ export function incomingText(body: unknown): IncomingText | null {
   const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
   const text = typeof message.conversation === "string" ? message.conversation : extended.text;
   return typeof text === "string" && text.trim() ? { from, text: text.trim() } : null;
+}
+
+export type MediaType = "image" | "video" | "document";
+
+export interface MediaRef {
+  key: Record<string, unknown>;
+  mimetype: string;
+  from: string;
+  mediaType: MediaType;
+  fileName: string;
+  caption: string;
+  size: number | null;
+}
+
+// Imagem, vídeo ou documento recebido de um número (com a legenda, se houver). O arquivo em si é baixado depois, pelo worker.
+export function mediaFrom(body: unknown): MediaRef | null {
+  const from = senderOf(body);
+  if (!from || !body || typeof body !== "object") return null;
+  const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
+  let message = (data.message ?? {}) as Record<string, unknown>;
+  const wrapped = (message.documentWithCaptionMessage as { message?: Record<string, unknown> } | undefined)?.message;
+  if (wrapped) message = wrapped;
+  const found: [MediaType, unknown][] = [
+    ["image", message.imageMessage],
+    ["video", message.videoMessage],
+    ["document", message.documentMessage],
+  ];
+  for (const [mediaType, raw] of found) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+    const key = (data.key ?? {}) as Record<string, unknown>;
+    const size = Number(item.fileLength);
+    return {
+      key,
+      from,
+      mediaType,
+      mimetype: typeof item.mimetype === "string" ? item.mimetype : mediaType === "image" ? "image/jpeg" : mediaType === "video" ? "video/mp4" : "application/octet-stream",
+      fileName: typeof item.fileName === "string" ? item.fileName.slice(0, 120) : "",
+      caption: typeof item.caption === "string" ? item.caption.slice(0, 1000) : "",
+      size: Number.isFinite(size) && size > 0 ? size : null,
+    };
+  }
+  return null;
 }

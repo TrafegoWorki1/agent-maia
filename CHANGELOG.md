@@ -40,6 +40,16 @@ bug, qual era o sintoma e a causa.
 - Regra 7 do banco: diz que não faz, avisa o Herickson e não promete prazo.
 - Pendente: reiniciar a Maia no PC.
 
+### Adicionado (a Maia entende imagem, vídeo e documento do WhatsApp)
+- **Pedido do owner (2026-10-09):** o agente precisa ler imagens, vídeos e documentos enviados no WhatsApp. Só do número do dono; de outros números nada é baixado.
+- **Fluxo:** o webhook grava só a referência (tipo `media` na fila `inbox`); o worker baixa pela Evolution (limites: imagem 10 MB, documento 20 MB, vídeo 50 MB), salva em `data/midia` (apagado em 24 h), avisa "Recebi…, analisando" e trata o resultado como um pedido do dono, com as mesmas permissões e aprovações do texto. A legenda é o pedido.
+- **Imagem e PDF:** o agente lê pelo caminho com a ferramenta Read. **Texto, CSV, JSON:** conteúdo inline (até 12 mil caracteres). **Word (.docx) e Excel (.xlsx):** texto extraído (biblioteca `fflate`). **Vídeo:** 4 quadros (ffmpeg) + áudio transcrito pelo Whisper do owner (até 180 s de áudio; acima de 10 min só quadros). Outros formatos: a Maia diz quais aceita.
+- **Segurança:** o conteúdo do arquivo é tratado como dado, nunca como instrução. As ferramentas internas do agente passaram a ser limitadas por quem pede (`decideBuiltin`): o dono lê o projeto (nunca `.env`, `.git`, `.ssh`, `node_modules`); membros e visitantes só leem `data/midia`; ferramentas internas desconhecidas só para o dono. Antes, Read/Grep estavam liberados sem limite.
+- **Banco:** migração `20261010120000_maia_inbox_kind_media` amplia `inbox.kind` para aceitar `media` (só amplia valores; sem perda de dados). **NÃO aplicada em produção: aguarda o OK do owner.** O código só pode ir para a `main` depois dela; se a Vercel receber o código antes, o webhook devolve erro 500 para mídia do dono.
+- `classify` do webhook passou a reconhecer imagem, vídeo e documento como mensagem (antes caíam em "desconhecido").
+- Testes: 14 novos (referência de mídia, fila só do dono, docx/xlsx, prompts, limites de leitura, vídeo com ffmpeg real); `maxWorkers: 3` no Vitest porque o PGlite derrubava o worker quando muitos arrancavam juntos no Windows (falhava 1 em 3 execuções, passa 5 em 5).
+- **Pendente:** aplicar a migração com aprovação; merge; reiniciar a Maia; testar com arquivos reais (a transcrição do vídeo leva de 30 a 90 s).
+
 ### Adicionado (transcrição de áudio do WhatsApp pelo Whisper do owner)
 - **Decisão do owner (2026-10-09):** áudios do dono são transcritos pelo servidor Whisper dele no EasyPanel ("Whisper Official API", modelo small, CPU). `WHISPER_API_URL` e `WHISPER_API_KEY` ficam só no `.env`; o áudio não vai para terceiros nem é gravado.
 - `server/transcribe.ts`: `POST /transcribe?language=pt&task=transcribe` (multipart `audio_file`), com tentativa extra se o servidor estiver reiniciando (502/503/504), tempo máximo de 240 s e erros sem a chave. A Maia avisa "Recebi o áudio, transcrevendo…", mostra o que entendeu ("Entendi: …") e trata o texto como se tivesse sido digitado (mesmas permissões e aprovações).

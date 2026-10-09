@@ -1,10 +1,10 @@
-import { audioFrom, incomingText, normalizeEvent, samePhone } from "./evolutionWebhook.ts";
+import { audioFrom, incomingText, mediaFrom, normalizeEvent, samePhone } from "./evolutionWebhook.ts";
 
 // Triagem do webhook: transforma um evento da Evolution numa linha da fila `inbox` do Supabase.
 // Função pura (sem banco, sem rede), usada pela rota da Vercel. O worker do PC lê essas linhas depois.
 // Texto e áudio só são guardados para o dono e o aprovador; de outros números fica só o tipo.
 
-export type InboxKind = "text" | "audio" | "event";
+export type InboxKind = "text" | "audio" | "event" | "media";
 export type InboxSender = "owner" | "approver" | "other" | "group" | "none";
 
 export interface InboxRow {
@@ -105,6 +105,16 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
     if (samePhone(audio.from, owner)) {
       // O áudio em si é baixado pela Evolution pelo worker: aqui só vai a referência.
       return { kind: "audio", sender: "owner", key_id: keyId, payload: JSON.stringify({ key: audio.key, mimetype: audio.mimetype }) };
+    }
+    return { kind: "event", sender: "other", key_id: keyId, payload: null };
+  }
+
+  // Imagem, vídeo ou documento do dono: só a referência (o arquivo é baixado pelo worker). De outros números, nada.
+  const media = mediaFrom(body);
+  if (media) {
+    if (samePhone(media.from, owner)) {
+      const { key, mimetype, mediaType, fileName, caption, size } = media;
+      return { kind: "media", sender: "owner", key_id: keyId, payload: JSON.stringify({ key, mimetype, mediaType, fileName, caption, size }) };
     }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }
