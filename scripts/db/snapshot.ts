@@ -39,7 +39,7 @@ funcoes as (
          || ' vol=' || p.provolatile::text
          || ' ret=' || pg_get_function_result(p.oid)
          || ' cfg=' || coalesce(array_to_string(p.proconfig, ','), '')
-         || ' src=' || md5(p.prosrc) end
+         || ' src=' || md5(replace(p.prosrc, chr(13), '')) end
          || ' exec(anon=' || has_function_privilege('anon', p.oid, 'execute')::text
          || ',auth=' || has_function_privilege('authenticated', p.oid, 'execute')::text
          || ',service=' || has_function_privilege('service_role', p.oid, 'execute')::text || ')'
