@@ -59,8 +59,8 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
     return;
   }
   try {
-    // A transcrição roda em CPU e pode levar de 20 a 90 segundos: avisa que recebeu.
-    await notifyOwner("Recebi o áudio, transcrevendo (pode levar até um minuto)...");
+    // Decisão do owner (10/10/2026): sem aviso de "recebi, transcrevendo..." — é mecânica interna,
+    // não contexto que o owner precise ver. A transcrição roda em CPU e pode levar até ~90 segundos.
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
     const text = (await transcribe(data, mimetype)).trim();
     if (!text) {
@@ -89,7 +89,7 @@ export async function handleOwnerMedia(ref: MediaRef): Promise<void> {
     return;
   }
   try {
-    await notifyOwner(`Recebi ${MEDIA_LABEL[kind]}, analisando${kind === "video" ? " (vídeos podem levar até 1 ou 2 minutos)" : ""}...`);
+    // Decisão do owner (10/10/2026): sem aviso de "recebi, analisando..." — mecânica interna, não contexto útil.
     const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
     const name = ref.fileName || `${kind === "image" ? "imagem" : kind === "video" ? "video" : "documento"}${MEDIA_EXT[mimetype] ?? ""}`;
     const path = saveMedia(data, name);
@@ -140,7 +140,6 @@ export async function handleMemberAudio(ref: MemberAudioRef): Promise<void> {
     return;
   }
   try {
-    await sendOwnerText(digits, "Recebi o áudio, transcrevendo (pode levar até um minuto)...");
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
     const text = (await transcribe(data, mimetype)).trim();
     if (!text) {
@@ -200,7 +199,6 @@ export async function handleMemberMedia(ref: MemberMediaRef): Promise<void> {
     return;
   }
   try {
-    await sendOwnerText(digits, `Recebi ${MEDIA_LABEL[kind]}, analisando${kind === "video" ? " (vídeos podem levar até 1 ou 2 minutos)" : ""}...`);
     const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
     const name = ref.fileName || `${kind === "image" ? "imagem" : kind === "video" ? "video" : "documento"}${MEDIA_EXT[mimetype] ?? ""}`;
     const path = saveMedia(data, name, Date.now(), MEMBER_MEDIA_DIR);

@@ -82,6 +82,7 @@ describe("contrato entre catálogo, Markdown e migração", () => {
   // então uma regra nova vem por migração nova, nunca editando a anterior. O teste roda TODAS as migrações
   // reais (PGlite) e confere se a tabela final bate com o catálogo — é o que importa de verdade.
   it("as migrações, todas juntas, entregam exatamente o catálogo revisado", async () => {
+    // Monta um Postgres (PGlite) do zero e aplica as 24 migrações reais: mais lento que o padrão do vitest.
     const { buildLocalDb } = await import("../scripts/db/local.ts");
     const local = await buildLocalDb();
     try {
@@ -91,5 +92,5 @@ describe("contrato entre catálogo, Markdown e migração", () => {
       await local.close();
     }
     expect(JSON.stringify(RULE_CATALOG)).not.toMatch(/\b\d{10,15}\b/);
-  });
+  }, 30_000);
 });
