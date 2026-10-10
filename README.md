@@ -1,4 +1,4 @@
-# OperaFlow · Maia
+# Agent · Maia
 
 Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo WhatsApp, usa ferramentas com permissões por pessoa e registra execução, aprovação e resultado. O painel apresenta pessoas, conexões, tarefas, indicadores e ocorrências reais.
 
