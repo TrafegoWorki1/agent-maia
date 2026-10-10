@@ -16,7 +16,9 @@ export interface InboxRow {
 }
 
 // Grupos da Maia (tabela maia_groups): só neles, e só quando a mensagem chama a Maia, o texto entra na fila (apagado em 24 h).
-const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
+// Exportada para o worker: áudio em grupo não tem texto antes de transcrever, então a chamada pelo nome só
+// é checada depois (server/ownerRouter.ts, handleGroupAudio).
+export const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
 
 const REGISTER_GROUP = /(cadastr|atend|registr)\w*\s+(este|esse|neste|nesse|o)?\s*grupo|passa\s+a\s+atender/i;
 
@@ -81,6 +83,15 @@ export function toInboxRow(
         const addressed = addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now);
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
         return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text, addressed }) };
+      }
+      // Áudio em grupo cadastrado: não tem texto ainda, então "chamar pelo nome" só é sabido após a transcrição
+      // (feita pelo worker, server/ownerRouter.ts). Aqui já decidimos o resto de addressedToMaia (menção, resposta
+      // à Maia, ou continuação da conversa em andamento) — o worker soma isso com CALLS_MAIA no texto transcrito.
+      const audio = audioFrom(body);
+      if (audio) {
+        const addressed = addressedToMaia(body as Record<string, unknown>, data, "", participant, groups.get(remoteJid) ?? {}, now);
+        const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+        return { kind: "audio", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, addressed, key: audio.key, mimetype: audio.mimetype }) };
       }
     }
     // Grupo novo: só o dono, chamando a Maia para atender ali ("Maia, cadastra/atende este grupo"), cadastra o grupo.

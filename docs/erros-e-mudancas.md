@@ -2,6 +2,14 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Áudio em grupo cadastrado (10/10/2026)
+
+- **Sintoma:** o owner mandou um áudio chamando a Maia dentro de um grupo cadastrado e ela respondeu que nenhum áudio tinha chegado — resposta tecnicamente certa, mas escondia uma lacuna real.
+- **Causa:** `toInboxRow` (`server/inbox.ts`) só lia texto no ramo de grupo; `audioMessage` não tinha caminho nenhum ali, então caía no fallback de "atividade do grupo" sem baixar nem transcrever. A função de áudio (`audioFrom`) só era alcançada fora de grupo.
+- **Correção:** grupo cadastrado agora também aceita `audioMessage`; a parte de "foi endereçado" que não depende do texto (menção, resposta à Maia, janela de conversa de 10 min) é decidida antes de transcrever, e a chamada pelo nome é checada depois, no texto transcrito (`handleGroupAudio`, `server/ownerRouter.ts`). Mesma memória de grupo de 7 dias que o texto já tinha.
+- **Verificação:** `pnpm typecheck` e `pnpm test` aprovados (254 vitest + 27 de banco); teste novo em `tests/inbox.test.ts`.
+- **Fora do escopo:** `server/webhookServer.ts` (webhook local antigo, porta 3100) nunca suportou grupo cadastrado, nem para texto; não foi alterado.
+
 ## Remoção da moldura das permissões (10/10/2026)
 
 - **Correção do entendimento:** o usuário se referia ao quadro claro em torno de cada permissão. O ajuste anterior de tamanho não resolvia esse detalhe visual.

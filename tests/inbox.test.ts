@@ -72,6 +72,26 @@ describe("triagem do webhook para a fila", () => {
     expect(toInboxRow(quoted, OWNER, APPROVER, new Map([[OP, {}]]), now)).toMatchObject({ kind: "text" });
   });
 
+  it("áudio em grupo cadastrado: guarda a referência; addressed vem de menção/resposta/conversa em andamento (nunca do nome, que só se sabe após transcrever)", () => {
+    const OP = "120363412181825151@g.us";
+    const now = new Date("2026-10-09T17:13:00Z");
+    const audioMsg = (participant: string, extra: Record<string, unknown> = {}) => ({
+      event: "messages.upsert", instance: "wt_test",
+      data: { pushName: "Herickson", key: { id: "G5", remoteJid: OP, fromMe: false, participant: `${participant}@s.whatsapp.net` }, message: { audioMessage: { mimetype: "audio/ogg; codecs=opus" }, ...extra } },
+    });
+    // sem janela de conversa nem menção: addressed false (só a transcrição poderá dizer se chamou pelo nome)
+    const plain = toInboxRow(audioMsg("5511999999999"), OWNER, APPROVER, new Map([[OP, {}]]), now);
+    expect(plain).toMatchObject({ kind: "audio", sender: "group" });
+    expect(JSON.parse(plain!.payload!)).toMatchObject({ jid: OP, participant: "5511999999999", name: "Herickson", addressed: false, key: { id: "G5" }, mimetype: "audio/ogg; codecs=opus" });
+    // dentro da janela de 10 min de uma conversa com a mesma pessoa: addressed true
+    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "5585992494552" }]]);
+    expect(JSON.parse(toInboxRow(audioMsg("5585992494552"), OWNER, APPROVER, state, now)!.payload!)).toMatchObject({ addressed: true });
+    // grupo não cadastrado: não entra como áudio
+    expect(toInboxRow(audioMsg("5511999999999"), OWNER, APPROVER, new Map())).toMatchObject({ kind: "event", payload: OP });
+    // mensagem da própria conta (fromMe): ignorada
+    expect(toInboxRow({ ...audioMsg("5511999999999"), data: { ...audioMsg("5511999999999").data, key: { ...audioMsg("5511999999999").data.key, fromMe: true } } }, OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event" });
+  });
+
   it("membro autorizado (conversa.maia) fala com a Maia no privado; sem a permissão, nada entra", () => {
     const members = new Set(["5585911112222"]);
     const dm = (from: string) => message(from, { pushName: "Jéssica", message: { conversation: "Preciso de ajuda" } });

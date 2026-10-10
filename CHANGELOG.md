@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Áudio em grupo cadastrado
+
+- **Bug corrigido:** áudio mandado dentro de um grupo cadastrado nunca chegava à Maia, mesmo chamando pelo nome na própria fala. **Causa:** `server/inbox.ts` só extraía texto (`conversation`/`extendedTextMessage.text`) no ramo de grupo; `audioMessage` não tinha nenhum tratamento ali e caía no fallback de "atividade do grupo" (sem baixar nem transcrever). A função que baixa áudio (`audioFrom`) só era alcançada para conversas privadas.
+- **Correção:** `toInboxRow` agora também reconhece `audioMessage` em grupo cadastrado, decidindo ali o que já dá para saber sem o texto (menção à Maia, resposta a uma mensagem dela, ou continuação de conversa na janela de 10 min — mesma lógica de `addressedToMaia`). Nova função `handleGroupAudio` (`server/ownerRouter.ts`) transcreve pelo Whisper do owner, grava na memória do grupo (7 dias, com autoria, igual ao texto) e só chama `handleGroupMessage` se o pedido já estava endereçado ou se a própria fala transcrita chamou "Maia" (`CALLS_MAIA`, agora exportada de `inbox.ts`). `server/inboxWorker.ts` roteia o novo item `{ sender: "group", kind: "audio" }` para essa função.
+- **Fora do escopo:** `server/webhookServer.ts` (porta 3100, caminho local antigo) não suporta grupo cadastrado nem para texto — não foi tocado; o caminho real em produção é `api/webhook.ts` → `inbox.ts` → `inboxWorker.ts`.
+- **Verificação:** `pnpm typecheck` e `pnpm test` (254 testes vitest + 27 de banco) aprovados; novo teste em `tests/inbox.test.ts` cobre áudio em grupo cadastrado/não cadastrado, janela de conversa e `fromMe`.
+
 ## 2026-10-10 — Permissões sem moldura
 
 - **Esclarecimento do pedido:** o incômodo era a moldura clara ao redor de cada permissão. Removidos borda, fundo branco e fundo verde dos itens selecionados; permanecem checkbox, título, descrição e indicador de seleção. Tamanho compacto e autorização preservados.

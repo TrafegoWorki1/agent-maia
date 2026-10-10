@@ -2,7 +2,8 @@ import { downloadAudio, downloadMedia, sendOwnerText } from "./evolutionSend.ts"
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
-import { handleMemberMessage, handleOwnerMessage } from "./maiaOwnerAgent.ts";
+import { handleGroupMessage, handleMemberMessage, handleOwnerMessage } from "./maiaOwnerAgent.ts";
+import { CALLS_MAIA } from "./inbox.ts";
 import { canConverse, resolveRequester } from "./access.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { recordReceivedMedia } from "./receivedMedia.ts";
@@ -151,6 +152,32 @@ export async function handleMemberAudio(ref: MemberAudioRef): Promise<void> {
   } catch (error) {
     console.error("[audio-membro]", error instanceof Error ? error.message : error);
     await sendOwnerText(digits, "Não consegui processar o áudio agora. Tente de novo ou mande em texto.").catch(() => {});
+  }
+}
+
+export interface GroupAudioRef extends AudioRef {
+  jid: string;
+  participant: string;
+  name: string;
+  // Já decidido em server/inbox.ts (menção, resposta à Maia ou conversa em andamento) — sem o texto ainda,
+  // já que áudio só tem texto depois de transcrito. A chamada pelo nome (CALLS_MAIA) é somada aqui, no texto.
+  addressed: boolean;
+}
+
+// Áudio num grupo cadastrado: transcreve e trata como o texto do grupo (mesma memória de 7 dias, mesma regra
+// de só responder quando chamada). Sem avisos de "transcrevendo": isso poluiria o grupo para quem não pediu nada.
+export async function handleGroupAudio(ref: GroupAudioRef): Promise<void> {
+  const transcribe = transcriberFromEnv();
+  if (!transcribe) return;
+  try {
+    const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
+    const text = (await transcribe(data, mimetype)).trim();
+    if (!text) return;
+    await recordConvMessage(getDb(), { conv: ref.jid, participant: ref.participant, name: ref.name, text }).catch((error) => console.error("[audio-grupo] conversa:", error instanceof Error ? error.message : error));
+    if (!ref.addressed && !CALLS_MAIA.test(text)) return;
+    await handleGroupMessage({ jid: ref.jid, participant: ref.participant, name: ref.name, text });
+  } catch (error) {
+    console.error("[audio-grupo]", error instanceof Error ? error.message : error);
   }
 }
 
