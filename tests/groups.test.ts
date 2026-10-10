@@ -38,7 +38,7 @@ describe("conferência do grupo criado", () => {
 });
 
 import { afterEach, beforeEach, vi } from "vitest";
-import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, fetchLiveGroups, resetGroupCache, resetGroupCooldown, sendGroupInvite, updateGroupParticipants } from "../server/groups.ts";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, fetchLiveGroups, resetGroupCache, resetGroupCooldown, sendGroupInvite, updateGroupParticipants, updateGroupPicture } from "../server/groups.ts";
 
 describe("limite do WhatsApp na lista de grupos", () => {
   afterEach(() => {
@@ -120,6 +120,32 @@ describe("adicionar/remover/promover/rebaixar participante de grupo existente", 
     const result = await updateGroupParticipants("120363@g.us", "remove", ["5585986139044"]);
     expect(result.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("trocar a foto do grupo", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("chama o endpoint com groupJid e a imagem (base64 ou URL)", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ update: "success" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await updateGroupPicture("120363@g.us", "aGVsbG8=");
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/group/updateGroupPicture/i");
+    expect(JSON.parse(init.body as string)).toEqual({ groupJid: "120363@g.us", image: "aGVsbG8=" });
+  });
+
+  it("HTTP de erro vira detalhe claro, sem exceção", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 500 })));
+    const result = await updateGroupPicture("120363@g.us", "aGVsbG8=");
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain("500");
   });
 });
 

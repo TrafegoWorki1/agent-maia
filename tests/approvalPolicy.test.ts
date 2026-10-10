@@ -103,6 +103,11 @@ describe("membro só faz o que a permissão cobre", () => {
     expect(decideAccess("mcp__maia__grupo_enviar_convite", owner, { groupRegistered: false }, false).decision).toBe("approve");
     expect(decideAccess("mcp__maia__grupo_enviar_convite", member(), { groupRegistered: true }, false).decision).toBe("approve");
   });
+  it("trocar a foto do grupo segue a mesma regra de grupo cadastrado (mudança pública, afeta a Evolution direto)", () => {
+    expect(decideAccess("mcp__maia__grupo_alterar_foto", owner, { groupRegistered: true }, false).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__grupo_alterar_foto", owner, { groupRegistered: false }, false).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__grupo_alterar_foto", member(), { groupRegistered: true }, false).decision).toBe("approve");
+  });
 });
 
 describe("quem pode conversar com a Maia no privado (canConverse)", () => {

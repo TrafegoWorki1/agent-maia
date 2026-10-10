@@ -23,6 +23,7 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__maia__grupo_enviar_enquete": (i) => `criar uma enquete no grupo "${str(i, "grupo") ?? "?"}"`,
   "mcp__maia__grupo_agendar": (i) => `agendar um envio no grupo "${str(i, "grupo") ?? "?"}"`,
   "mcp__maia__grupo_enviar_convite": (i) => `enviar o convite do grupo "${str(i, "grupo") ?? "?"}"`,
+  "mcp__maia__grupo_alterar_foto": (i) => `trocar a foto do grupo "${str(i, "grupo") ?? "?"}"`,
   "mcp__maia__grupo_cadastrar": (i) => `passar a atender o grupo "${str(i, "grupo") ?? "?"}"`,
   "mcp__maia__contato_enviar_mensagem": (i) => `mandar uma mensagem para "${str(i, "contato") ?? "um contato"}"`,
   "mcp__maia__contato_cadastrar": () => "cadastrar um novo contato",

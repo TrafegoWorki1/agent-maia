@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Trocar foto de grupo (e auditoria dos eventos da Evolution)
+
+- **Pedido do owner:** mandou a logo da Worki e pediu pra Maia colocar como foto do grupo Operacional; ela respondeu que não tem ferramenta pra isso. O owner questionou se a Evolution de fato não tem endpoint — não tinha: o código-fonte da Evolution API confirma `POST /group/updateGroupPicture/{instance}`, corpo `{ groupJid, image }`, aceitando tanto URL https quanto base64. Só não estava implementado neste projeto.
+- **Implementado:** `updateGroupPicture` em `server/groups.ts`, mesmo padrão das outras chamadas de grupo. Nova ferramenta `grupo_alterar_foto` (`server/maiaImageTool.ts`): aceita uma imagem de `data/midia` (que o dono mandou) ou `data/arte`, lê o arquivo e manda em base64 — sem precisar de URL pública. Mesma regra das outras ações de grupo: livre pro owner em grupo cadastrado, aprovação em grupo não cadastrado ou para membro.
+- **Auditoria dos eventos da Evolution** (pedido do owner): confirmado ao vivo que a instância só tem 3 eventos ativos no webhook (`CONNECTION_UPDATE`, `MESSAGES_UPSERT`, `MESSAGES_UPDATE`). Nenhum evento de grupo (`GROUPS_UPSERT`, `GROUPS_UPDATE`, `GROUP_PARTICIPANTS_UPDATE`). Isso não impede as ações (são chamadas HTTP diretas, com resposta síncrona), mas explica o cooldown de rate-overlimit já existente: sem evento reativo, a única forma de saber de uma mudança de grupo é consultar de novo. **Pendência, não implementada:** avaliar se vale ativar esses eventos e ensinar `api/webhook.ts`/`inbox.ts` a invalidar o cache do grupo (`resetGroupCache`) ao recebê-los, em vez de só expirar por tempo.
+- **Verificação:** `pnpm typecheck` e `pnpm test` (294) aprovados.
+
 ## 2026-10-10 — Sem aviso de "recebi/transcrevendo/analisando" em áudio e mídia
 
 - **Feedback do owner:** ao mandar áudio ou documento, a Maia avisava "Recebi o áudio, transcrevendo (pode levar até um minuto)..." / "Recebi o documento, analisando...". Mecânica interna irrelevante, mesmo padrão da correção anterior sobre "o WhatsApp aceitou o envio".
