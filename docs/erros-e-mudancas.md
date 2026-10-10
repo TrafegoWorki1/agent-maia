@@ -2,6 +2,14 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Adicionar participante, lembrete sem contexto, painel manual, números nas regras (10/10/2026)
+
+- **Diagnóstico de "a Maia tá estranha" (Gessica/Gusta):** não era bug nem Codex (conferido em `agent_runs`: tudo Claude, sem fallback). Eram duas mensagens do owner próximas, processadas em ordem (fila por conversa); a resposta ao "Pra mim" (sobre o rascunho do Gusta) chegou 3s depois do pedido da Gessica, dando a impressão de confusão.
+- **Gap real confirmado nesse episódio:** faltava ferramenta para adicionar alguém a um grupo já existente (pedido 3 vezes). Implementada (`grupo_adicionar_participante`).
+- **Bug real confirmado:** lembrete (`taskReminders.ts`) não gravava a própria mensagem na conversa; por isso "feito, falei com ele" chegou sem contexto de quem/assunto. Corrigido.
+- **Pedido do owner:** painel "Tarefas e eficácia" não deve ter criação manual (tarefa, lembrete, avaliação) — tudo nasce da conversa com a Maia. Formulários de criação removidos do `TarefasPage.tsx`; edição/correção do que já existe continua.
+- **Dados sensíveis na tela "Regras da Maia":** duas regras tinham o número do dono e do aprovador escritos em texto puro, visíveis na tela (ela mostra `maia_rules` por completo). Removidos; o comportamento é preservado injetando os números do `.env` no prompt em tempo de execução, nunca gravado no banco.
+
 ## Membro conversa com a Maia no privado (10/10/2026)
 
 - **Pedido do owner:** quem tem permissão `conversa.maia` (membro cadastrado) fala com a Maia no privado, não só em grupo; áudio/imagem/vídeo/documento de membro ou contato também são entendidos, com retenção de 7 dias (dono continua 24 h); prospecção continua só com quem já aceitou falar com ela.

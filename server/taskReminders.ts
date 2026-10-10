@@ -1,4 +1,4 @@
-import type { Db } from "./store.ts";
+import { recordMessage, type Db } from "./store.ts";
 import { sendTextChecked, DeliveryError } from "./evolutionSend.ts";
 
 export async function runTaskReminders(db: Db): Promise<number> {
@@ -17,10 +17,14 @@ export async function runTaskReminders(db: Db): Promise<number> {
         continue;
       }
       const due = t.data.due_at ? new Date(t.data.due_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "sem prazo";
-      const id = await sendTextChecked(owner, `Lembrete da tarefa #${reminder.work_task_id}: ${t.data.title}\nResponsável: ${t.data.responsible}\nPrazo (Brasília): ${due}\nEstado: ${t.data.status}. Confira o trabalho antes de marcar como concluído.`);
+      const text = `Lembrete da tarefa #${reminder.work_task_id}: ${t.data.title}\nResponsável: ${t.data.responsible}\nPrazo (Brasília): ${due}\nEstado: ${t.data.status}. Confira o trabalho antes de marcar como concluído.`;
+      const id = await sendTextChecked(owner, text);
       accepted = true;
       const saved = await db.from("task_reminders").update({ status: "sent", message_id: id, finished_at: new Date().toISOString(), error: null }).eq("id", reminder.id);
       if (saved.error) throw new Error(saved.error.message);
+      // Sem isto, uma resposta livre do owner ("feito, falei com ele") chega sem contexto: o lembrete nunca
+      // tinha entrado na conversa que alimenta conversationContext (bug real, 10/10/2026).
+      await recordMessage(db, { channel: "whatsapp", author: "maia", text }).catch((error) => console.error("[lembretes] falha ao gravar na conversa:", error instanceof Error ? error.message : error));
     } catch (error) {
       const uncertain = accepted || !(error instanceof DeliveryError) || error.uncertain;
       const saved = await db.from("task_reminders").update({ status: uncertain ? "uncertain" : "failed", finished_at: new Date().toISOString(), error: String(error).slice(0, 500) }).eq("id", reminder.id);

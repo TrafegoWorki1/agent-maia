@@ -47,7 +47,7 @@ export interface AccessDecision {
 
 export const MAX_DM_PER_TASK = 3;
 
-const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar)$/;
+const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_adicionar_participante)$/;
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
 const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar|arquivo_reenviar)$/;

@@ -113,6 +113,25 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
   }
 }
 
+// Adiciona participantes a um grupo que já existe (a Evolution aceita vários números de uma vez).
+// Pedido recorrente do owner (3 vezes, 09 e 10/10/2026): faltava esta ferramenta.
+export async function addGroupParticipants(jid: string, participants: string[]): Promise<{ ok: boolean; detail: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/updateParticipant/${config.instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apikey },
+      body: JSON.stringify({ groupJid: jid, action: "add", participants }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
+    return { ok: true, detail: "participante(s) adicionado(s)" };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : "falha ao adicionar ao grupo" };
+  }
+}
+
 // A conferência de grupo criado: o nome aparece na lista da instância (comparação sem acento e sem maiúsculas).
 export function resetGroupCache(): void {
   cache = null;

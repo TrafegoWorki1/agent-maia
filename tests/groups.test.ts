@@ -38,7 +38,7 @@ describe("conferência do grupo criado", () => {
 });
 
 import { afterEach, vi } from "vitest";
-import { fetchLiveGroups, resetGroupCache, resetGroupCooldown } from "../server/groups.ts";
+import { addGroupParticipants, fetchLiveGroups, resetGroupCache, resetGroupCooldown } from "../server/groups.ts";
 
 describe("limite do WhatsApp na lista de grupos", () => {
   afterEach(() => {
@@ -58,5 +58,41 @@ describe("limite do WhatsApp na lista de grupos", () => {
     const second = await fetchLiveGroups(2_000);
     expect(second.error).toContain("rate-overlimit");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("adicionar participante a grupo existente", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("chama o endpoint de atualizar participantes com action add", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/group/updateParticipant/i");
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual({ groupJid: "120363@g.us", action: "add", participants: ["5585986139044"] });
+  });
+
+  it("HTTP de erro vira detalhe claro, sem exceção", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 400 })));
+    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain("400");
+  });
+
+  it("sem a Evolution configurada, avisa sem tentar a rede", async () => {
+    delete process.env.EVOLUTION_API_URL;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    expect(result.ok).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

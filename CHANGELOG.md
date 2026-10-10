@@ -10,6 +10,16 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Adicionar participante a grupo existente; lembrete sem contexto; painel sem criação manual
+- **Pedido recorrente do owner (3 vezes em 09–10/10):** "coloca a Gessica/Jéssica no grupo Operacional" — a Maia sempre respondia que não tinha ferramenta para isso (correto: só existia criar grupo novo). Nova ferramenta `grupo_adicionar_participante` (`server/groups.ts`, `addGroupParticipants`, `/group/updateParticipant`), com a mesma regra de acesso de `grupo_enviar_texto` (owner livre em grupo cadastrado; membro precisa de `mensagem.enviar`); `accessContext.ts` ajustado para calcular `groupRegistered` também para essa ferramenta. A resposta é honesta: confirma que a Evolution aceitou o pedido, não que a pessoa entrou de fato (sem endpoint de conferência conhecido).
+- **Bug corrigido: lembrete chegava sem contexto.** Sintoma: o owner respondeu "feito, falei com ele" ao lembrete da tarefa #4, e a Maia disse não ter contexto de quem era a pessoa nem o assunto. Causa: `taskReminders.ts` mandava o lembrete direto pela Evolution, sem `recordMessage` — o texto nunca entrava na conversa que alimenta `conversationContext`. Corrigido: a mensagem do lembrete agora é gravada na conversa após o envio aceito (nunca se falhar). `EXECUTION_GUIDELINES` (server/rules.ts) ganhou a instrução de relacionar uma resposta vaga com o lembrete mais recente antes de perguntar de novo.
+- **Painel "Tarefas e eficácia" sem criação manual** (decisão do owner: tudo deve nascer da conversa com a Maia, não de clique no painel). Removidos do `TarefasPage.tsx`: formulário de nova tarefa, formulário de novo lembrete e o formulário de avaliação humana manual. Ficou: editar/corrigir tarefa existente, reagendar/cancelar lembrete existente, reenviar entrega falha, e o resumo de relevância/resolução (sem o botão de salvar avaliação). O backend (`/api/workspace`) não foi alterado.
+- Regras do banco atualizadas: `grupos_acoes` (nova ferramenta).
+- Testes novos: `tests/taskReminders.test.ts`, mais casos em `tests/groups.test.ts` e `tests/approvalPolicy.test.ts`. 222 testes no total. **Não testado ao vivo:** adicionar participante de verdade a um grupo.
+
+### Números do dono/aprovador não ficam mais escritos nas regras (painel)
+- O owner notou, na tela "Regras da Maia", duas regras com o próprio número e o do aprovador escritos em texto puro (`criar_grupo`, `dono_numero`). Removidos do banco; o comportamento continua igual porque o número real passou a ser acrescentado ao prompt em tempo de execução, a partir do `.env` (`server/rules.ts`, `buildSystemPrompt`/`runtimeNumbers`), nunca gravado na tabela `maia_rules`.
+
 ### Integração LinkedIn via Zernio
 - **Melhoria:** a Maia passou a consultar contas LinkedIn, páginas/organizações administradas e analytics pela Zernio; também pode publicar ou agendar texto e imagem no LinkedIn.
 - **Segurança:** `linkedin_publicar` exige aprovação do owner, como a publicação no Instagram. DMs/InMail, comentários, seguir e prospecção continuam fora do escopo.
