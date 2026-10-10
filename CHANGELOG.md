@@ -10,6 +10,15 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Integração LinkedIn via Zernio
+- **Melhoria:** a Maia passou a consultar contas LinkedIn, páginas/organizações administradas e analytics pela Zernio; também pode publicar ou agendar texto e imagem no LinkedIn.
+- **Segurança:** `linkedin_publicar` exige aprovação do owner, como a publicação no Instagram. DMs/InMail, comentários, seguir e prospecção continuam fora do escopo.
+- **Painel:** Conexões e dados exibe o status "LinkedIn conectado" e o objetivo atual da integração.
+- **Validação:** a chave existente em `.env` foi conferida contra a Zernio; há uma conta LinkedIn ativa e nenhuma organização retornada. `pnpm typecheck` passou; `pnpm test` passou com 214 testes da aplicação e 27 de banco.
+- **Banco:** nenhuma tabela ou migration nova foi necessária; a integração usa o cliente server-side já existente e `ZERNIO_API_KEY` permanece fora do frontend.
+
+## 2026-10-10
+
 ### Membro conversa com a Maia no privado; áudio/imagem/vídeo/documento de membros e contatos
 - **Decisão do owner:** membro cadastrado com a permissão `conversa.maia` fala com a Maia no privado, dentro do que pode (igual ao que já existia em grupos). Arquivo enviado por membro ou contato fica 7 dias (não 24 h, que é só para o dono), porque o owner pode pedir o arquivo de volta dias depois. Prospecção (contato por iniciativa da Maia) continua limitada a quem já aceitou falar com ela (`contato_enviar_mensagem`, já existente); nada novo foi liberado aqui.
 - **Texto:** `server/inbox.ts` passa a aceitar um 7º parâmetro `members` (números com `conversa.maia`, carregado em `api/webhook.ts` por `membersWithConversa()`, join `person_permissions`→`people`→`person_numbers`); `server/maiaOwnerAgent.ts` ganha `handleMemberMessage` (mesma ideia de `handleGroupMessage`, mas a resposta sai no privado do membro, não num grupo; a aprovação pedida ao owner mostra "... no privado" em vez de "... no grupo"). A entrega usa `deliverResponse`/`response_deliveries`, que passou a distinguir dono (histórico comum) de membro/contato (`dm:<número>`, mesma convenção já usada por `contato_enviar_mensagem`).

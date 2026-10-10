@@ -69,6 +69,43 @@ export async function listInstagramAccounts(): Promise<InstagramAccount[]> {
     .filter((a) => a.id);
 }
 
+export interface LinkedInAccount {
+  id: string;
+  name: string;
+  active: boolean;
+  accountType: string | null;
+}
+
+export interface LinkedInOrganization {
+  id: string;
+  name: string;
+  url: string | null;
+}
+
+export async function listLinkedInAccounts(): Promise<LinkedInAccount[]> {
+  const { status, json } = await request("GET", "/accounts");
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  const list = ((json as { accounts?: unknown[] })?.accounts ?? []) as Record<string, unknown>[];
+  return list.filter((a) => a.platform === "linkedin").map((a) => ({
+    id: String(a._id ?? a.id ?? ""),
+    name: String(a.displayName ?? a.name ?? a.username ?? "LinkedIn"),
+    active: a.isActive !== false,
+    accountType: typeof a.accountType === "string" ? a.accountType : null,
+  })).filter((a) => a.id);
+}
+
+export async function listLinkedInOrganizations(accountId: string): Promise<LinkedInOrganization[]> {
+  if (!accountId) throw new ZernioError("conta do LinkedIn não informada", 0);
+  const { status, json } = await request("GET", `/accounts/${encodeURIComponent(accountId)}/linkedin-organizations`);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  const list = ((json as { organizations?: unknown[] })?.organizations ?? (Array.isArray(json) ? json : [])) as Record<string, unknown>[];
+  return list.map((organization) => ({
+    id: String(organization._id ?? organization.id ?? ""),
+    name: String(organization.name ?? organization.displayName ?? "LinkedIn organization"),
+    url: typeof organization.url === "string" ? organization.url : typeof organization.linkedinUrl === "string" ? organization.linkedinUrl : null,
+  })).filter((organization) => organization.id);
+}
+
 export interface PostPerformance {
   publishedAt: string | null;
   mediaType: string | null;
@@ -155,6 +192,58 @@ export interface InstagramPostInput {
   caption: string;
   imageUrl: string;
   scheduledFor?: string | null;
+}
+
+export interface LinkedInPostInput {
+  accountId: string;
+  content: string;
+  imageUrl?: string | null;
+  scheduledFor?: string | null;
+  organizationId?: string | null;
+}
+
+export function buildLinkedInPost(input: LinkedInPostInput, now = new Date()): { ok: true; body: Record<string, unknown> } | { ok: false; error: string } {
+  const content = input.content.trim();
+  if (!content) return { ok: false, error: "o conteúdo do LinkedIn está vazio" };
+  if (content.length > MAX_CAPTION) return { ok: false, error: `o conteúdo passa de ${MAX_CAPTION} caracteres` };
+  if (!input.accountId) return { ok: false, error: "conta do LinkedIn não informada" };
+  if (input.imageUrl && !/^https:\/\//i.test(input.imageUrl)) return { ok: false, error: "a imagem precisa de um endereço público https" };
+  const body: Record<string, unknown> = {
+    content,
+    platforms: [{ platform: "linkedin", accountId: input.accountId, ...(input.organizationId ? { platformSpecificData: { organizationId: input.organizationId } } : {}) }],
+  };
+  if (input.imageUrl) body.mediaItems = [{ type: "image", url: input.imageUrl }];
+  if (input.scheduledFor) {
+    const when = Date.parse(input.scheduledFor);
+    if (Number.isNaN(when)) return { ok: false, error: "horário de agendamento inválido (use data e hora ISO)" };
+    if (when <= now.getTime() + 60_000) return { ok: false, error: "o horário de agendamento precisa ser no futuro" };
+    body.scheduledFor = new Date(when).toISOString();
+  } else body.publishNow = true;
+  return { ok: true, body };
+}
+
+export async function publishLinkedInPost(input: LinkedInPostInput): Promise<PublishResult> {
+  const built = buildLinkedInPost(input);
+  if (!built.ok) throw new ZernioError(built.error, 0);
+  const { status, json } = await request("POST", "/posts", built.body, 60_000);
+  const post = ((json as { post?: Record<string, unknown> })?.post ?? {}) as Record<string, unknown>;
+  const postStatus = String(post.status ?? "");
+  if (status === 207 || postStatus === "failed") throw new ZernioError("o LinkedIn recusou a publicação (status: failed)", status);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  const platforms = (post.platforms ?? []) as Record<string, unknown>[];
+  const platform = platforms.find((item) => item.platform === "linkedin") ?? platforms[0];
+  return { postId: typeof post._id === "string" ? post._id : null, status: postStatus || "criado", url: typeof platform?.platformPostUrl === "string" ? platform.platformPostUrl : null, scheduled: Boolean(input.scheduledFor) };
+}
+
+export async function linkedinPerformance(limit = 10): Promise<{ posts: PostPerformance[]; totalPosts: number | null }> {
+  const { status, json } = await request("GET", "/analytics?platform=linkedin");
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  const data = json as { overview?: { totalPosts?: number }; posts?: Record<string, unknown>[] };
+  const posts = (data.posts ?? []).filter((post) => post.platform === "linkedin").sort((a, b) => Date.parse(String(b.publishedAt ?? 0)) - Date.parse(String(a.publishedAt ?? 0))).slice(0, Math.max(1, Math.min(limit, 20))).map((post) => {
+    const metrics = (post.analytics ?? {}) as Record<string, unknown>;
+    return { publishedAt: typeof post.publishedAt === "string" ? post.publishedAt : null, mediaType: typeof post.mediaType === "string" ? post.mediaType : null, caption: String(post.content ?? "").slice(0, 80), url: typeof post.platformPostUrl === "string" ? post.platformPostUrl : null, alcance: num(metrics.reach), visualizacoes: num(metrics.views), curtidas: num(metrics.likes), comentarios: num(metrics.comments), compartilhamentos: num(metrics.shares), salvamentos: num(metrics.saves) };
+  });
+  return { posts, totalPosts: num(data.overview?.totalPosts) };
 }
 
 // Monta o corpo do pedido. Função pura e testável: valida legenda, imagem e horário.

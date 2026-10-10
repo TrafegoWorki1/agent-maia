@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInstagramPost, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, ZernioError } from "../server/integrations/zernio.ts";
+import { buildInstagramPost, buildLinkedInPost, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, ZernioError } from "../server/integrations/zernio.ts";
 
 const NOW = new Date("2026-10-09T12:00:00Z");
 const base = { accountId: "acc123", caption: "Legenda do post", imageUrl: "https://cdn.exemplo.com/arte.png" };
@@ -35,6 +35,31 @@ describe("montagem da publicação no Instagram", () => {
   it("recusa imagem sem endereço https e conta não informada", () => {
     expect(buildInstagramPost({ ...base, imageUrl: "http://exemplo.com/a.png" }, NOW).ok).toBe(false);
     expect(buildInstagramPost({ ...base, accountId: "" }, NOW).ok).toBe(false);
+  });
+});
+
+describe("montagem da publicação no LinkedIn", () => {
+  it("publica texto agora na conta LinkedIn", () => {
+    const built = buildLinkedInPost({ accountId: "li123", content: "Conteúdo profissional" }, NOW);
+    expect(built.ok && built.body).toMatchObject({
+      content: "Conteúdo profissional",
+      platforms: [{ platform: "linkedin", accountId: "li123" }],
+      publishNow: true,
+    });
+  });
+
+  it("agenda conteúdo e associa página da empresa quando informada", () => {
+    const built = buildLinkedInPost({ accountId: "li123", content: "Atualização da empresa", organizationId: "org456", scheduledFor: "2026-10-10T15:00:00-03:00" }, NOW);
+    expect(built.ok && built.body).toMatchObject({
+      scheduledFor: "2026-10-10T18:00:00.000Z",
+      platforms: [{ platform: "linkedin", accountId: "li123", platformSpecificData: { organizationId: "org456" } }],
+    });
+    expect(built.ok && "publishNow" in built.body).toBe(false);
+  });
+
+  it("recusa conteúdo vazio e URL de imagem insegura", () => {
+    expect(buildLinkedInPost({ accountId: "li123", content: "   " }, NOW).ok).toBe(false);
+    expect(buildLinkedInPost({ accountId: "li123", content: "Texto", imageUrl: "http://exemplo.com/a.png" }, NOW).ok).toBe(false);
   });
 });
 

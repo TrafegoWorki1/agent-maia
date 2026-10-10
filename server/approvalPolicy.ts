@@ -5,6 +5,7 @@
 const NEEDS_APPROVAL: RegExp[] = [
   // Instagram pela Zernio
   /^mcp__maia__instagram_publicar$/,
+  /^mcp__maia__linkedin_publicar$/,
   // InstaMany: mensagem direta e ativação de fluxo no Instagram
   /^mcp__claude_ai_instamany__(send_message|set_flow_status)$/,
   // Anúncios: criar, ativar, impulsionar, alterar e apagar (alterar pode ativar ou mudar orçamento)
@@ -18,7 +19,7 @@ export function requiresApproval(toolName: string): boolean {
   return NEEDS_APPROVAL.some((pattern) => pattern.test(toolName));
 }
 
-const READ_TOOL = /^mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)/;
+const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(instagram_desempenho|artes_recentes|linkedin_contas|linkedin_organizacoes|linkedin_desempenho))$/;
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);

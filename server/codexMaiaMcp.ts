@@ -7,7 +7,7 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import { getDb, addTaskEvent, setTaskStatus, recordMessage } from "./store.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
-import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage } from "./integrations/zernio.ts";
+import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost } from "./integrations/zernio.ts";
 import { recordActionEvidence } from "./actionEvidence.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
@@ -114,6 +114,21 @@ server.registerTool("instagram_desempenho", { description: "Mostra desempenho do
   return posts.length ? `Total: ${totalPosts ?? "—"}\n${posts.map((p) => `${p.publishedAt?.slice(0, 10) ?? "sem data"}: ${p.caption} | alcance ${p.alcance ?? "—"}, curtidas ${p.curtidas ?? "—"}`).join("\n")}` : "Nenhum post encontrado.";
 }));
 
+server.registerTool("linkedin_contas", { description: "Lista contas LinkedIn conectadas na Zernio. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__linkedin_contas", {}, async () => {
+  const accounts = await listLinkedInAccounts();
+  return accounts.length ? accounts.map((account) => `${account.name} (${account.id}) — ${account.active ? "ativa" : "inativa"}`).join("\n") : "Nenhuma conta LinkedIn conectada na Zernio.";
+}));
+
+server.registerTool("linkedin_organizacoes", { description: "Lista páginas de empresas administradas por uma conta LinkedIn. Somente leitura.", inputSchema: { conta: z.string().min(1).max(100) } }, async ({ conta }) => guarded("mcp__maia__linkedin_organizacoes", { conta }, async () => {
+  const organizations = await listLinkedInOrganizations(conta);
+  return organizations.length ? organizations.map((organization) => `${organization.name} (${organization.id})${organization.url ? ` — ${organization.url}` : ""}`).join("\n") : "Nenhuma organização LinkedIn encontrada para essa conta.";
+}));
+
+server.registerTool("linkedin_desempenho", { description: "Mostra desempenho dos posts recentes do LinkedIn. Somente leitura.", inputSchema: { limite: z.number().int().min(1).max(20).optional() } }, async ({ limite }) => guarded("mcp__maia__linkedin_desempenho", { limite }, async () => {
+  const { posts, totalPosts } = await linkedinPerformance(limite ?? 5);
+  return posts.length ? `Total: ${totalPosts ?? "—"}\n${posts.map((post) => `${post.publishedAt?.slice(0, 10) ?? "sem data"}: ${post.caption} | alcance ${post.alcance ?? "—"}, curtidas ${post.curtidas ?? "—"}`).join("\n")}` : "Nenhum post LinkedIn encontrado.";
+}));
+
 server.registerTool("artes_recentes", { description: "Lista artes recentes para escolher uma publicação. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__artes_recentes", {}, async () => {
   const arts = recentArts(5); return arts.length ? arts.map((a) => a.path).join("\n") : "Nenhuma arte gerada.";
 }));
@@ -206,6 +221,18 @@ server.registerTool("instagram_publicar", { description: "Publica ou agenda uma 
   const verified = check && (post.scheduled ? ["scheduled", "published"].includes(check.status) : check.status === "published");
   await recordActionEvidence(getDb(), taskId, "instagram_publicar", post.postId, verified ? post.postId : null);
   return `${post.scheduled ? "Agendamento aceito" : "Post criado"} no Instagram (@${accounts[0].username}). Status: ${check?.status ?? post.status}.${verified ? " Conferido na Zernio." : " Não consegui conferir o estado final; confirme no Instagram antes de tentar novamente."}`;
+}));
+
+server.registerTool("linkedin_publicar", { description: "Publica ou agenda um texto ou uma arte no LinkedIn. Sempre pede aprovação.", inputSchema: { conteudo: z.string().min(1).max(2200), arte: z.string().min(3).max(200).optional(), conta: z.string().max(100).optional(), organizacao: z.string().max(100).optional(), agendar_para: z.string().max(40).optional() } }, async ({ conteudo, arte, conta, organizacao, agendar_para }) => guarded("mcp__maia__linkedin_publicar", { conteudo, arte, conta, organizacao, agendar_para }, async () => {
+  const accounts = (await listLinkedInAccounts()).filter((account) => account.active);
+  const selected = conta ? accounts.find((account) => account.id === conta) : accounts.length === 1 ? accounts[0] : null;
+  if (!selected) throw new Error(conta ? "A conta LinkedIn informada não está conectada ou ativa." : "É necessário haver exatamente uma conta LinkedIn ativa, ou informar conta.");
+  let imageUrl: string | null = null;
+  if (arte) { const art = resolveArtPath(arte); if (!art.ok) throw new Error(art.error); imageUrl = await uploadImage(art.path); }
+  const post = await publishLinkedInPost({ accountId: selected.id, content: conteudo, imageUrl, organizationId: organizacao ?? null, scheduledFor: agendar_para ?? null });
+  const check = post.postId && !post.scheduled ? await getPostStatus(post.postId).catch(() => null) : null;
+  await recordActionEvidence(getDb(), taskId, "linkedin_publicar", post.postId, check?.status === "published" ? post.postId : null);
+  return `${post.scheduled ? "Agendamento aceito" : "Post criado"} no LinkedIn (${selected.name}). Status: ${check?.status ?? post.status}.${post.url ? ` Link: ${post.url}` : ""}`;
 }));
 
 await server.connect(new StdioServerTransport());
