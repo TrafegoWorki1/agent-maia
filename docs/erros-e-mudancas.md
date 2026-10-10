@@ -4,6 +4,12 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Eventos de grupo da Evolution + incidente no webhook de produção (10/10/2026)
+
+- **Mudança:** ativados os eventos de grupo (`GROUPS_UPSERT`, `GROUP_UPDATE` — singular, não `GROUPS_UPDATE` — e `GROUP_PARTICIPANTS_UPDATE`) no webhook da Evolution; o worker agora invalida o cache de grupos na hora que um deles chega, em vez de só confiar no TTL de 15 min.
+- **Incidente:** ao aplicar isso, o script usado reconstruía a URL do webhook a partir de `WEBHOOK_PUBLIC_URL`, uma variável do túnel Cloudflare do launcher legado que ficou parada e desatualizada no `.env`. Isso sobrescreveu o webhook de produção, apontando pro túnel morto em vez da Vercel — a Maia ficaria sem receber mensagens novas. Percebido e corrigido na mesma sessão, antes de qualquer impacto prolongado. Causa raiz corrigida: nova variável dedicada `EVOLUTION_WEBHOOK_URL`, documentada em `.env.example`; o script nunca mais lê `WEBHOOK_PUBLIC_URL`.
+- **Lição:** qualquer script que reconfigura um serviço de produção (webhook, migração, etc.) deve ler a URL/estado de uma fonte confiável, nunca de uma variável conhecida por mudar entre sessões/processos.
+
 ## Ponte Supabase → Meta Ads para vídeo/imagem (10/10/2026)
 
 - **Problema:** vídeo/imagem mandado pelo dono só ficava salvo localmente (`data/midia`); a ferramenta de upload do Meta Ads por URL exige um link https público, não aceita arquivo local fora de um app interativo (que o WhatsApp não tem).

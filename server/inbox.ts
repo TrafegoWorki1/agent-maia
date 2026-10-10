@@ -67,6 +67,9 @@ export function toInboxRow(
   // Só mensagens novas têm dedupe; atualizações de status reusam o mesmo key.id e não entram aqui.
   const keyId = event.event === "messages.upsert" && typeof key.id === "string" ? key.id : null;
 
+  // Grupo mudou por fora da Maia (foto, nome, participantes): o worker invalida o cache de grupos ao vivo
+  // (server/groups.ts, resetGroupCache), em vez de só expirar por TTL ou reconsultar e bater no rate-overlimit.
+  if (event.kind === "group_change") return { kind: "event", sender: "group", key_id: null, payload: "cache_reset" };
   if (event.kind !== "message") return { kind: "event", sender: "none", key_id: keyId, payload: null };
 
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";

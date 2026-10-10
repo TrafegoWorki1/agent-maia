@@ -25,6 +25,12 @@ describe("webhook da Evolution", () => {
     expect(classify({ event: "qrcode.updated" })).toBe("unknown");
   });
 
+  it("triagem: mudança de grupo por fora da Maia (foto, nome, participantes)", () => {
+    expect(classify({ event: "groups.upsert" })).toBe("group_change");
+    expect(classify({ event: "groups.update" })).toBe("group_change");
+    expect(classify({ event: "group-participants.update" })).toBe("group_change");
+  });
+
   it("compara números brasileiros com e sem o nono dígito", () => {
     expect(samePhone("5585998372658", "558598372658")).toBe(true);
     expect(samePhone("558598372658", "5585998372658")).toBe(true);
