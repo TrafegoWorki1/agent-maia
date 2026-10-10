@@ -202,7 +202,10 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: n
     prompt,
     timeoutMs: cfg.timeoutMs.codex,
     model: cfg.providers.codex.model,
-    mcp: { taskId, channel, requester: who, inGroup, onToolUse: (tool) => addTaskEvent(db, taskId, "tool_use", tool, null) },
+    mcp: { taskId, channel, requester: who, inGroup, onToolUse: async (tool) => {
+      await markTaskKind(db, taskId, "operacional");
+      await addTaskEvent(db, taskId, "tool_use", tool, null);
+    } },
   });
   if (!result.ok) {
     const err = classifyError(result.error);

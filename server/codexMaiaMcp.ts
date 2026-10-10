@@ -7,7 +7,9 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import { getDb, addTaskEvent, setTaskStatus, recordMessage } from "./store.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
-import { recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage } from "./integrations/zernio.ts";
+import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage } from "./integrations/zernio.ts";
+import { recordActionEvidence } from "./actionEvidence.ts";
+import { operationalSummary } from "./operationalSummary.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { recordConvMessage } from "./conversations.ts";
@@ -44,10 +46,16 @@ function result(text: string, isError = false) {
 
 async function allowed(tool: string, input: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
   const db = getDb();
-  if (channel === "painel" && !(isReadTool(tool) || isLocalSafeTool(tool))) return { ok: false, message: "Ações de escrita são feitas pelo WhatsApp, com aprovação." };
+  if (channel === "painel" && !(isReadTool(tool) || isLocalSafeTool(tool))) {
+    await addTaskEvent(db, taskId, "access_denied", tool, "escrita pelo painel não permitida");
+    return { ok: false, message: "Ações de escrita são feitas pelo WhatsApp, com aprovação." };
+  }
   const verdict = decideAccess(tool, requester(), await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
   if (verdict.decision === "allow") return { ok: true };
-  if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
+  if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
+    await addTaskEvent(db, taskId, "access_denied", tool, "outra aprovação já pendente");
+    return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
+  }
   const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: JSON.stringify(input).slice(0, 300), taskId });
   await setTaskStatus(db, taskId, "aguardando_aprovacao");
   await addTaskEvent(db, taskId, "approval_requested", tool, null);
@@ -57,17 +65,23 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   for (const to of await approverNumbers(db)) void sendOwnerText(to, notice);
   const outcome = await waitApproval(db, approval.id, approval.expiresAt);
   await setTaskStatus(db, taskId, "em_andamento");
-  await addTaskEvent(db, taskId, outcome === "approved" ? "approval_approved" : "approval_denied", tool, null);
+  await addTaskEvent(db, taskId, outcome === "approved" ? "approval_approved" : outcome === "denied" ? "approval_denied" : "approval_expired", tool, null);
   return outcome === "approved" ? { ok: true } : { ok: false, message: "Ação recusada ou sem aprovação do dono." };
 }
 
 async function guarded(tool: string, input: Record<string, unknown>, run: () => Promise<string>) {
   const verdict = await allowed(tool, input);
   if (!verdict.ok) return result(verdict.message, true);
-  try { return result(await run()); } catch (error) { return result(`Não consegui concluir: ${error instanceof Error ? error.message : String(error)}`, true); }
+  try { return result(await run()); } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    await addTaskEvent(getDb(), taskId, "tool_failed", tool, reason.slice(0, 300)).catch(() => {});
+    return result(`Não consegui concluir: ${reason}`, true);
+  }
 }
 
 const server = new McpServer({ name: "maia", version: "1.0.0" });
+
+server.registerTool("operacao_resumo", { description: "Consulta organização operacional atual no banco: pedidos recentes, estados, aprovações e conexões. Dados internos do owner; prazos e lembretes de tarefas ainda não existem.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));
 
 server.registerTool("buscar_conhecimento", { description: "Busca regras, decisões e registros na base interna da Maia.", inputSchema: { pergunta: z.string().min(3).max(500) } }, async ({ pergunta }) => guarded("mcp__maia__buscar_conhecimento", { pergunta }, async () => {
   const hits = await searchKnowledge(getDb(), pergunta, 4);
@@ -103,8 +117,9 @@ server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, sto
   const image = await createImage({ briefing, format: formato, refs: referencias ?? [] });
   if (!image.ok) throw new Error(image.error);
   if (channel === "painel") return `Arte criada em: ${image.path}`;
-  await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", image.path, `Arte ${FORMATS[formato]}`);
-  return "Arte criada e enviada no WhatsApp.";
+  const id = await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", image.path, `Arte ${FORMATS[formato]}`);
+  await recordActionEvidence(getDb(), taskId, "enviar_arte", null, id ? `mensagem ${id}` : null);
+  return id ? "Arte criada e envio aceito pelo WhatsApp, com ID da mensagem." : "Arte criada; a Evolution aceitou o envio, mas não devolveu um ID para conferência.";
 }));
 
 server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional() } }, async ({ grupo, texto, mencionar }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar }, async () => {
@@ -112,6 +127,7 @@ server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   const mentions = await resolveMentions(getDb(), mencionar ?? []); if (!mentions.ok) throw new Error(mentions.error);
   const id = await sendGroupText(found.group.jid, texto, mentions.numbers);
+  await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
   await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;
 }));
@@ -120,6 +136,7 @@ server.registerTool("grupo_enviar_enquete", { description: "Cria uma enquete em 
   const invalid = validatePoll(pergunta, opcoes, respostas_permitidas ?? 1); if (invalid) throw new Error(invalid);
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   const id = await sendGroupPoll(found.group.jid, pergunta, opcoes, respostas_permitidas ?? 1);
+  await recordActionEvidence(getDb(), taskId, "grupo_enviar_enquete", found.group.subject, `mensagem ${id}`);
   return `Enquete enviada no grupo "${found.group.subject}" (mensagem ${id}).`;
 }));
 
@@ -127,6 +144,9 @@ server.registerTool("contato_enviar_mensagem", { description: "Envia mensagem pr
   const invalid = validateText(texto); if (invalid) throw new Error(invalid);
   const found = await resolveContact(getDb(), contato); if (!found.ok) throw new Error(found.error);
   const id = await sendTextChecked(found.contact.number, texto);
+  await addTaskEvent(getDb(), taskId, "dm_sent", "contato_enviar_mensagem", found.contact.name).catch((error) => console.error("[contatos] falha ao registrar envio aceito:", error instanceof Error ? error.message : error));
+  await recordActionEvidence(getDb(), taskId, "contato_enviar_mensagem", found.contact.name, `mensagem ${id}`);
+  await recordConvMessage(getDb(), { conv: found.contact.number, text: texto, fromMaia: true, name: "Maia" }).catch(() => {});
   return `Mensagem enviada para ${found.contact.name || `+${found.contact.number}`} (${id}).`;
 }));
 
@@ -177,7 +197,10 @@ server.registerTool("instagram_publicar", { description: "Publica ou agenda uma 
   const art = resolveArtPath(arte); if (!art.ok) throw new Error(art.error);
   const accounts = (await listInstagramAccounts()).filter((a) => a.active); if (accounts.length !== 1) throw new Error("É necessário haver exatamente uma conta Instagram ativa.");
   const post = await publishInstagramPost({ accountId: accounts[0].id, caption: legenda, imageUrl: await uploadImage(art.path), scheduledFor: agendar_para ?? null });
-  return `${post.scheduled ? "Post agendado" : "Post publicado"} no Instagram (@${accounts[0].username}).`;
+  const check = post.postId ? await getPostStatus(post.postId).catch(() => null) : null;
+  const verified = check && (post.scheduled ? ["scheduled", "published"].includes(check.status) : check.status === "published");
+  await recordActionEvidence(getDb(), taskId, "instagram_publicar", post.postId, verified ? post.postId : null);
+  return `${post.scheduled ? "Agendamento aceito" : "Post criado"} no Instagram (@${accounts[0].username}). Status: ${check?.status ?? post.status}.${verified ? " Conferido na Zernio." : " Não consegui conferir o estado final; confirme no Instagram antes de tentar novamente."}`;
 }));
 
 await server.connect(new StdioServerTransport());

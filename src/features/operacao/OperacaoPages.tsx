@@ -98,7 +98,7 @@ export function ResumoPage() {
                 <Kpi label="Aguardando aprovação" value={String(s.approvals.length)} status={s.approvals.length ? "atencao" : "alvo"} />
               </section>
 
-              <Panel title="Qualidade operacional" caption={`Semana ${q.week}. Mesmos pesos e regras do Bryan. Sem amostra mínima, não há nota.`}>
+              <Panel title="Qualidade operacional" caption={`Semana ${q.week} · eventos registrados. A nota mede a operação; a relevância das respostas ainda precisa de avaliação própria.`}>
                 <section className="metrics-grid" aria-label="Nota da semana">
                   <Kpi
                     label="Nota da semana"
@@ -106,19 +106,29 @@ export function ResumoPage() {
                     helper={`Semana anterior: ${s.quality.previous.overall !== null ? `${s.quality.previous.overall.toFixed(1)} / 10` : "sem nota"}`}
                     status={q.overall === null ? "sem_dado" : q.overall >= 7 ? "alvo" : "atencao"}
                   />
-                  <Kpi label="Teto por incidente" value={`${q.criticalCap} / 10`} helper={q.incidents.length ? `${q.incidents.length} incidente(s) crítico(s)` : "Nenhum incidente crítico"} status={q.incidents.length ? "critico" : "alvo"} />
+                  <Kpi label="Teto por incidente" value={q.incidents.length ? `${q.criticalCap} / 10` : "Não aplicado"} helper={q.incidents.length ? `${q.incidents.length} ação(ões) externa(s) sem aprovação válida` : "Nenhum incidente crítico comprovado nos registros"} status={q.incidents.length ? "critico" : "alvo"} />
                   <Kpi label="Respondidas" value={`${q.counts.replied} de ${q.counts.tasks}`} helper="Tarefas operacionais da semana" />
                 </section>
                 <Table
-                  head={["Dimensão", "Peso", "Nota"]}
+                  head={["Dimensão", "Peso", "Nota", "Amostra"]}
                   rows={Object.keys(DIMENSION_LABELS).map((key) => [
                     DIMENSION_LABELS[key],
                     `${Math.round((q.weights[key] ?? 0) * 100)}%`,
                     scoreText(q.dimensions[key as keyof typeof q.dimensions]),
+                    q.samples?.[key as keyof typeof q.dimensions] ? `${q.samples[key as keyof typeof q.dimensions].passed} de ${q.samples[key as keyof typeof q.dimensions].total}` : "Não informada",
                   ])}
                   empty="Sem dimensões."
                 />
+                <p className="empty-note">Precisão exige uma conferência da mesma ação. Gestão de risco conta aprovações válidas antes da execução e recusas ou expirações respeitadas. Comunicação mede resposta registrada, ainda não a resolução do pedido.</p>
               </Panel>
+
+              {!!q.priorities?.length && <Panel title="O que melhorar primeiro" caption="Prioridades calculadas a partir das falhas e das provas que faltam nesta semana.">
+                <Table
+                  head={["Prioridade", "Melhoria", "Evidência", "Próxima ação"]}
+                  rows={q.priorities.map((p) => [p.priority === "critica" ? "Crítica" : p.priority === "alta" ? "Alta" : "Média", p.title, p.evidence, p.action])}
+                  empty="Nenhuma prioridade registrada."
+                />
+              </Panel>}
 
               <Panel title="Tarefas recentes" caption="Texto limitado a 40 caracteres. A conversa completa fica em Conversa com Maia.">
                 <Table
@@ -164,17 +174,24 @@ export function IndicadoresPage() {
                 <section className="metrics-grid" aria-label="Desempenho operacional">
                   <Kpi label="Pedidos operacionais" value={String(counts.tasks)} helper="Total da semana" />
                   <Kpi label="Taxa de resposta" value={counts.tasks ? `${Math.round(counts.replied / counts.tasks * 100)}%` : "sem dado"} helper={`${counts.replied} de ${counts.tasks} pedidos com resposta registrada`} />
-                  <Kpi label="Taxa de conclusão" value={counts.terminal ? `${Math.round(completed / counts.terminal * 100)}%` : "sem dado"} helper={`${completed} concluídos entre ${counts.terminal} encerrados; exclui pedidos em andamento`} />
+                  <Kpi label="Execuções sem erro ou interrupção" value={counts.terminal ? `${Math.round(completed / counts.terminal * 100)}%` : "sem dado"} helper={`${completed} de ${counts.terminal} encerradas; não comprova a resolução de todo pedido`} />
                   <Kpi label="Falhas" value={String(counts.failures)} helper="Tarefas encerradas com erro" status={counts.failures ? "critico" : "sem_dado"} />
                   <Kpi label="Resultados incertos" value={String(counts.uncertain)} helper="Execuções que precisam de conferência" status={counts.uncertain ? "atencao" : "sem_dado"} />
+                  <Kpi label="Pedidos sem resposta" value={String(counts.tasks - counts.replied)} helper="Pedidos operacionais da semana" status={counts.tasks > counts.replied ? "atencao" : "alvo"} />
+                  <Kpi label="Falhas de envio" value={counts.deliveryFailures === undefined ? "sem dado" : String(counts.deliveryFailures)} helper="Erros de envio registrados pela Evolution" status={counts.deliveryFailures ? "critico" : "sem_dado"} />
+                  <Kpi label="Erros de ferramenta" value={counts.toolFailures === undefined ? "sem dado" : String(counts.toolFailures)} helper="Erros registrados; podem ocorrer mesmo com resposta da IA" status={counts.toolFailures ? "atencao" : "sem_dado"} />
+                  <Kpi label="Falhas em todos os registros" value={counts.allFailures === undefined ? "sem dado" : String(counts.allFailures)} helper={`${counts.allTasks ?? "—"} registros; inclui conversas simples e avisos`} status={counts.allFailures ? "atencao" : "sem_dado"} />
                   <Kpi label="Aprovações pendentes agora" value={String(s.approvals.length)} helper="Total atual, independente da semana" status={s.approvals.length ? "atencao" : "sem_dado"} />
                 </section>
               </Panel>
               <Panel title="Qualidade da entrega" caption={`Semana ${q.week} · avaliação baseada nos eventos registrados.`}>
                 <section className="metrics-grid" aria-label="Qualidade operacional">
                   <Kpi label="Nota operacional" value={q.overall === null ? "sem amostra suficiente" : `${q.overall.toFixed(1)} / 10`} helper={`Semana anterior: ${scoreText(s.quality.previous.overall)}`} />
-                  <Kpi label="Ações conferidas" value={String(counts.verified)} helper="Eventos de verificação; uma tarefa pode ter várias ações" />
+                  <Kpi label="Ações conferidas" value={counts.externalActions === undefined ? String(counts.verified) : `${counts.verified} de ${counts.externalActions}`} helper="Conferência ligada à mesma tarefa e operação" />
+                  <Kpi label="Ações sem prova" value={String(counts.withoutEvidence)} helper="Resultado externo registrado sem conferência correspondente" status={counts.withoutEvidence ? "atencao" : "alvo"} />
                   <Kpi label="Respostas em até 2 minutos" value={q.dimensions.velocidade === null ? "sem dado" : `${Math.round(q.dimensions.velocidade * 10)}%`} helper="Entre pedidos operacionais respondidos; inclui espera por aprovação" />
+                  <Kpi label="Tempo mediano de resposta" value={q.responseTime?.medianMs == null ? "sem dado" : `${Math.round(q.responseTime.medianMs / 1000)} s`} helper="Pedido recebido até resposta registrada; inclui fila e aprovação" />
+                  <Kpi label="Tempo de resposta · p95" value={q.responseTime?.p95Ms == null ? "sem dado" : `${Math.round(q.responseTime.p95Ms / 1000)} s`} helper="95% das respostas registradas chegaram até esse tempo" />
                 </section>
               </Panel>
               <Panel title="Investimento em mídia" caption="Meta Ads · gasto dos 7 dias cobertos pela última coleta disponível. Valores separados por moeda.">

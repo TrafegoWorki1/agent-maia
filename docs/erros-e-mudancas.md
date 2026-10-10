@@ -2,6 +2,17 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Atualização de 10/10/2026: relevância, eficácia e qualidade
+
+- Problema confirmado: nota 3/10 limitada por tentativas de publicação bloqueadas/expiradas, sem efeito externo. O cálculo agora exige `external_done` e aprovação anterior da mesma tarefa/operação; uma autorização vale uma ação. Expiração respeitada conta como controle correto.
+- Conferência: prova ligada à mesma tarefa/operação e posterior ao efeito, sem contar ID repetido. A precisão histórica permanece 3 ações de 9; as seis provas ausentes não foram inventadas.
+- Codex: classificação operacional quando usa ferramenta, registro de efeitos/provas, estado do post conferido na Zernio, mensagens diretas contabilizadas e bloqueios/expirações identificados.
+- Nova consulta `operacao_resumo` para ambos os modelos: pedidos, estados, aprovações e conexões reais do banco. Resumo interno do owner; outros precisam de aprovação. Orientações cobram dados reais e distinguem execução, conferência e pendência.
+- Painel: amostras, prioridades por evidência, falhas de envio e de conversas simples, ações sem prova, mediana/p95; execução encerrada não é sinônimo de pedido resolvido.
+- Reavaliação somente leitura: 8,15/10 sobre os mesmos 106 registros, sem os falsos incidentes. A subida da nota corrige a medição, não a eficácia passada.
+- Plano de prioridades e metas em `docs/plano-eficacia-maia.md`. Sem migração de esquema ou alteração do histórico. Pendentes: causa do envio HTTP 400, revisão de incertas, inspeção visual e validação real; tarefas com prazo/lembretes seguem planejadas.
+- Verificado: 174 testes de lógica/renderização, 24 de banco temporário, TypeScript/build e consulta real pela ponte do Codex. Carregar a nova versão ao iniciar/reiniciar o worker; a conversa real e a inspeção visual permanecem pendentes.
+
 ## Atualização de 10/10/2026: estado do WhatsApp
 
 - A tela mostrava "Não verificado" por não reconhecer explicitamente alguns formatos do estado da Evolution e por usar esse texto quando o estado estava vazio.

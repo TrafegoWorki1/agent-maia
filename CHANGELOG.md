@@ -10,6 +10,17 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Corrigido e melhorado (qualidade, relevância e eficácia da Maia)
+
+- Diagnóstico real: nota 3/10 limitada por dois falsos incidentes. `tool_use` de publicação bloqueada/expirada era tratado como escrita executada; agora apenas `external_done` dispara a auditoria de efeito externo. Aprovação deve vir antes, na mesma tarefa/operação, e vale uma vez. Recusas/expirações respeitadas contam como controles corretos.
+- Precisão liga a prova à mesma tarefa/operação e à ordem dos eventos; prova repetida não infla a nota. O histórico do Codex com ferramenta e `kind: conversa` entra na amostra sem reescrever o banco; novos usos marcam o tipo operacional.
+- Codex registra efeitos/provas de artes, mensagens, enquetes e Instagram, consulta o estado do post e registra `dm_sent` para o limite já previsto de mensagens a contatos. Bloqueios, falhas de ferramenta e expirações ficam identificados.
+- `operacao_resumo` dá aos dois modelos uma consulta ao estado atual no banco, com pedidos recentes, aprovações e conexões. O resumo interno é do owner; membro/visitante requer aprovação. Orientações comuns cobram consulta real, resposta útil, resultado conferido e nenhuma promessa de lembrete inexistente.
+- Painel mostra amostras por dimensão, prioridades com evidência, falhas de envio, falhas incluindo conversas simples, ações sem prova e mediana/p95. Execução encerrada não é apresentada como resolução comprovada do pedido.
+- Plano em `docs/plano-eficacia-maia.md`; auditoria somente leitura em `scripts/quality-report.ts`. Sem alteração de esquema ou eventos históricos. Reavaliação: 8,15/10 sobre os mesmos 106 registros; precisão continua 3 de 9. Isso corrige a nota, não o passado.
+- Pendências: causa específica do HTTP 400 no envio, revisão dos dois resultados incertos, teste real das ferramentas, inspeção visual e módulo futuro de tarefas com prazo/lembretes.
+- Verificação: 174 testes de lógica/renderização e 24 de banco temporário passaram, além de TypeScript/build. Consulta real pela ponte do Codex leu 106 registros, quatro conexões e dez pedidos recentes, sem mensagens/publicações. O worker precisa carregar a nova versão; o build mantém aviso de bundle acima de 500 kB.
+
 ### Corrigido (status do WhatsApp aparecia como "Não verificado")
 - Causa observada: a tela tratava somente o texto minúsculo `open` como conectado e usava "Não verificado" quando o estado vinha vazio, misturando ausência de leitura com conexão inativa.
 - A consulta direta à Evolution nesta sessão respondeu HTTP 200 e `state: open`.

@@ -102,7 +102,10 @@ export interface Scorecard {
   overall: number | null;
   dimensions: Record<"velocidade" | "precisaoConferencia" | "proatividade" | "gestaoRisco" | "confiabilidadeTecnica" | "comunicacao", number | null>;
   weights: Record<string, number>;
-  counts: { tasks: number; terminal: number; replied: number; failures: number; uncertain: number; verified: number; withoutEvidence: number };
+  counts: { tasks: number; terminal: number; replied: number; failures: number; uncertain: number; verified: number; withoutEvidence: number; externalActions?: number; allTasks?: number; allFailures?: number; deliveryFailures?: number; toolFailures?: number };
+  samples?: Record<keyof Scorecard["dimensions"], { passed: number; total: number }>;
+  responseTime?: { medianMs: number | null; p95Ms: number | null };
+  priorities?: { priority: "critica" | "alta" | "media"; title: string; evidence: string; action: string }[];
   incidents: { taskId: number | null; operation: string | null; errorCode: string; timestamp: string }[];
   criticalCap: number;
 }
