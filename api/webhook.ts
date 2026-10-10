@@ -59,6 +59,32 @@ async function contactedNumbers(): Promise<Set<string>> {
   return contactedCache.numbers;
 }
 
+// Números de pessoas cadastradas, ativas, com a permissão conversa.maia (decisão do owner, 2026-10-09: membro pode
+// falar com a Maia no privado, dentro do que pode). Cache de 10 s, mesmo padrão dos outros.
+let membersCache: { at: number; numbers: Set<string> } | null = null;
+async function membersWithConversa(): Promise<Set<string>> {
+  if (membersCache && Date.now() - membersCache.at < 10_000) return membersCache.numbers;
+  try {
+    const db = supabaseFromEnv();
+    const perms = await db.from("person_permissions").select("person_id").eq("permission_code", "conversa.maia");
+    const personIds = [...new Set((perms.data ?? []).map((r) => r.person_id))];
+    let numbers = new Set<string>();
+    if (personIds.length > 0) {
+      const people = await db.from("people").select("id").in("id", personIds).eq("active", true).neq("role", "proprietario");
+      const activeIds = (people.data ?? []).map((r) => r.id);
+      if (activeIds.length > 0) {
+        const nums = await db.from("person_numbers").select("number").in("person_id", activeIds);
+        numbers = new Set((nums.data ?? []).map((r) => String(r.number)));
+      }
+    }
+    membersCache = { at: Date.now(), numbers };
+  } catch {
+    // Sem o banco, mantém a última lista conhecida; sem lista, nenhum membro fala no privado.
+    membersCache = { at: Date.now(), numbers: membersCache?.numbers ?? new Set() };
+  }
+  return membersCache.numbers;
+}
+
 export default async function handler(req: Req, res: ServerResponse): Promise<void> {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
 
@@ -76,7 +102,7 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
     return send(res, 400, { error: "invalid_json" });
   }
 
-  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, await maiaGroups(), new Date(), await contactedNumbers());
+  const row = toInboxRow(body, process.env.EVOLUTION_OWNER_NUMBER, process.env.EVOLUTION_APPROVER_NUMBER, await maiaGroups(), new Date(), await contactedNumbers(), await membersWithConversa());
   if (!row) return send(res, 400, { error: "invalid_event" });
 
   try {

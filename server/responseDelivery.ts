@@ -1,6 +1,7 @@
 import { DeliveryError, sendTextChecked, splitReply } from "./evolutionSend.ts";
 import { addTaskEvent, markTaskReplied, recordMessage, setTaskStatus, type Db } from "./store.ts";
 import { recordConvMessage } from "./conversations.ts";
+import { samePhone } from "./evolutionWebhook.ts";
 
 export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string) {
   const r = await db.from("response_deliveries").upsert(splitReply(text).map((part, i) => ({ task_id: taskId, recipient, part: i, text: part, request_text: i === 0 ? request?.slice(0,16000) ?? null : null })), { onConflict: "task_id,part", ignoreDuplicates: true });
@@ -29,8 +30,11 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
         const full = await db.from("response_deliveries").select("text").eq("task_id",item.task_id).order("part");
         if (full.error) throw new Error(full.error.message);
         const text = (full.data ?? []).map((p) => p.text ?? "").join("");
+        // Grupo: conversa do grupo. Dono: histórico comum do WhatsApp. Membro/contato no privado: conversa dm:<número>
+        // (mesma convenção de contato_enviar_mensagem), para a Maia lembrar o que respondeu a cada pessoa.
         if (item.recipient.endsWith("@g.us")) await recordConvMessage(db,{ conv:item.recipient,text,fromMaia:true,name:"Maia" });
-        else await recordMessage(db,{ channel:"whatsapp",author:"maia",text });
+        else if (samePhone(item.recipient, process.env.EVOLUTION_OWNER_NUMBER)) await recordMessage(db,{ channel:"whatsapp",author:"maia",text });
+        else await recordConvMessage(db, { conv: `dm:${item.recipient.replace(/\D/g, "")}`, text, fromMaia: true, name: "Maia" });
         await markTaskReplied(db, item.task_id);
         await addTaskEvent(db, item.task_id, "replied", null, "Todas as partes aceitas; não confirma leitura");
         await setTaskStatus(db, item.task_id, "concluida");

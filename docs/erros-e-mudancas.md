@@ -2,6 +2,14 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Membro conversa com a Maia no privado (10/10/2026)
+
+- **Pedido do owner:** quem tem permissão `conversa.maia` (membro cadastrado) fala com a Maia no privado, não só em grupo; áudio/imagem/vídeo/documento de membro ou contato também são entendidos, com retenção de 7 dias (dono continua 24 h); prospecção continua só com quem já aceitou falar com ela.
+- Implementado: `handleMemberMessage` (maiaOwnerAgent.ts), `handleMemberAudio`/`handleMemberMedia` (ownerRouter.ts), tabela `received_media` + ferramenta `arquivo_reenviar` (owner pede o arquivo original de volta), `members` carregado no webhook por `conversa.maia`.
+- Duas migrações aditivas aplicadas em produção: `events`/`inbox.sender` aceita `member`; tabela `received_media`. `db:drift` sem divergência depois de aplicar.
+- Corrigido no caminho: `responseDelivery.ts` só sabia registrar a resposta do dono (histórico comum) ou de um grupo; destinatário que não é nenhum dos dois (membro/contato) agora grava em `dm:<número>`, mesma convenção do `contato_enviar_mensagem`. Dois testes existentes de `responseDelivery.test.ts` dependiam, sem dizer, de o único destinatário possível ser o dono; passaram a fixar `EVOLUTION_OWNER_NUMBER` para continuar representando esse caso.
+- **Não testado ao vivo.** Pendente: cadastrar um membro de teste e mandar uma mensagem, um áudio e uma imagem pelo WhatsApp dele; reiniciar a Maia.
+
 ## Aplicação do plano em 10/10/2026: trabalho, lembretes e eficácia
 
 - Problema: `tarefa ...` criava uma execução da IA, sem prazo/responsável/estado real. Correção: `work_tasks` independente, três estados, revisão otimista, histórico por transação e conclusão com evidência informada. Tarefa respondida pela LLM não é trabalho entregue.
@@ -14,6 +22,15 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Alteração preexistente em `server/inbox.ts` pertence ao usuário e permanece fora desta entrega/commit.
 
 ### Ativação e verificação final
+
+**Fechamento da aplicação do plano (10/10/2026):** código e migração salvos no repositório; último commit de implementação `e0e7407`, enviado a `main`. Deploy desse commit confirmado como READY em `https://agent-maia.vercel.app`, implantação `dpl_4bEVnLpXYY6ywQK1BN7NZczZpbhr`.
+
+- Resultado final dos testes: **195 testes de aplicação em 32 arquivos e 27 testes de banco temporário aprovados**. TypeScript e importação nativa do worker aprovados; banco real sem divergência, com 565 objetos conferidos.
+- Validações reais: Codex via SDK consultou tarefas/lembretes no banco; lembrete técnico aceito pela Evolution com ID de mensagem. Aceitação não comprova leitura nem eficácia semântica do agente.
+- **Ativação pendente:** a sessão recusou iniciar o processo em segundo plano e não encontrou worker Maia em execução. Abrir `Iniciar Maia.bat` no computador para habilitar processamento contínuo de mensagens e lembretes. Publicar o painel não inicia o worker local.
+- **Qualidade ainda a comprovar:** realizar 20 avaliações humanas de pedidos reais e inspeção visual autenticada. Não declarar a meta de eficácia atingida apenas pelos testes técnicos.
+
+Os itens abaixo registram as verificações intermediárias e a causa/correção dos problemas encontrados.
 
 - Migração aplicada com `supabase db push --linked --yes`, preservando versão/histórico. `db:drift`: 565 objetos esperados e 565 reais, sem divergência.
 - Teste real: tarefa técnica #1, lembrete #1, Evolution aceitou o envio com ID `3EB09A20C8D5860DB245C1`. Tarefa encerrada com evidência técnica; não representa tarefa de negócio nem leitura da mensagem. Nenhum envio a terceiros/publicação.

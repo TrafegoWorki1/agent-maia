@@ -4,9 +4,10 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 ## 1. Quem fala com a Maia
 
-- Só o número do dono (`EVOLUTION_OWNER_NUMBER`) pode pedir ações. Outros números são ignorados: não recebem resposta e o texto não é guardado.
-- O número do aprovador (`EVOLUTION_APPROVER_NUMBER`) só responde a pedidos de aprovação, com SIM ou NÃO.
-- Mensagens de grupos não geram ação. Só a atividade é contada (quantidade e última vez), sem texto.
+- O dono (`EVOLUTION_OWNER_NUMBER`) pede qualquer ação.
+- **Membro cadastrado com a permissão `conversa.maia`** também fala com a Maia no privado (decisão de 10/10/2026), dentro do que a permissão dele cobre; fora disso, ela pede o OK do owner. Sem essa permissão, o número é ignorado: não recebe resposta e o texto não é guardado (`server/access.ts`, `canConverse`; carregado no webhook por `membersWithConversa()`).
+- O número do aprovador (`EVOLUTION_APPROVER_NUMBER`) só responde a pedidos de aprovação, com OK (ou SIM) ou NÃO.
+- Mensagens de grupos não cadastrados não geram ação. Só a atividade é contada (quantidade e última vez), sem texto. Grupos cadastrados: ver seção 10.
 - O painel e as rotas locais de conversa aceitam pedidos só do próprio computador, no servidor local. Na Vercel, o painel só responde ao proprietário logado.
 
 ## 2. Ferramentas e permissões
@@ -78,6 +79,13 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 - **Cadastrar grupo novo:** o owner escreve no grupo "Maia, cadastra este grupo" (só o número do owner vale) ou usa a ferramenta `grupo_cadastrar` (com OK).
 - Com aprovação: enviar texto (com menção), enviar enquete e agendar envio (`server/groupTools.ts`). Ler enquetes: livre.
 
+### Membro no privado (não é grupo)
+
+- Membro com a permissão `conversa.maia` fala com a Maia no privado dele, do mesmo jeito que em grupo: a aprovação pedida ao owner, quando necessária, mostra quem pediu ("... no privado"). Ver `handleMemberMessage` (maiaOwnerAgent.ts).
+- Áudio, imagem, vídeo e documento de um membro autorizado (ou de um contato que a Maia procurou) também são entendidos, do mesmo jeito que os do dono (transcrição, leitura de imagem/PDF, texto extraído de Word/Excel, quadros + áudio do vídeo). Diferença: o arquivo fica em `data/midia-membros` por **7 dias** (o do dono fica em `data/midia` por 24 h), porque o owner pode pedir o arquivo de volta dias depois.
+- **Pedir o arquivo de volta:** ferramenta `arquivo_reenviar` (só o owner) procura em `received_media` por quem mandou (nome ou número) e reenvia ao WhatsApp do owner.
+- Prospecção (a Maia procurar alguém por conta própria) continua restrita a quem já aceitou falar com ela, pela ferramenta `contato_enviar_mensagem` já existente; nada muda aqui.
+
 ## 11. O que a Maia nunca faz
 
 - Não executa ação de escrita ou publicação sem aprovação.
@@ -90,7 +98,7 @@ Este documento descreve o comportamento **em vigor**, conforme o código. O que 
 
 As regras abaixo estão planejadas em `docs/implementacao-2-governanca.md` e não valem hoje:
 
-- Permissões por pessoa no roteamento (o roteamento ainda usa só dono e aprovador).
+- ~~Permissões por pessoa no roteamento~~ — implementado em 09–10/10/2026 (`server/access.ts`, `decideAccess`/`canConverse`): membro fala com a Maia (em grupo e no privado) dentro das permissões cadastradas.
 - Aprovação vinculada à impressão digital dos parâmetros.
 - Limite de 10 imagens por dia.
 - Escopo de memória por cliente na base de conhecimento.

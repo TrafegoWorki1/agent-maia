@@ -7,10 +7,11 @@ import { describe, expect, it } from "vitest";
 import { decideBuiltin, type Requester } from "../server/access.ts";
 import { mediaFrom } from "../server/evolutionWebhook.ts";
 import { toInboxRow } from "../server/inbox.ts";
-import { buildMediaPrompt, classifyDocument, clip, docxToText, extractVideoParts, safeName, videoDuration, xlsxToText } from "../server/media.ts";
+import { buildMediaPrompt, classifyDocument, clip, docxToText, extractVideoParts, purgeOldMedia, safeName, saveMedia, videoDuration, xlsxToText } from "../server/media.ts";
 
 const OWNER = "5585992494552";
 const APPROVER = "5585998372658";
+const MEMBER = "5585911112222";
 const message = (from: string, extra: Record<string, unknown>) => ({
   event: "messages.upsert",
   instance: "wt_test",
@@ -34,6 +35,16 @@ describe("mídia recebida no WhatsApp", () => {
     expect(row).toMatchObject({ kind: "media", sender: "owner" });
     expect(JSON.parse(row!.payload!)).toMatchObject({ mediaType: "image", caption: "olha" });
     expect(toInboxRow(message("5511999999999", { message: { imageMessage: { mimetype: "image/jpeg" } } }), OWNER, APPROVER)).toMatchObject({ kind: "event", sender: "other", payload: null });
+  });
+
+  it("mídia de membro autorizado (conversa.maia) também entra, marcada como member", () => {
+    const members = new Set([MEMBER]);
+    const body = message(MEMBER, { pushName: "Jéssica", message: { imageMessage: { mimetype: "image/jpeg", caption: "olha isso" } } });
+    const row = toInboxRow(body, OWNER, APPROVER, undefined, new Date(), undefined, members);
+    expect(row).toMatchObject({ kind: "media", sender: "member" });
+    expect(JSON.parse(row!.payload!)).toMatchObject({ mediaType: "image", caption: "olha isso", from: MEMBER, name: "Jéssica" });
+    // sem estar na lista de membros, não entra (vira evento, sem payload)
+    expect(toInboxRow(body, OWNER, APPROVER, undefined, new Date(), undefined, new Set())).toMatchObject({ kind: "event", sender: "other", payload: null });
   });
 });
 
@@ -79,6 +90,16 @@ describe("pedido entregue ao agente", () => {
     expect(video).toContain("olá pessoal");
     expect(video).toContain("- a.jpg");
   });
+
+  it("de um membro, o pedido mostra quem mandou (não 'o dono')", () => {
+    const sem = buildMediaPrompt({ mediaType: "image", fileName: "", caption: "", path: "p" });
+    expect(sem).toContain("O dono enviou");
+    const deMembro = buildMediaPrompt({ mediaType: "image", fileName: "", caption: "olha", path: "p", sender: "Jéssica" });
+    expect(deMembro).toContain("Jéssica enviou");
+    expect(deMembro).not.toContain("O dono enviou");
+    expect(deMembro).toContain('Legenda/pedido de Jéssica: "olha"');
+    expect(deMembro).toContain("Jéssica pediu, dentro do que ele(a) pode");
+  });
 });
 
 describe("limites de leitura de arquivos pelo agente", () => {
@@ -101,6 +122,28 @@ describe("limites de leitura de arquivos pelo agente", () => {
     expect(decideBuiltin("Grep", { pattern: "x" }, member, roots, resolvePath).decision).toBe("deny");
     expect(decideBuiltin("ToolSearch", { query: "x" }, member, roots, resolvePath).decision).toBe("allow");
     expect(decideBuiltin("Task", {}, member, roots, resolvePath).decision).toBe("deny");
+  });
+
+  it("membro também lê a mídia de membros (data/midia-membros), quando informada", () => {
+    const withMemberDir = { ...roots, memberMediaDir: "C:/proj/agent-maia/data/midia-membros" };
+    expect(decideBuiltin("Read", { file_path: "C:/proj/agent-maia/data/midia-membros/1-foto.jpg" }, member, withMemberDir, resolvePath).decision).toBe("allow");
+    expect(decideBuiltin("Read", { file_path: "C:/proj/agent-maia/data/midia-membros/1-foto.jpg" }, member, roots, resolvePath).decision).toBe("deny");
+  });
+});
+
+describe("armazenamento de mídia (diretório e retenção configuráveis)", () => {
+  it("saveMedia grava no diretório dado e purgeOldMedia só apaga o vencido naquele diretório", () => {
+    const dir = mkdtempSync(join(tmpdir(), "maia-media-"));
+    try {
+      const now = Date.now();
+      const path = saveMedia(Buffer.from("conteudo"), "arquivo.txt", now, dir);
+      expect(readFileSync(path, "utf8")).toBe("conteudo");
+      expect(purgeOldMedia(dir, 24 * 3600_000, now)).toBe(0);
+      expect(purgeOldMedia(dir, 24 * 3600_000, now + 25 * 3600_000)).toBe(1);
+      expect(purgeOldMedia(dir, 24 * 3600_000, now + 26 * 3600_000)).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

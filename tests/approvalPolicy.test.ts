@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { requiresApproval } from "../server/approvalPolicy.ts";
-import { decideAccess, type Requester } from "../server/access.ts";
+import { canConverse, decideAccess, type Requester } from "../server/access.ts";
 import { matchContacts } from "../server/contacts.ts";
 
 const owner: Requester = { role: "owner", name: "Herickson", number: "5585992494552", permissions: new Set() };
@@ -58,6 +58,20 @@ describe("membro só faz o que a permissão cobre", () => {
   it("visitante nunca age sozinho", () => {
     expect(decideAccess("mcp__claude_ai_Gmail__search_threads", guest, {}, true).decision).toBe("approve");
     expect(decideAccess("mcp__claude_ai_Google_Drive__create_file", guest, {}, false).decision).toBe("approve");
+  });
+  it("reenviar arquivo recebido é só do dono", () => {
+    expect(decideAccess("mcp__maia__arquivo_reenviar", member("mensagem.enviar"), {}, false).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__arquivo_reenviar", owner, {}, false).decision).toBe("allow");
+  });
+});
+
+describe("quem pode conversar com a Maia no privado (canConverse)", () => {
+  it("dono sempre pode; membro só com a permissão conversa.maia; visitante nunca", () => {
+    expect(canConverse(owner)).toBe(true);
+    expect(canConverse(member("conversa.maia"))).toBe(true);
+    expect(canConverse(member("gmail.ler"))).toBe(false);
+    expect(canConverse(member())).toBe(false);
+    expect(canConverse(guest)).toBe(false);
   });
 });
 

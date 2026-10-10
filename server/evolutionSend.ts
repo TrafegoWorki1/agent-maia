@@ -76,6 +76,25 @@ export async function sendOwnerImage(number: string, path: string, caption: stri
   return typeof body?.key?.id === "string" ? body.key.id : null;
 }
 
+// Envia um arquivo (imagem, vídeo ou documento) pela instância da Evolution e devolve o id da mensagem aceita
+// (a conferência da entrega). Usado para reenviar ao owner um arquivo que um contato ou membro mandou à Maia.
+export async function sendFile(number: string, path: string, mediaType: "image" | "video" | "document", mimetype: string, caption: string, fileName: string): Promise<string | null> {
+  const base = process.env.EVOLUTION_API_URL;
+  const key = process.env.EVOLUTION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
+  const { readFileSync } = await import("node:fs");
+  const response = await fetch(`${base.replace(/\/$/, "")}/message/sendMedia/${encodeURIComponent(instance)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({ number, mediatype: mediaType, mimetype, caption, media: readFileSync(path).toString("base64"), fileName: fileName || path.split(/[\\/]/).pop() }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!response.ok) throw new Error(`Evolution sendMedia falhou: HTTP ${response.status}`);
+  const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
+  return typeof body?.key?.id === "string" ? body.key.id : null;
+}
+
 // Envia texto e devolve o id da mensagem aceita pelo WhatsApp (conferência da entrega). Sem id, não está conferido.
 export async function sendTextChecked(number: string, text: string): Promise<string> {
   const base = process.env.EVOLUTION_API_URL;

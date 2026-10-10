@@ -5,7 +5,7 @@ import { audioFrom, incomingText, mediaFrom, normalizeEvent, samePhone } from ".
 // Texto e áudio só são guardados para o dono e o aprovador; de outros números fica só o tipo.
 
 export type InboxKind = "text" | "audio" | "event" | "media";
-export type InboxSender = "owner" | "approver" | "other" | "group" | "none";
+export type InboxSender = "owner" | "approver" | "other" | "group" | "none" | "member";
 
 export interface InboxRow {
   kind: InboxKind;
@@ -48,7 +48,16 @@ function addressedToMaia(body: Record<string, unknown>, data: Record<string, unk
   return Boolean(state.lastReplyTo && participant && digitsOf(state.lastReplyTo) === digitsOf(participant) && !Number.isNaN(last) && now.getTime() - last <= CONVERSATION_WINDOW_MS);
 }
 
-export function toInboxRow(body: unknown, owner: string | undefined, approver: string | undefined, groups?: ReadonlyMap<string, GroupState>, now = new Date(), contacted?: ReadonlySet<string>): InboxRow | null {
+export function toInboxRow(
+  body: unknown,
+  owner: string | undefined,
+  approver: string | undefined,
+  groups?: ReadonlyMap<string, GroupState>,
+  now = new Date(),
+  contacted?: ReadonlySet<string>,
+  // Números de pessoas cadastradas com a permissão conversa.maia (nunca o dono: ele já tem rota própria).
+  members?: ReadonlySet<string>,
+): InboxRow | null {
   const event = normalizeEvent(body);
   if (!event || !body || typeof body !== "object") return null;
   const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
@@ -92,6 +101,11 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
   if (text) {
     if (samePhone(text.from, owner)) return { kind: "text", sender: "owner", key_id: keyId, payload: text.text };
     if (samePhone(text.from, approver)) return { kind: "text", sender: "approver", key_id: keyId, payload: text.text };
+    // Membro com a permissão conversa.maia: fala direto com a Maia no privado, dentro do que pode.
+    if (members && [...members].some((n) => samePhone(n, text.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "text", sender: "member", key_id: keyId, payload: JSON.stringify({ from: text.from, name, text: text.text }) };
+    }
     // Resposta de alguém que a Maia contatou nas últimas 48 h: o texto entra para ser repassado ao dono.
     if (contacted && [...contacted].some((n) => samePhone(n, text.from))) {
       const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
@@ -106,15 +120,25 @@ export function toInboxRow(body: unknown, owner: string | undefined, approver: s
       // O áudio em si é baixado pela Evolution pelo worker: aqui só vai a referência.
       return { kind: "audio", sender: "owner", key_id: keyId, payload: JSON.stringify({ key: audio.key, mimetype: audio.mimetype }) };
     }
+    // Áudio de membro autorizado: mesma ideia, com o número e o nome de quem mandou.
+    if (members && [...members].some((n) => samePhone(n, audio.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "audio", sender: "member", key_id: keyId, payload: JSON.stringify({ key: audio.key, mimetype: audio.mimetype, from: audio.from, name }) };
+    }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }
 
-  // Imagem, vídeo ou documento do dono: só a referência (o arquivo é baixado pelo worker). De outros números, nada.
+  // Imagem, vídeo ou documento: do dono ou de membro autorizado, só a referência (o arquivo é baixado pelo worker).
+  // De outros números, nada.
   const media = mediaFrom(body);
   if (media) {
+    const { key, mimetype, mediaType, fileName, caption, size } = media;
     if (samePhone(media.from, owner)) {
-      const { key, mimetype, mediaType, fileName, caption, size } = media;
       return { kind: "media", sender: "owner", key_id: keyId, payload: JSON.stringify({ key, mimetype, mediaType, fileName, caption, size }) };
+    }
+    if (members && [...members].some((n) => samePhone(n, media.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "media", sender: "member", key_id: keyId, payload: JSON.stringify({ key, mimetype, mediaType, fileName, caption, size, from: media.from, name }) };
     }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }
