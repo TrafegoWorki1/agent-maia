@@ -2,6 +2,16 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Pessoas: organização e visual profissional (10/10/2026)
+
+- **Problema visual:** cada pessoa repetia todos os números e permissões na mesma página, tornando a leitura longa e pouco hierárquica.
+- **Melhoria:** diretório pesquisável à esquerda e perfil à direita, indicadores de cadastros, filtros Todas/Ativas/Desativadas, números formatados, papéis identificados por avatar, permissões em cartões e botão Nova pessoa. No celular, abre-se um perfil por vez com Voltar para pessoas.
+- **Bug funcional:** a inclusão de número usava `/D/g` em vez de `/\D/g`; telefones formatados eram rejeitados. Corrigido. Bloqueios de duplo clique e tratamento de erro evitam envios repetidos durante uma gravação.
+- **Falha parcial:** após salvar a pessoa, se o WhatsApp não puder ser vinculado, abre-se o perfil já criado para corrigir o número, sem manter o formulário de cadastro disponível para uma tentativa duplicada.
+- **Segurança e revisão:** orientação do Supabase aplicada para preservar chave pública/RLS e edição exclusiva do proprietário; revisão React manteve carregamento paralelo, dados derivados sem efeitos extras, formulários separados e controles rotulados. Sem mudanças no banco, novas dependências ou credenciais expostas.
+- **Validação:** TypeScript e build aprovados; 240 testes de aplicação + 27 de banco temporário aprovados. Os 7 testes novos cobrem resumo, busca sem acentos/telefone formatado, status, somente leitura, WhatsApp, permissão, navegação lista/perfil, cadastro parcial e falha na verificação do proprietário.
+- **Limitações:** browser indisponível (`No browser is available`); inspeção visual autenticada não realizada. Build/testes exigiram execução fora do sandbox por `spawn EPERM`; build concluído com aviso de bundle acima de 500 kB. Nenhuma gravação remota foi feita nos testes desta tela.
+
 ## Adicionar participante, lembrete sem contexto, painel manual, números nas regras (10/10/2026)
 
 - **Diagnóstico de "a Maia tá estranha" (Gessica/Gusta):** não era bug nem Codex (conferido em `agent_runs`: tudo Claude, sem fallback). Eram duas mensagens do owner próximas, processadas em ordem (fila por conversa); a resposta ao "Pra mim" (sobre o rascunho do Gusta) chegou 3s depois do pedido da Gessica, dando a impressão de confusão.
