@@ -1,5 +1,7 @@
 # Plano de implementação — Painel operacional da Maia
 
+> **Plano histórico de 08/10/2026.** As descrições de arquitetura e estado abaixo refletem a etapa de elaboração. A operação atual está em `README.md`, e o comportamento vigente em `docs/regras-da-maia.md`. Este documento não integra a busca operacional da Maia.
+
 Data: 2026-10-08 · Base: estrutura do painel do Bryan (`agente-bryan/public/dashboard.html`,
 `agente-bryan/lib/quality.js`, `agente-bryan/docs/indicadores.md`), adaptada ao que a Maia registra.
 

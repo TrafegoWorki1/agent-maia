@@ -1,5 +1,7 @@
 # Análise do painel de referência
 
+> **Referência histórica da fase de protótipo.** A descrição de implementação ao final deste documento corresponde à primeira demo. Arquitetura e regras atuais estão em `README.md`, `CLAUDE.md` e `docs/regras-da-maia.md`.
+
 ## Fonte e limites
 
 Referência analisada em modo autenticado e de leitura: <https://painel-operacao-ritchie.vercel.app/#op>. A navegação foi feita pelo navegador com a autenticação fornecida diretamente pelo usuário. Nenhuma ação de escrita foi executada no painel.

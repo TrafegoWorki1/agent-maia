@@ -1,6 +1,17 @@
-# Erros e mudanças: resumo da sessão de 08/10/2026
+# Erros e mudanças — resumo do projeto
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
+
+As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
+
+## Alinhamento de regras e conhecimento (10/10/2026)
+
+- **Problema:** documentos, regras ativas e diretrizes locais discordavam sobre quem pode agir, aprovação, áudio, retenção e integrações. O RAG incluía plano antigo e histórico sem distinguir vigência.
+- **Correção:** catálogo único versionado, Markdown gerado, prompt com seções e reserva completa; cache isolado por banco e números lidos no momento da execução. Histórico sai da busca operacional, mas os arquivos e trechos permanecem preservados.
+- **Erro de indexação:** checksum era publicado antes de concluir os vetores e os trechos antigos eram apagados antes da troca. Agora a gravação é atômica, compara a versão anterior e permite reparar fonte incompleta/inativa.
+- **Instagram:** a pedido do owner, as regras incluem os recursos que ele implementa no Claude em paralelo: consultas, respostas elegíveis no Direct e automações com aprovações próprias. Sem DM fria ou prospecção autônoma.
+- **Verificação:** primeiros testes e reconstrução do banco aprovados; conferência final e ativação em andamento. Build mantém o aviso preexistente de bundle acima de 500 kB. Corrigida durante os testes uma parametrização de `it.each` que tratava uma lista de regras como argumentos separados.
+- **Pendências de produto:** avaliação semântica em conversa real, fingerprint de aprovação e retenção futura de `messages` continuam em `TODO.md`; não foram declarados implementados.
 
 ## Áudio em grupo cadastrado (10/10/2026)
 

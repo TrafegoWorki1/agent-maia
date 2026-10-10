@@ -57,6 +57,7 @@ export const ESSENTIAL_FUNCTIONS: Record<string, "service" | "authenticated"> = 
   "add_batch_item(p_conversa text, p_inbox_id bigint, p_text text, p_window_s integer, p_max_s integer)": "service",
   "due_owner_batches()": "service",
   "search_knowledge(p_query text, p_embedding extensions.vector, p_limit integer)": "service",
+  "replace_knowledge_document(p_slug text, p_titulo text, p_origem text, p_checksum text, p_expected_checksum text, p_chunks jsonb)": "service",
   "claim_image_quota(p_dia date, p_limit integer)": "service",
   "release_image_quota(p_dia date)": "service",
   "claim_due_actions(p_limit integer)": "service",

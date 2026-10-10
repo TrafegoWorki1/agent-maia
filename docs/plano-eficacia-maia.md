@@ -1,5 +1,7 @@
 # Plano de relevância e eficácia da Maia
 
+> **Plano e registro de entregas em 10/10/2026.** As métricas abaixo são retratos dos horários informados, não indicadores atuais. Depois da entrega descrita, os formulários de criação manual de tarefa, lembrete e avaliação foram removidos a pedido do owner; tarefas e lembretes nascem da conversa. Metas e validações reais pendentes continuam propostas. Consulte `TODO.md` e `docs/regras-da-maia.md` para o estado vigente.
+
 Data: 10/10/2026. Objetivo: entregar o resultado pedido com dados reais, prova de execução e comunicação clara, inclusive durante a contingência do Claude para o Codex.
 
 ## Diagnóstico observado

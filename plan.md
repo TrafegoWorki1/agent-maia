@@ -1,5 +1,7 @@
 # Plano de implementação — OperaFlow / Maia (protótipo)
 
+> **Histórico do protótipo, superado pela operação real.** As seções abaixo descrevem a fase inicial, não o estado atual. Consulte README.md, CLAUDE.md e docs/regras-da-maia.md para operação e regras vigentes. Este plano não integra a busca operacional da Maia.
+
 ## Escopo
 
 Construir um repositório web responsivo para continuar no Claude Code: dashboard operacional, chat demonstrativo do agente Maia, grupos/permissões, escalonamento ao owner Herickson Maia e trilha de auditoria. A primeira versão usa exclusivamente dados fictícios; não recebe credenciais, não conecta contas, não chama APIs externas e não produz efeitos reais.

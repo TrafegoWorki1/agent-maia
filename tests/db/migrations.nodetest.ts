@@ -8,6 +8,8 @@ import { buildLocalDb, listMigrations, type LocalDb } from "../../scripts/db/loc
 import { checkEssentials, checkNames, findDestructive, hasApprovalMark } from "../../scripts/db/rules.ts";
 import { diffSnapshots, formatDiff, hasDrift } from "../../scripts/db/snapshot.ts";
 import { assertReadOnly } from "../../scripts/db/remote.ts";
+import { RULE_CATALOG, validateRules } from "../../server/ruleCatalog.ts";
+import { readFileSync } from "node:fs";
 import { missingStructures, scanSource, scanUsage } from "../../scripts/db/usage.ts";
 
 let local: LocalDb;
@@ -20,6 +22,55 @@ after(async () => {
 
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
+
+describe("regras alinhadas e conhecimento atômico", () => {
+  const firstHash = "a".repeat(64);
+  const secondHash = "b".repeat(64);
+  const chunks = [{ secao: "Política", conteudo: "Conteúdo vigente", embedding: JSON.stringify(Array(384).fill(0.1)) }];
+  const replace = (slug: string, hash: string, expected: string | null, input = chunks) => q("select replace_knowledge_document($1,'Regras','docs/regras-da-maia.md',$2,$3,$4::jsonb) as id", [slug, hash, expected, JSON.stringify(input)]);
+  it("o banco reconstruído tem exatamente o catálogo aprovado", async () => {
+    assert.deepEqual(validateRules(await q("select codigo,categoria,titulo,texto,ordem,ativa from maia_rules")), RULE_CATALOG);
+  });
+  it("a aplicação não reativa regra desativada nem sobrescreve edição concorrente", async () => {
+    const migration = readFileSync(new URL("../../supabase/migrations/20261010175923_maia_knowledge_atomic_rules_alignment.sql", import.meta.url), "utf8");
+    const activation = migration.slice(migration.indexOf("do $alignment$"));
+    await q("update maia_rules set ativa=false where codigo='instagram'");
+    try {
+      await rejects(local.db.exec(activation), /mudou após a revisão/i);
+      assert.equal((await q("select ativa from maia_rules where codigo='instagram'"))[0].ativa, false);
+    } finally {
+      await q("update maia_rules set ativa=true where codigo='instagram'");
+    }
+  });
+  it("troca documento e checksum juntos; rejeita escritor com versão antiga", async () => {
+    const created = await replace("test-atomic", firstHash, null);
+    assert.ok(created[0].id);
+    await replace("test-atomic", secondHash, firstHash);
+    await rejects(replace("test-atomic", firstHash, firstHash), /alterado durante/i);
+    const row = (await q("select checksum,ativo from knowledge_sources where slug='test-atomic'"))[0];
+    assert.equal(row.checksum, secondHash);
+    assert.equal(row.ativo, true);
+    assert.equal((await q("select count(*)::int as n from knowledge_chunks where source_id=$1", [created[0].id]))[0].n, 1);
+  });
+  it("erro depois da remoção dos trechos reverte tudo na transação", async () => {
+    const created = await replace("test-rollback", firstHash, null);
+    await rejects(replace("test-rollback", secondHash, firstHash, [{ ...chunks[0], embedding: "[1,2]" }]), /dimensions/i);
+    assert.equal((await q("select checksum from knowledge_sources where slug='test-rollback'"))[0].checksum, firstHash);
+    assert.equal((await q("select conteudo from knowledge_chunks where source_id=$1", [created[0].id]))[0].conteudo, "Conteúdo vigente");
+    await rejects(replace("test-rollback", secondHash, firstHash, []), /inválido/i);
+  });
+  it("fontes inativas não aparecem na busca e somente o servidor troca documentos", async () => {
+    await replace("test-retired", firstHash, null);
+    await q("update knowledge_sources set ativo=false where slug='test-retired'");
+    const results = await q("select * from search_knowledge('Conteúdo vigente',$1::extensions.vector,100)", [chunks[0].embedding]);
+    const retired = await q("select c.id from knowledge_chunks c join knowledge_sources s on s.id=c.source_id where s.slug='test-retired'");
+    assert.ok(!results.some((r) => r.chunk_id === retired[0].id));
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await q("select has_function_privilege($1,'replace_knowledge_document(text,text,text,text,text,jsonb)','execute') as allowed", [role]))[0].allowed, false);
+    }
+    assert.equal((await q("select has_function_privilege('service_role','replace_knowledge_document(text,text,text,text,text,jsonb)','execute') as allowed"))[0].allowed, true);
+  });
+});
 
 describe("plano de eficácia: trabalho, lembretes e entrega", () => {
   it("cria histórico e lembrete de prazo na mesma transação; não duplica claim", async () => {
