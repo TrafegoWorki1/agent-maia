@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Confirmação de envio sem narrar o WhatsApp
+
+- **Feedback do owner:** ao mandar mensagem para um contato (ex.: a Jéssica), a Maia respondia explicando "o WhatsApp aceitou o envio, mas ainda não dá para saber se ela leu" — informação irrelevante, já que o owner já usa WhatsApp e não precisa da mecânica interna.
+- **Correção:** `server/rules.ts` (`EXECUTION_GUIDELINES`) deixa claro que o ID de mensagem é confirmação interna, não algo a explicar ao owner; a Maia agora só confirma que mandou, e só fala em leitura/resposta quando perguntada ou quando ela de fato ocorrer.
+- **Verificação:** `pnpm typecheck` e `pnpm test` (254 vitest) aprovados. Mudança só de texto de prompt; sem teste automatizado possível para fraseado de LLM.
+
 ## 2026-10-10 — Áudio em grupo cadastrado
 
 - **Bug corrigido:** áudio mandado dentro de um grupo cadastrado nunca chegava à Maia, mesmo chamando pelo nome na própria fala. **Causa:** `server/inbox.ts` só extraía texto (`conversation`/`extendedTextMessage.text`) no ramo de grupo; `audioMessage` não tinha nenhum tratamento ali e caía no fallback de "atividade do grupo" (sem baixar nem transcrever). A função que baixa áudio (`audioFrom`) só era alcançada para conversas privadas.
