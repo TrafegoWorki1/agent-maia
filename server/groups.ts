@@ -113,22 +113,127 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
   }
 }
 
-// Adiciona participantes a um grupo que já existe (a Evolution aceita vários números de uma vez).
-// Pedido recorrente do owner (3 vezes, 09 e 10/10/2026): faltava esta ferramenta.
-export async function addGroupParticipants(jid: string, participants: string[]): Promise<{ ok: boolean; detail: string }> {
+export type ParticipantAction = "add" | "remove" | "promote" | "demote";
+
+// Adiciona, remove, promove (admin) ou rebaixa participantes de um grupo que já existe. Um só endpoint da
+// Evolution, com a ação como parâmetro. Pedido recorrente do owner (3 vezes, 09 e 10/10/2026): faltava "add".
+export async function updateGroupParticipants(jid: string, action: ParticipantAction, participants: string[]): Promise<{ ok: boolean; detail: string }> {
   const config = evoConfig();
   if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
   try {
     const response = await fetch(`${config.url}/group/updateParticipant/${config.instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: config.apikey },
-      body: JSON.stringify({ groupJid: jid, action: "add", participants }),
+      body: JSON.stringify({ groupJid: jid, action, participants }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
-    return { ok: true, detail: "participante(s) adicionado(s)" };
+    return { ok: true, detail: "pedido aceito" };
   } catch (error) {
-    return { ok: false, detail: error instanceof Error ? error.message : "falha ao adicionar ao grupo" };
+    return { ok: false, detail: error instanceof Error ? error.message : "falha ao atualizar o grupo" };
+  }
+}
+
+export interface GroupInfo {
+  jid: string;
+  subject: string;
+  description: string | null;
+  owner: string | null;
+  size: number | null;
+  createdAt: string | null;
+}
+
+// Informações de um grupo específico (diferente de listar todos: traz descrição e dono).
+export async function fetchGroupInfo(jid: string): Promise<{ ok: true; info: GroupInfo } | { ok: false; error: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, error: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/findGroupInfos/${config.instance}?groupJid=${encodeURIComponent(jid)}`, {
+      headers: { apikey: config.apikey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return { ok: false, error: `Evolution respondeu HTTP ${response.status}` };
+    const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body) return { ok: false, error: "a Evolution não devolveu os dados do grupo" };
+    return {
+      ok: true,
+      info: {
+        jid,
+        subject: typeof body.subject === "string" ? body.subject : "(sem nome)",
+        description: typeof body.desc === "string" ? body.desc : typeof body.description === "string" ? body.description : null,
+        owner: typeof body.owner === "string" ? body.owner.split("@")[0] : null,
+        size: typeof body.size === "number" ? body.size : Array.isArray(body.participants) ? body.participants.length : null,
+        createdAt: typeof body.creation === "number" ? new Date(body.creation * 1000).toISOString() : null,
+      },
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "falha ao consultar o grupo" };
+  }
+}
+
+export interface GroupParticipant {
+  number: string;
+  isAdmin: boolean;
+}
+
+// Participantes e administradores de um grupo.
+export async function fetchGroupParticipants(jid: string): Promise<{ ok: true; participants: GroupParticipant[] } | { ok: false; error: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, error: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/participants/${config.instance}?groupJid=${encodeURIComponent(jid)}`, {
+      headers: { apikey: config.apikey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return { ok: false, error: `Evolution respondeu HTTP ${response.status}` };
+    const body = (await response.json().catch(() => null)) as { participants?: unknown[] } | unknown[] | null;
+    const raw = Array.isArray(body) ? body : (body?.participants ?? []);
+    const participants = (raw as Record<string, unknown>[])
+      .map((p) => ({
+        number: typeof p.id === "string" ? p.id.split("@")[0] : typeof p.jid === "string" ? p.jid.split("@")[0] : "",
+        isAdmin: p.admin === "admin" || p.admin === "superadmin" || p.isAdmin === true,
+      }))
+      .filter((p) => p.number);
+    return { ok: true, participants };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "falha ao consultar participantes" };
+  }
+}
+
+// Link de convite do grupo. Sensível: quem tiver o link entra sem aprovação da Maia. Só o dono consulta.
+export async function fetchGroupInviteCode(jid: string): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, error: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/inviteCode/${config.instance}?groupJid=${encodeURIComponent(jid)}`, {
+      headers: { apikey: config.apikey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return { ok: false, error: `Evolution respondeu HTTP ${response.status}` };
+    const body = (await response.json().catch(() => null)) as { inviteUrl?: string; inviteCode?: string } | null;
+    const link = body?.inviteUrl ?? (body?.inviteCode ? `https://chat.whatsapp.com/${body.inviteCode}` : null);
+    if (!link) return { ok: false, error: "a Evolution não devolveu o link de convite" };
+    return { ok: true, link };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "falha ao consultar o convite" };
+  }
+}
+
+// Manda o convite do grupo a números/contatos pelo WhatsApp (a própria Evolution monta e envia a mensagem).
+export async function sendGroupInvite(jid: string, groupName: string, numbers: string[], description: string): Promise<{ ok: boolean; detail: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/sendInvite/${config.instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apikey },
+      body: JSON.stringify({ groupJid: jid, groupName, numbers, description }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
+    return { ok: true, detail: "convite enviado" };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : "falha ao enviar o convite" };
   }
 }
 

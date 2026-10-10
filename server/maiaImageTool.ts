@@ -11,7 +11,8 @@ import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { addTaskEvent, getDb } from "./store.ts";
-import { addGroupParticipants, registerGroup } from "./groups.ts";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, type ParticipantAction } from "./groups.ts";
+import { findChats, findInstanceContacts } from "./chats.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -21,7 +22,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -179,25 +180,110 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         },
       ),
       tool(
-        "grupo_adicionar_participante",
-        "Adiciona uma ou mais pessoas a um grupo do WhatsApp que já existe (diferente de criar grupo). Use quando pedirem para colocar alguém num grupo já existente. Informe o nome exato do grupo.",
+        "grupo_gerenciar_participantes",
+        "Adiciona, remove, promove a admin ou rebaixa participantes de um grupo do WhatsApp que já existe (diferente de criar grupo). Informe o nome exato do grupo.",
         {
           grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
-          participantes: z.array(z.string().max(60)).min(1).max(20).describe("Quem adicionar: números com DDI+DDD ou nomes cadastrados em Pessoas."),
+          acao: z.enum(["adicionar", "remover", "promover", "rebaixar"]),
+          participantes: z.array(z.string().max(60)).min(1).max(20).describe("Números com DDI+DDD ou nomes cadastrados em Pessoas."),
         },
         async (args) => {
           const group = await resolveGroup(args.grupo);
-          if (!group.ok) return { content: [{ type: "text", text: `Não adicionei: ${group.error}.` }], isError: true };
+          if (!group.ok) return { content: [{ type: "text", text: `Não fiz: ${group.error}.` }], isError: true };
           const participants = await resolveMentions(getDb(), args.participantes);
-          if (!participants.ok) return { content: [{ type: "text", text: `Não adicionei: ${participants.error}.` }], isError: true };
+          if (!participants.ok) return { content: [{ type: "text", text: `Não fiz: ${participants.error}.` }], isError: true };
+          const action: Record<typeof args.acao, ParticipantAction> = { adicionar: "add", remover: "remove", promover: "promote", rebaixar: "demote" };
+          const verb: Record<typeof args.acao, string> = { adicionar: "adicionar", remover: "remover", promover: "promover a admin", rebaixar: "rebaixar" };
           try {
-            const result = await addGroupParticipants(group.group.jid, participants.numbers);
-            if (!result.ok) return { content: [{ type: "text", text: `Não consegui adicionar ao grupo "${group.group.subject}": ${result.detail}.` }], isError: true };
-            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_adicionar_participante", group.group.subject).catch(() => {});
-            return { content: [{ type: "text", text: `Pedido aceito pela Evolution para adicionar ${participants.numbers.length} pessoa(s) ao grupo "${group.group.subject}". Não tenho como confirmar aqui se a pessoa entrou de fato (ela pode ter configuração que exige aprovação para entrar); confira no WhatsApp.` }] };
+            const result = await updateGroupParticipants(group.group.jid, action[args.acao], participants.numbers);
+            if (!result.ok) return { content: [{ type: "text", text: `Não consegui ${verb[args.acao]} no grupo "${group.group.subject}": ${result.detail}.` }], isError: true };
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_gerenciar_participantes", `${args.acao}: ${group.group.subject}`).catch(() => {});
+            return { content: [{ type: "text", text: `Pedido aceito pela Evolution para ${verb[args.acao]} ${participants.numbers.length} pessoa(s) no grupo "${group.group.subject}". Não tenho como confirmar aqui o resultado de fato (ex.: entrada pode exigir aprovação da pessoa); confira no WhatsApp.` }] };
           } catch (error) {
-            return { content: [{ type: "text", text: `Não consegui adicionar ao grupo: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
+            return { content: [{ type: "text", text: `Não consegui: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }
+        },
+      ),
+      tool(
+        "grupo_info",
+        "Consulta informações de um grupo específico (descrição, dono, tamanho, criação). Só leitura.",
+        { grupo: z.string().min(2).max(100).describe("Nome do grupo.") },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não consegui: ${group.error}.` }], isError: true };
+          const info = await fetchGroupInfo(group.group.jid);
+          if (!info.ok) return { content: [{ type: "text", text: `Não consegui consultar o grupo: ${info.error}.` }], isError: true };
+          return { content: [{ type: "text", text: `"${info.info.subject}" · ${info.info.size ?? "—"} participante(s) · dono: ${info.info.owner ? `+${info.info.owner}` : "—"} · criado em: ${info.info.createdAt ?? "—"}\nDescrição: ${info.info.description ?? "(sem descrição)"}` }] };
+        },
+      ),
+      tool(
+        "grupo_participantes",
+        "Lista os participantes e administradores de um grupo. Só leitura.",
+        { grupo: z.string().min(2).max(100).describe("Nome do grupo.") },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não consegui: ${group.error}.` }], isError: true };
+          const result = await fetchGroupParticipants(group.group.jid);
+          if (!result.ok) return { content: [{ type: "text", text: `Não consegui consultar os participantes: ${result.error}.` }], isError: true };
+          if (result.participants.length === 0) return { content: [{ type: "text", text: "Nenhum participante encontrado." }] };
+          return { content: [{ type: "text", text: result.participants.map((p) => `+${p.number}${p.isAdmin ? " (admin)" : ""}`).join("\n") }] };
+        },
+      ),
+      tool(
+        "grupo_convite_link",
+        "Consulta o link de convite de um grupo. Sensível: quem tiver o link entra no grupo direto; só o owner usa esta ferramenta.",
+        { grupo: z.string().min(2).max(100).describe("Nome do grupo.") },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não consegui: ${group.error}.` }], isError: true };
+          const result = await fetchGroupInviteCode(group.group.jid);
+          if (!result.ok) return { content: [{ type: "text", text: `Não consegui consultar o convite: ${result.error}.` }], isError: true };
+          return { content: [{ type: "text", text: `Link do grupo "${group.group.subject}": ${result.link}` }] };
+        },
+      ),
+      tool(
+        "grupo_enviar_convite",
+        "Manda o convite de um grupo (link e descrição) a um ou mais contatos pelo WhatsApp. Ação que sai para fora: só roda depois do OK do owner ou do aprovador.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo."),
+          contatos: z.array(z.string().max(60)).min(1).max(20).describe("Números com DDI+DDD ou nomes cadastrados em Pessoas."),
+          descricao: z.string().max(500).optional().describe("Texto que acompanha o convite."),
+        },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não enviei: ${group.error}.` }], isError: true };
+          const contacts = await resolveMentions(getDb(), args.contatos);
+          if (!contacts.ok) return { content: [{ type: "text", text: `Não enviei: ${contacts.error}.` }], isError: true };
+          try {
+            const result = await sendGroupInvite(group.group.jid, group.group.subject, contacts.numbers, args.descricao ?? "");
+            if (!result.ok) return { content: [{ type: "text", text: `Não consegui enviar o convite: ${result.detail}.` }], isError: true };
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_convite", group.group.subject).catch(() => {});
+            return { content: [{ type: "text", text: `Convite do grupo "${group.group.subject}" enviado para ${contacts.numbers.length} contato(s).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar o convite: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "conversas_listar",
+        "Lista as conversas (privadas e de grupo) conhecidas pela instância do WhatsApp, com a mais recente primeiro. Só leitura.",
+        { limite: z.number().int().min(1).max(50).optional().describe("Quantas conversas. Padrão 20.") },
+        async (args) => {
+          const result = await findChats(args.limite ?? 20);
+          if (!result.ok) return { content: [{ type: "text", text: `Não consegui consultar as conversas: ${result.error}.` }], isError: true };
+          if (result.chats.length === 0) return { content: [{ type: "text", text: "Nenhuma conversa encontrada." }] };
+          return { content: [{ type: "text", text: result.chats.map((c) => `${c.isGroup ? "[grupo] " : ""}${c.name}`).join("\n") }] };
+        },
+      ),
+      tool(
+        "contato_instancia_buscar",
+        "Procura, nos contatos salvos na instância do WhatsApp (diferente da agenda da Maia), alguém por nome ou número. Use quando contato_buscar não achar. Só leitura.",
+        { busca: z.string().min(1).max(80) },
+        async (args) => {
+          const result = await findInstanceContacts(args.busca);
+          if (!result.ok) return { content: [{ type: "text", text: `Não consegui consultar: ${result.error}.` }], isError: true };
+          if (result.contacts.length === 0) return { content: [{ type: "text", text: `Nenhum contato da instância para "${args.busca}".` }] };
+          return { content: [{ type: "text", text: result.contacts.map((c) => `${c.name || "(sem nome)"} +${c.number}`).join("\n") }] };
         },
       ),
       tool(
