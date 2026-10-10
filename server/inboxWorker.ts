@@ -3,7 +3,7 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
 import { handleApproverText } from "./groups.ts";
-import { handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
+import { handleGroupAudio, handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { markMessagesRead } from "./chats.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
@@ -126,6 +126,16 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
       return;
     }
     void handleGroupMessage(request).catch((error) => console.error("[worker] grupo:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "group" && item.kind === "audio" && item.payload) {
+    // Áudio num grupo cadastrado: mesma regra do texto (memória de 7 dias, só responde quando chamada),
+    // mas a transcrição decide "chamou pelo nome" (server/ownerRouter.ts, handleGroupAudio).
+    const ref = JSON.parse(item.payload) as GroupAudioRef;
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "audio" }, now);
+    markRead(ref.jid, item.key_id);
+    void handleGroupAudio(ref).catch((error) => console.error("[worker] áudio de grupo:", error instanceof Error ? error.message : error));
     return;
   }
 
