@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Ponte temporária Supabase → Meta Ads para vídeo/imagem do WhatsApp
+
+- **Pergunta do owner:** mandar um vídeo pra Maia e pedir pra subir na conta de anúncio funcionaria? Ele suspeitava que precisaria de uma conexão temporária com o Supabase.
+- **Confirmado no schema real da ferramenta:** `ads_creative_upload_media` (Meta Ads) só aceita `LOCAL_FILE` (exige app interativo, que não existe no fluxo headless do WhatsApp) ou `URL` (link https público e direto, sem login). O vídeo do WhatsApp só ficava salvo em `data/midia` (disco local, sem endereço público) — faltava exatamente a ponte que o owner imaginou.
+- **Implementado:** `server/integrations/adsMedia.ts` — bucket privado `ads_media_temp` no Supabase Storage (criado sob demanda, idempotente, nunca por migração SQL porque o schema `storage.*` não existe no Postgres de teste do projeto — PGlite via `supabase/ci/bootstrap.sql`); `uploadTempAdMedia` sobe o arquivo e devolve uma URL assinada (2h); `purgeTempAdMedia` apaga o que passou do teto, chamada a cada 10 min pelo `inboxWorker.ts`, junto da limpeza de mídia já existente.
+- **Nova ferramenta `anuncio_midia_url_temporaria`** (só o dono): recebe o caminho do arquivo em `data/midia` (exposto agora também para vídeo em `buildMediaPrompt`, que antes só mandava quadros/transcrição) e devolve o link temporário. Não sobe nada no Meta Ads por si só — o próximo passo (chamar `ads_creative_upload_media` com esse link) é do próprio agente, que já tem o conector Meta Ads disponível.
+- **Regra nova no catálogo** (`anuncios_midia_url`, versão 2026-10-10.3): explica o fluxo de dois passos e que o link expira.
+- **Verificação:** `pnpm typecheck`, `pnpm test` (291), `pnpm rules:check` e `pnpm db:validate` aprovados. Upload real ao Meta Ads não foi testado (exigiria subir conteúdo de fato na conta de anúncio real).
+
 ## 2026-10-10 — LinkedIn simétrico entre Claude e Codex
 
 - **Correção do owner:** a Zernio é uma API nossa, direta — diferente de um conector MCP exclusivo de um provedor (Gmail/Meta Ads/Instagram do claude.ai, que o Codex de fato não herda). Não há motivo pra um executor ter uma ferramenta Zernio e o outro não.

@@ -1,6 +1,6 @@
 # Regras vigentes da Maia
 
-Versão aprovada: 2026-10-10.2. Impressão digital: 5f40630d48d31010801c35e10eedcdd4507dcce36d943c5c00b6a56b0326c0ca.
+Versão aprovada: 2026-10-10.3. Impressão digital: d777494b321570079a17e26aa5e1e41ce1fed6b0111bf8f7473f3047f79b944e.
 
 Documento gerado de config/maia-rules.json. Atualize o catálogo e regenere com pnpm rules:generate; não edite esta cópia manualmente. A ativação é explícita na tabela maia_rules e deve ser conferida com pnpm rules:verify. O documento descreve a versão aprovada; divergência no banco é uma pendência, não uma atualização automática.
 
@@ -163,3 +163,7 @@ Use instagram_direct_responder apenas para uma conversa existente e elegível, c
 ## Instagram — Automações de comentário para DM [instagram_automacoes]
 
 Use instagram_automacoes_listar, instagram_automacao_detalhar e instagram_automacao_logs para consulta. Para criar, confirme conta, post ou escopo, gatilho, palavras-chave e textos finais com o owner; ausência de post ou palavras pode ampliar o público, por isso não suponha esses campos. instagram_automacao_criar exige aprovação e cria a automação pausada. Ativar ou pausar com instagram_automacao_ativar exige aprovação própria; excluir com instagram_automacao_excluir também exige aprovação. Depois de ativada, a automação dispara na Zernio conforme o gatilho e escopo aprovados, sem pedir aprovação por disparo. Isso não autoriza prospecção fora da automação. Relate criação, ativação e entregas como estados distintos e consulte os logs antes de afirmar resultados.
+
+## Anúncios — Vídeo ou imagem do WhatsApp para Meta Ads [anuncios_midia_url]
+
+A ferramenta de upload do Meta Ads por URL exige um endereço https público e direto; não aceita caminho de arquivo local nem link do WhatsApp. Para uma imagem ou vídeo que o dono mandou, use primeiro anuncio_midia_url_temporaria (só o dono; gera um link assinado do Supabase, válido por 2 horas) e só depois chame a ferramenta de upload do Meta Ads com upload_source URL e esse link. O arquivo é apagado do Supabase pela limpeza periódica; não reaproveite o link depois de expirado. Isso prepara só o material; subir o criativo e qualquer ação de anúncio seguem as regras de aprovação já aplicadas pelas ferramentas de anúncio.

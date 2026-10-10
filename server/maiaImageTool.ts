@@ -6,6 +6,7 @@ import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
+import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
@@ -906,6 +907,21 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: "Post atualizado." }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui editar: ${zernioErrorText(error)}.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "anuncio_midia_url_temporaria",
+        "Gera um link https temporário (2h) para uma imagem ou vídeo que o dono mandou pelo WhatsApp, para usar com a ferramenta de anúncios (Meta Ads) que só aceita upload por URL pública, não por arquivo local. Só do dono. Não publica nem altera nada em anúncio: só prepara o link; o próximo passo é chamar a ferramenta de upload do Meta Ads com esse link.",
+        { arquivo: z.string().min(3).max(300).describe("Caminho do arquivo em data/midia, exatamente como veio no aviso de mídia recebida.") },
+        async (args) => {
+          try {
+            const resolved = resolveOwnerMediaPath(args.arquivo);
+            if (!resolved.ok) return { content: [{ type: "text", text: `Não consegui preparar o link: ${resolved.error}.` }], isError: true };
+            const { url, expiresInSeconds } = await uploadTempAdMedia(getDb(), resolved.path);
+            return { content: [{ type: "text", text: `Link temporário (válido por ${Math.round(expiresInSeconds / 60)} min): ${url}\nUse esse link na ferramenta de upload do Meta Ads (upload_source: URL, media_type conforme o arquivo).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui preparar o link: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
         },
       ),
