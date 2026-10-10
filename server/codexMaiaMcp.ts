@@ -313,5 +313,16 @@ server.registerTool("linkedin_publicar", { description: "Publica ou agenda um te
   await recordActionEvidence(getDb(), taskId, "linkedin_publicar", post.postId, check?.status === "published" ? post.postId : null);
   return `${post.scheduled ? "Agendamento aceito" : "Post criado"} no LinkedIn (${selected.name}). Status: ${check?.status ?? post.status}.${post.url ? ` Link: ${post.url}` : ""}`;
 }));
+server.registerTool("linkedin_post_cancelar", { description: "Cancela um post LinkedIn ainda não publicado. Requer aprovação.", inputSchema: { post_id: z.string().min(1).max(60) } }, async ({ post_id }) => guarded("mcp__maia__linkedin_post_cancelar", { post_id }, async () => {
+  await cancelScheduledPost(post_id);
+  await addTaskEvent(getDb(), taskId, "external_done", "linkedin_post_cancelar", post_id).catch(() => {});
+  return "Post cancelado.";
+}));
+server.registerTool("linkedin_post_editar", { description: "Edita texto ou horário de post LinkedIn ainda não publicado. Requer aprovação.", inputSchema: { post_id: z.string().min(1).max(60), conteudo: z.string().min(1).max(2200).optional(), agendar_para: z.string().min(10).max(40).optional() } }, async (args) => guarded("mcp__maia__linkedin_post_editar", args, async () => {
+  if (!args.conteudo && !args.agendar_para) throw new Error("Informe o novo texto ou o novo horário.");
+  await updateScheduledPost(args.post_id, { caption: args.conteudo, scheduledFor: args.agendar_para });
+  await addTaskEvent(getDb(), taskId, "external_done", "linkedin_post_editar", args.post_id).catch(() => {});
+  return "Post atualizado.";
+}));
 
 await server.connect(new StdioServerTransport());

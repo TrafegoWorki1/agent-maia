@@ -11,6 +11,7 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__maia__instagram_direct_responder$/,
   /^mcp__maia__instagram_automacao_(criar|ativar|excluir)$/,
   /^mcp__maia__instagram_post_(cancelar|editar)$/,
+  /^mcp__maia__linkedin_post_(cancelar|editar)$/,
   // InstaMany: mensagem direta e ativação de fluxo no Instagram
   /^mcp__claude_ai_instamany__(send_message|set_flow_status)$/,
   // Anúncios: criar, ativar, impulsionar, alterar e apagar (alterar pode ativar ou mudar orçamento)

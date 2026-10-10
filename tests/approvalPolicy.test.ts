@@ -35,6 +35,12 @@ describe("ação pública ou de risco: sempre OK do dono", () => {
       expect(decideAccess(`mcp__maia__${name}`, owner, {}, true).decision, name).toBe("allow");
     }
   });
+  it("cancelar/editar post exige OK, inclusive do owner, tanto no Instagram quanto no LinkedIn (API direta, sem diferença entre executores)", () => {
+    for (const t of ["mcp__maia__instagram_post_cancelar", "mcp__maia__instagram_post_editar", "mcp__maia__linkedin_post_cancelar", "mcp__maia__linkedin_post_editar"]) {
+      expect(requiresApproval(t), t).toBe(true);
+      expect(decideAccess(t, owner, {}, false).decision, t).toBe("approve");
+    }
+  });
 });
 
 describe("dono tem autonomia no que é interno e privado", () => {
