@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pendingApprovals, readSnapshots, recentTasks, tasksBetween, type Db } from "../server/store.ts";
 import { operationalSummary } from "../server/operationalSummary.ts";
+import { workTasksView } from "../server/workTasks.ts";
 
 vi.mock("../server/store.ts", () => ({ pendingApprovals: vi.fn(), readSnapshots: vi.fn(), recentTasks: vi.fn(), tasksBetween: vi.fn() }));
+vi.mock("../server/workTasks.ts", () => ({ workTasksView: vi.fn() }));
 
 describe("consulta operacional compartilhada pelos modelos", () => {
   const db = {} as Db;
@@ -12,13 +14,15 @@ describe("consulta operacional compartilhada pelos modelos", () => {
     vi.mocked(recentTasks).mockResolvedValue([]);
     vi.mocked(pendingApprovals).mockResolvedValue([]);
     vi.mocked(readSnapshots).mockResolvedValue([]);
+    vi.mocked(workTasksView).mockResolvedValue({ tasks: [], reminders: [], limit: 200 });
   });
 
-  it("informa ausência de dados e não promete prazos ou lembretes inexistentes", async () => {
+  it("distingue trabalho persistido de registros de execução", async () => {
     const result = await operationalSummary(db, now);
     expect(result.registrosDeExecucao.total).toBe(0);
-    expect(result.tarefasComPrazo).toBe(false);
-    expect(result.lembretesDeTarefa).toBe(false);
+    expect(result.tarefasComPrazo).toBe(true);
+    expect(result.lembretesDeTarefa).toBe(true);
+    expect(result.trabalho.tasks).toEqual([]);
     expect(tasksBetween).toHaveBeenCalledWith(db, "2026-10-03T03:35:00.000Z", "2026-10-10T03:35:00.001Z");
   });
 

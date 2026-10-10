@@ -8,6 +8,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
+import { workTools } from "./workTasks.ts";
 import { addTaskEvent, getDb } from "./store.ts";
 import { registerGroup } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
@@ -19,7 +20,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -29,9 +30,17 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
     name: "maia",
     version: "1.0.0",
     tools: [
+      ...workTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args, taskId)) }] }; }
+        catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          if (taskId) await addTaskEvent(getDb(), taskId, "tool_failed", `mcp__maia__${t.name}`, reason.slice(0,300)).catch(() => {});
+          return { content: [{ type: "text" as const, text: reason }], isError: true };
+        }
+      })),
       tool(
         "operacao_resumo",
-        "Consulta a organização operacional atual: pedidos recentes, estados das execuções, aprovações pendentes e conexões. Dados internos do owner; não é uma lista de tarefas com prazo.",
+        "Consulta tarefas de trabalho com prazos/lembretes, pedidos recentes, estados das execuções, aprovações e conexões. Dados privados do owner.",
         {},
         async () => {
           try {

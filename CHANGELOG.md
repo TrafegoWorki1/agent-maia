@@ -10,6 +10,17 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Aplicação do plano de eficácia: tarefas, lembretes, entrega e avaliação
+
+- Tarefas de trabalho separadas de `tasks` (execuções da IA): Pendente, Em andamento e Concluída; responsável, prazo em Brasília, revisão concorrente, histórico transacional e evidência informada obrigatória ao concluir. Atraso é calculado, não um estado adicional.
+- Lembrete de prazo automático e lembretes manuais persistidos, editáveis/canceláveis enquanto pendentes; claim atômico e ID de aceitação. Reinício/timeout/erro 5xx fica incerto e não gera repetição. Conclusão cancela pendências. Envio em andamento não pode ser reagendado silenciosamente.
+- As mesmas cinco ferramentas de trabalho são compartilhadas pelos SDKs Claude e Codex. Dados completos do owner exigem autorização para outros papéis; conectores exclusivos do Claude e regras de risco permanecem iguais. O comando `tarefa ...` deixa de criar apenas log de execução.
+- Respostas WhatsApp persistidas antes do POST e divididas em partes de até 3000 caracteres. ID obrigatório; execução e entrega registradas separadamente. Corpo de erro não é salvo: diagnóstico controlado, sem número, texto ou segredo. Causa histórica do HTTP 400 não foi inventada.
+- Retomada de partes pendentes após reinício não chama a LLM nem repete trabalho externo. Partes aceitas nunca são reenviadas; falhas definitivas exigem reenvio pontual pelo owner, resultados incertos exigem conferência manual.
+- Nova página Tarefas e eficácia: cadastro/edição, estados, atraso, lembretes, falhas de entrega e revisão humana do pedido esperado, resposta e evidências. Relevância/resolução permanecem sem avaliação até revisão real; amostra abaixo de 20 é exploratória. Não altera pesos nem fabrica melhora histórica.
+- API de produção requer JWT do proprietário; API local restrita a loopback com proteção same-origin. Tabelas novas com RLS, sem acesso direto de anon/authenticated; RPCs internas restritas a service_role. Migração aditiva `20261010040520_maia_work_tasks_reminders_reviews.sql`.
+- Verificações e ativação: ver registro desta aplicação em `docs/erros-e-mudancas.md`. Navegador integrado indisponível nesta sessão (erro de inicialização), sem alegação de validação visual autenticada. Guardar `.temp` do Supabase fora do Git; não modificar o `.env` para contornar seu BOM.
+
 ### Corrigido e melhorado (qualidade, relevância e eficácia da Maia)
 
 - Diagnóstico real: nota 3/10 limitada por dois falsos incidentes. `tool_use` de publicação bloqueada/expirada era tratado como escrita executada; agora apenas `external_done` dispara a auditoria de efeito externo. Aprovação deve vir antes, na mesma tarefa/operação, e vale uma vez. Recusas/expirações respeitadas contam como controles corretos.

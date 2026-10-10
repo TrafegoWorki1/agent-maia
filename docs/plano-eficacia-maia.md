@@ -58,7 +58,14 @@ P0 é crítico para funcionamento ou confiança nos dados. P1 torna a entrega ma
 - As orientações comuns pedem consulta real antes de declarar incapacidade, diferenciam execução de conferência e proíbem prometer lembretes não persistidos.
 - Indicadores distingue execução encerrada de trabalho resolvido, mostra erros de ferramenta mesmo quando há resposta e expõe as falhas que a amostra operacional excluía.
 
-Nenhuma alteração de esquema é necessária; são usadas as tabelas existentes. Não há atualização retroativa de eventos, nova mensagem a terceiros nem publicação real durante a verificação.
+Na primeira entrega não houve alteração de esquema. A aplicação seguinte do plano acrescenta a migração aditiva `20261010040520_maia_work_tasks_reminders_reviews.sql`, com tarefas de trabalho, histórico, lembretes, respostas pendentes e avaliações humanas. Não há atualização retroativa de evidências nem publicação real durante a verificação.
+
+## Aplicação das etapas restantes (10/10/2026)
+
+- P0: resposta persistida antes de enviar, partes limitadas, ID obrigatório, diagnóstico seguro e eventos de execução/entrega separados. Reenvio pontual de resposta rejeitada sem refazer ações; timeout/5xx/sem ID continua incerto e não repetido. O HTTP 400 antigo não tem causa recuperável comprovada.
+- P2: três estados reais de trabalho, responsável, prazo Brasília, histórico e evidência informada. Ferramentas nos dois SDKs e página administrativa. Lembrete automático de prazo e manual; editar/cancelar pendentes, claim atômico, resultado no banco, recuperação sem duplicar envio incerto.
+- P3: formulário de revisão humana dos pedidos encerrados, resultado esperado, relevância/resolução e justificativa. Métricas mostram denominador e amostra exploratória abaixo de 20. A coleta de 20 avaliações reais ainda depende de revisão do owner; não foi preenchida por autoavaliação da IA.
+- Validação ponta a ponta por conversa real e observação semanal continua necessária para comprovar as metas. Funcionalidades implementadas não são evidência de que 90% de eficácia já foi atingido.
 
 ## Metas propostas
 

@@ -4,8 +4,8 @@ import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_
 import { transcriberFromEnv } from "./transcribe.ts";
 import { handleOwnerMessage } from "./maiaOwnerAgent.ts";
 import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
-import { parseGroupIntent, parseOwnerTask, requestCreateGroup } from "./groups.ts";
-import { createOwnerTask, getDb, recordMessage } from "./store.ts";
+import { parseGroupIntent, requestCreateGroup } from "./groups.ts";
+import { getDb, recordMessage } from "./store.ts";
 
 // Roteamento dos comandos do dono: aviso, criar grupo (com aprovação), tarefa e conversa com a Maia.
 // Usado pelo webhook local e pelo worker da fila, para os dois fazerem exatamente a mesma coisa.
@@ -37,12 +37,8 @@ export async function routeOwnerText(text: string): Promise<number | null> {
     await notifyOwner("Ainda não consigo adicionar pessoas a um grupo que já existe. Para um grupo novo, mande: criar grupo Nome | 5585999999999, 5585888888888.");
     return null;
   }
-  const task = parseOwnerTask(text);
-  if (task) {
-    const taskId = await createOwnerTask(db, { title: task.title, groupName: task.groupName });
-    await notifyOwner(`Tarefa #${taskId} criada: ${task.title}${task.groupName ? ` (grupo ${task.groupName})` : ""}.`);
-    return null;
-  }
+  // Pedidos de tarefa passam pelas ferramentas persistidas: não criam um log de IA
+  // disfarçado de tarefa nem interpretam "prazo" como parte do título.
   // Pedido de arte vai direto ao executor criativo, sem passar pelo Claude.
   if (isDirectImageRequest(text)) return handleDirectImage({ db, notifyOwner }, text);
   return handleOwnerMessage(text);

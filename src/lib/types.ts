@@ -1,6 +1,7 @@
 export type PageId =
   | "resumo"
   | "indicadores"
+  | "tarefas"
   | "campanhas"
   | "vendas"
   | "insights"
