@@ -1,5 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../server/store.ts";
+
+describe("números do dono/aprovador vêm do .env, nunca do texto das regras", () => {
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+  it("o prompt traz o número real, mesmo com a regra do banco sem nenhum número", async () => {
+    vi.resetModules();
+    vi.stubEnv("EVOLUTION_OWNER_NUMBER", "5585999990000");
+    vi.stubEnv("EVOLUTION_APPROVER_NUMBER", "5585888880000");
+    const { buildSystemPrompt } = await import("../server/rules.ts");
+    const db = { from: () => ({ select: () => ({ order: async () => ({ data: [{ ativa: true, texto: "A aprovação pode ser dada pelo dono ou pelo aprovador cadastrados." }], error: null }) }) }) } as unknown as Db;
+    const prompt = await buildSystemPrompt(db);
+    expect(prompt).toContain("5585999990000");
+    expect(prompt).toContain("5585888880000");
+  });
+});
 
 describe("orientação de execução nos dois modelos", () => {
   it("mantém as regras ativas do banco e acrescenta consulta e conferência", async () => {
