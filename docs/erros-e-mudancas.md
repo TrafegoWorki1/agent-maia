@@ -2,6 +2,12 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Atualização de 10/10/2026: estado do WhatsApp
+
+- A tela mostrava "Não verificado" por não reconhecer explicitamente alguns formatos do estado da Evolution e por usar esse texto quando o estado estava vazio.
+- Consulta direta feita durante a análise confirmou HTTP 200 e estado `open` na instância configurada.
+- A tela e o resumo global agora tratam os estados de forma insensível a maiúsculas e deixam claro quando a Evolution não retornou leitura, sem chamar isso de WhatsApp desconectado.
+
 ## Atualização de 10/10/2026: Indicadores e Conexões
 
 - Problema e causa: as duas páginas exibiam cartões derivados das mesmas fontes (gasto, e-mails e planilhas), sem separar resultado operacional de estado da integração.

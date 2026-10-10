@@ -10,6 +10,11 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Corrigido (status do WhatsApp aparecia como "Não verificado")
+- Causa observada: a tela tratava somente o texto minúsculo `open` como conectado e usava "Não verificado" quando o estado vinha vazio, misturando ausência de leitura com conexão inativa.
+- A consulta direta à Evolution nesta sessão respondeu HTTP 200 e `state: open`.
+- A interface agora reconhece estados conectados/desconectados sem diferenciar maiúsculas e exibe "Sem leitura do estado" quando a API não informa o estado. O resumo global usa a mesma normalização.
+
 ### Corrigido (Indicadores e Conexões exibiam dados semelhantes)
 
 - Problema: ambas as telas usavam cartões de gasto, e-mails não lidos e planilhas recentes, misturando resultados com diagnóstico de integrações.
