@@ -77,6 +77,32 @@ describe("adicionar/remover/promover/rebaixar participante de grupo existente", 
     expect(body).toEqual({ groupJid: "120363@g.us", action: "promote", participants: ["5585986139044"] });
   });
 
+  // Regressão real (10/10/2026): a Evolution aceitou (HTTP 200) adicionar a Gessica, mas ela não entrou de
+  // fato no grupo. A Evolution devolve um status por número; precisa ser conferido, não só o HTTP.
+  it("lê o status por número e não confirma quem a Evolution recusou (ex.: 403 de privacidade)", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    const body = { participants: [{ jid: "5585986139044@s.whatsapp.net", status: "403" }, { jid: "5585911112222@s.whatsapp.net", status: 200 }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    const result = await updateGroupParticipants("120363@g.us", "add", ["5585986139044", "5585911112222"]);
+    expect(result.ok).toBe(true);
+    expect(result.outcomes).toEqual([
+      { number: "5585986139044", accepted: false, statusCode: "403" },
+      { number: "5585911112222", accepted: true, statusCode: "200" },
+    ]);
+  });
+
+  it("sem status por participante no corpo, outcomes fica indefinido (resultado real desconhecido)", async () => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
+    const result = await updateGroupParticipants("120363@g.us", "add", ["5585986139044"]);
+    expect(result.ok).toBe(true);
+    expect(result.outcomes).toBeUndefined();
+  });
+
   it("HTTP de erro vira detalhe claro, sem exceção", async () => {
     process.env.EVOLUTION_API_URL = "https://evo.exemplo";
     process.env.EVOLUTION_INSTANCE = "i";
