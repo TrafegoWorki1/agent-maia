@@ -1,63 +1,66 @@
-# OperaFlow · Maia em demonstração
+# OperaFlow · Maia
 
-Protótipo de repositório para continuar no Claude Code. Recria padrões funcionais observados no painel de referência e demonstra permissões individuais, escalonamento pontual ao owner Herickson Maia, auditoria e um dashboard operacional.
+Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo WhatsApp, usa ferramentas com permissões por pessoa e registra execução, aprovação e resultado. O painel apresenta pessoas, conexões, tarefas, indicadores e ocorrências reais.
 
-> **Esta é apenas uma demo local.** Nomes, métricas, conversas e resultados são fictícios. Todos os adaptadores estão desligados. O app não envia mensagens, não altera CRM, não publica, não gasta dinheiro e não cria eventos de agenda. A única chamada externa é a opcional ao Claude via Agent SDK, só no `pnpm dev` (ver abaixo).
+## Funcionamento
 
-## Requisitos
+Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel publicado usa autenticação do proprietário e RLS.
 
-- Node.js 22+
-- pnpm 11.25.0 (pin em `package.json`)
+Claude é o executor principal; Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
-## Executar
+## Execução
 
-```bash
+Requisitos: Node.js compatível com execução dos arquivos TypeScript do projeto e pnpm 11.25.0. As dependências e o launcher devem usar as versões instaladas e testadas no ambiente.
+
+```powershell
 pnpm install
-pnpm dev
+pnpm start
 ```
 
-O Vite inicia em `http://localhost:3000`.
+`pnpm start` e `Iniciar Maia.bat` iniciam o worker pelo launcher atual. O painel é o publicado na Vercel. Sem o worker ativo, mensagens ficam na fila e tarefas periódicas aguardam seu retorno.
 
-### Conexão com o Claude (Agent SDK, somente desenvolvimento)
+Para desenvolver o painel local: `pnpm dev`, em `http://127.0.0.1:3000`. Para executar somente o worker, sem launcher: `pnpm worker`. Não iniciar duas cópias da operação para conferir uma mudança.
 
-As respostas do Claude usam o login local do Claude Code (`claude auth status` deve mostrar `loggedIn: true`). Não é preciso chave de API. Se o login não estiver ativo, o chat volta à simulação local.
+`pnpm start:legacy` mantém o fluxo antigo com webhook local e túnel; ele não oferece a mesma cobertura do caminho Vercel/fila para grupos. Não usá-lo como substituto automático da operação atual.
 
-```bash
-claude auth login   # só se o status não estiver logado
-pnpm dev
-```
+O ambiente do servidor contém as credenciais de Supabase, Evolution, Whisper e Zernio quando configurados. Mantenha-as no ambiente privado; não cole segredos no repositório, painel ou chat. A autenticação local dos executores de IA é independente da autenticação do painel.
 
-Uso pessoal e local: não exponha `/api/maia` a outras pessoas.
+## Documentação e regras
 
-A rota `/api/maia` existe apenas no `pnpm dev`. O build estático (`pnpm build`) não tem backend, então as respostas do Claude não aparecem nele. As decisões de autorização continuam locais; o Claude só redige o texto.
+- [Regras vigentes](docs/regras-da-maia.md): comportamento aprovado, gerado do catálogo.
+- `config/maia-rules.json`: origem versionada das regras e da reserva do prompt.
+- [Instruções de desenvolvimento](CLAUDE.md): arquitetura, limites e fluxo de alteração.
+- [Pendências atuais](TODO.md): o que ainda falta verificar ou implementar.
+- [Migrações](docs/database-migrations.md): contrato de mudanças no banco.
+- [Changelog](CHANGELOG.md) e [resumo de erros e melhorias](docs/erros-e-mudancas.md): registros históricos.
+- `plan.md` e planos identificados como históricos documentam etapas anteriores; não definem permissões atuais.
 
-Comandos adicionais:
+O banco `maia_rules` contém a versão ativada. Editar Markdown não altera o agente automaticamente. O painel de regras é somente leitura. A busca operacional indexa apenas as regras vigentes; histórico e planos não são fontes de autorização.
 
-```bash
+## Qualidade e atualização
+
+```powershell
+pnpm rules:check
 pnpm typecheck
 pnpm test
+pnpm db:validate
 pnpm build
 ```
 
-## Explorar a demo
+Para mudar regras: editar catálogo, incrementar versão, gerar documento com `pnpm rules:generate` e preparar a migração de dados. A ativação autorizada deve ser conferida com `pnpm rules:verify`. `pnpm knowledge:sync` atualiza a busca somente quando documento, catálogo e regras ativas correspondem.
 
-- O menu abre Resumo, Indicadores, Campanhas/Aulas, Vendas e Comunidade, Customer Insights, Tom de voz, Ocorrências, Operação e Conversa com Maia.
-- No cabeçalho, selecione um perfil fictício. Na tela do agente, escolha o grupo `Operação principal` ou `Tráfego pago`.
-- Os botões de cenário mostram uma consulta permitida, um pedido de alteração de orçamento que exige decisão do owner e uma ação de Instagram. Nesta versão só existe o owner, então os bloqueios por permissão ausente não podem ser exercitados pela tela.
-- Para decidir uma aprovação na simulação, aprove ou recuse o pedido no painel de decisões. A decisão só vale para aquela solicitação. Se aprovada, a ação pode ser simulada localmente.
-- Em Operação, Herickson Maia pode alterar permissões demonstrativas. Mudanças afetam apenas o armazenamento local deste navegador.
-- Use `Restaurar dados demo` para voltar ao estado fictício inicial. A chave local é `operaflow-maia-demo-v3`.
+Os testes de banco usam PGlite temporário. `pnpm db:guard` compara commits com `origin/main`; executar também depois do commit para incluir as mudanças novas. `pnpm db:drift` consulta o esquema real e grava um relatório local, sem corrigir produção.
 
-## Estrutura
+## Estrutura principal
 
-- `src/features/`: páginas do dashboard, chat e operação.
-- `src/lib/authorization.ts`: classificação e política demonstrativa de autorização.
-- `src/lib/persistence.ts`: persistência local e reset dos dados fictícios.
-- `src/data/seed.ts`: cenário, integrantes, permissões e métricas fictícias.
-- `docs/analise-da-referencia.md`: o que foi observado e os limites da engenharia reversa.
-- `plan.md` e `TODO.md`: plano e resultados aprovados.
-- `CLAUDE.md`: instruções persistentes para Claude Code.
+- `src/`: painel React.
+- `api/`: rotas publicadas e entrada do webhook.
+- `server/inboxWorker.ts`: fila e trabalhos periódicos.
+- `server/access.ts` e `server/approvalPolicy.ts`: autorização.
+- `server/rules.ts` e `server/ruleCatalog.ts`: prompt e contrato documental.
+- `server/knowledge.ts` e `server/knowledgeSync.ts`: busca e indexação.
+- `server/ai/`: roteamento, executores e contingência.
+- `supabase/migrations/`: evolução versionada do banco.
+- `tests/`: comportamento, interface e banco temporário.
 
-## Próximos passos de produção
-
-Integrações reais não estão incluídas. Antes de conectar Evolution API/WhatsApp, Kommo, Instagram, Google Agenda, Google Sheets/Forms ou Meta Ads, definir escopos e permissões por pessoa/grupo, autenticação server-side, segredo em cofre, política de retenção, tratamento de erros, limites, idempotência e fluxo de aprovação. Usar sandbox/test accounts e iniciar em somente leitura. Não reutilizar credenciais, dados nem backend do site de referência.
+A interface não substitui as permissões do servidor. Aprovações valem para uma ação, e resultados incertos não são repetidos automaticamente.

@@ -1,6 +1,8 @@
 # Implementação 2: governança e permissões operacionais
 
-**Status:** plano mapeado ao código atual. **Nada foi ativado.** Itens que enviam mensagens a grupos, usam integrações novas ou mudam permissões dependem de decisão do owner (CLAUDE.md).
+**Status:** documento histórico de 09/10/2026, parcialmente executado depois dessa data. A tabela e as fases abaixo registram o diagnóstico original; não são a descrição do estado atual.
+
+**Revisão de 10/10/2026:** permissões por pessoa, envio a grupos cadastrados, transcrição pelo Whisper, cota atômica de imagens e integração Zernio já foram implementados. Fingerprint de aprovação, escopo de memória por cliente e escalonamento automático continuam distintos dessas entregas. Regras vigentes: `docs/regras-da-maia.md`; pendências: `TODO.md`. Decisões antigas solicitadas neste plano não precisam ser aprovadas novamente quando já constam do histórico de implementação.
 **Data:** 2026-10-09.
 
 ## 1. Estado atual x especificação

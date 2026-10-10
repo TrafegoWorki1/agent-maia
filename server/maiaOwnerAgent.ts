@@ -41,10 +41,8 @@ import {
   type Db,
 } from "./store.ts";
 
-// Só o número da conversa (EVOLUTION_OWNER_NUMBER) chega a handleOwnerMessage, e só o número
-// aprovador (EVOLUTION_APPROVER_NUMBER) chega a decideFromText (approvals.ts), pelo roteamento do webhook ou do worker.
-// A Maia usa as conexões MCP desta conta (Gmail, Meta Ads, Drive/Sheets). Leituras rodam direto;
-// qualquer escrita espera um SIM ou NÃO do aprovador, válido só para aquela chamada.
+// O roteamento identifica owner, membros elegíveis e grupos cadastrados. Permissões por ferramenta
+// ficam em access.ts; aprovações pontuais usam os aprovadores ativos de approvals.ts.
 // Cada pedido vira uma tarefa (tabela tasks) com os eventos da execução (tabela task_events).
 
 const MAX_PREVIEW = 300;
@@ -107,12 +105,12 @@ Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 1
 }
 
 
-// Conversa do painel: só leitura. Escrita é feita pelo WhatsApp, onde passa pela aprovação do aprovador.
+// Conversa do painel: mantém as ferramentas locais/consultas permitidas; outras escritas vão pelo WhatsApp.
 function makePanelPermission(taskId: number): CanUseTool {
   return async (toolName, input) => {
     if (isReadTool(toolName) || isLocalSafeTool(toolName)) return { behavior: "allow", updatedInput: input };
     await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
-    return { behavior: "deny", message: "Ações de escrita são feitas pelo WhatsApp, com aprovação do aprovador." };
+    return { behavior: "deny", message: "Peça essa ação pelo WhatsApp; as permissões e aprovações necessárias serão verificadas lá." };
   };
 }
 

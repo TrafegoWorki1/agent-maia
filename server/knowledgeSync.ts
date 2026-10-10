@@ -3,6 +3,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ingestDocument } from "./knowledge.ts";
 import { kvGet, kvSet, type Db } from "./store.ts";
+import { KNOWLEDGE_DOCS, RETIRED_KNOWLEDGE_SLUGS } from "./knowledgePolicy.ts";
+import { RULE_CATALOG, renderRulesDocument, rulesChecksum } from "./ruleCatalog.ts";
+import { listRules } from "./rules.ts";
+export { KNOWLEDGE_DOCS } from "./knowledgePolicy.ts";
 
 // Atualização automática da base de conhecimento. Lê os documentos aprovados e reindexa só o que mudou
 // (a comparação é pelo conteúdo). Roda ao iniciar e depois a cada hora, no webhook local e no worker.
@@ -13,13 +17,6 @@ const MIN_GAP_MS = 50 * 60 * 1000;
 const FIRST_RUN_MS = 60 * 1000;
 const LAST_KEY = "knowledge:last_sync";
 
-// Documentos aprovados. Não incluir conversas, grupos ou dados de clientes.
-export const KNOWLEDGE_DOCS = [
-  { slug: "claude-md", titulo: "Regras do projeto (CLAUDE.md)", origem: "CLAUDE.md", file: "CLAUDE.md" },
-  { slug: "erros-e-mudancas", titulo: "Erros e mudanças do projeto", origem: "docs/erros-e-mudancas.md", file: "docs/erros-e-mudancas.md" },
-  { slug: "plano", titulo: "Plano do projeto (plan.md)", origem: "plan.md", file: "plan.md" },
-];
-
 export interface SyncResult {
   novos: number;
   atualizados: number;
@@ -29,6 +26,10 @@ export interface SyncResult {
 
 export async function syncKnowledge(db: Db, now = new Date()): Promise<SyncResult> {
   const result: SyncResult = { novos: 0, atualizados: 0, semMudanca: 0, erros: [] };
+  if (rulesChecksum(await listRules(db)) !== rulesChecksum(RULE_CATALOG)) {
+    result.erros.push("regras ativas divergem do catálogo; sincronização suspensa até revisão");
+    return result;
+  }
   for (const doc of KNOWLEDGE_DOCS) {
     const path = resolve(ROOT, doc.file);
     if (!existsSync(path)) {
@@ -36,7 +37,9 @@ export async function syncKnowledge(db: Db, now = new Date()): Promise<SyncResul
       continue;
     }
     try {
-      const outcome = await ingestDocument(db, { slug: doc.slug, titulo: doc.titulo, origem: doc.origem, text: readFileSync(path, "utf8") });
+      const text = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+      if (text !== renderRulesDocument()) throw new Error("documento diverge do catálogo; execute rules:generate");
+      const outcome = await ingestDocument(db, { slug: doc.slug, titulo: doc.titulo, origem: doc.origem, text });
       if (outcome === "novo") result.novos += 1;
       else if (outcome === "atualizado") result.atualizados += 1;
       else result.semMudanca += 1;
@@ -44,7 +47,12 @@ export async function syncKnowledge(db: Db, now = new Date()): Promise<SyncResul
       result.erros.push(`${doc.slug}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  await kvSet(db, LAST_KEY, now.toISOString(), now);
+  if (result.erros.length === 0) {
+    // Retirar da lista não desativa o que já está indexado. Preservamos os trechos para reversão.
+    const retired = await db.from("knowledge_sources").update({ ativo: false }).in("slug", [...RETIRED_KNOWLEDGE_SLUGS]).eq("ativo", true);
+    if (retired.error) result.erros.push(`desativar fontes históricas: ${retired.error.message}`);
+  }
+  if (result.erros.length === 0) await kvSet(db, LAST_KEY, now.toISOString(), now);
   return result;
 }
 

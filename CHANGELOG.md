@@ -8,6 +8,18 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Alinhamento de regras, prompt e conhecimento
+
+- **Causa:** decisões antigas e atuais conviviam como instruções vigentes: identidade negava áudio, regras divergiam sobre aprovação e retenção, planos da demo eram consultados como estado operacional e faltava regra específica de LinkedIn.
+- **Mudança:** catálogo versionado em `config/maia-rules.json`, documento gerado e prompt estruturado por código/categoria/título. A reserva inicial usa o catálogo completo; após leitura válida, preserva a última versão, inclusive desativações. Cache por cliente de banco; identificação do ambiente é atualizada fora do cache. Zero regras ativas interrompe a execução.
+- **Conhecimento:** apenas o documento vigente entra na busca operacional. Histórico e plano permanecem preservados como fontes inativas; a sincronização confere catálogo/documento/banco e só retira as fontes antigas após indexar a nova.
+- **Bug corrigido:** indexação gravava checksum e apagava trechos antes de concluir os vetores. Falha deixava documento incompleto aparentemente atualizado. Nova RPC transacional, exclusiva de `service_role`, prepara a troca completa e rejeita versão concorrente. Fonte inativa/incompleta é reparada mesmo quando o checksum coincide.
+- **Banco:** migração aplicada `20261010175923_maia_knowledge_atomic_rules_alignment.sql`, aditiva para a RPC e com atualização de regras protegida por comparação de baseline/seed/versão final. Arquivo local identificado pela versão efetivamente atribuída pelo Supabase, com SQL preservado. Migrações anteriores e RLS preservados; backup das regras anteriores em `data/backups/rules-2026-10-10-before.json` (ignorado pelo Git).
+- **Documentação:** CLAUDE/README/TODO descrevem a operação real; planos anteriores identificados como históricos. `pnpm start` passa a usar o mesmo launcher de `Iniciar Maia.bat`; o launcher antigo continua em `start:legacy`.
+- **Escopo ampliado pelo owner:** incluir nas regras os recursos de Instagram desenvolvidos em paralelo no Claude: consultas de Stories/áudio/seguidores/Direct, resposta elegível em 24 horas e automações criadas pausadas, com aprovação para criar/ativar/pausar/excluir. A implementação paralela das ferramentas é preservada; disponibilidade depende do executor e da conta.
+- **Verificação:** validação final e ativação em andamento; resultados serão registrados após a conferência. Não foram enviados posts, mensagens ou automações para testar o alinhamento.
+
+
 ## 2026-10-10 — Confirmação de envio sem narrar o WhatsApp
 
 - **Feedback do owner:** ao mandar mensagem para um contato (ex.: a Jéssica), a Maia respondia explicando "o WhatsApp aceitou o envio, mas ainda não dá para saber se ela leu" — informação irrelevante, já que o owner já usa WhatsApp e não precisa da mecânica interna.

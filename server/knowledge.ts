@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Db } from "./store.ts";
+import { isCurrentKnowledgeSource } from "./knowledgePolicy.ts";
 
 // Base de conhecimento da Maia (RAG). Documentos aprovados viram trechos com vetor (gte-small, dentro do Supabase).
 // A busca combina vetor e palavra-chave em português, e aplica o filtro de "ativo" no banco.
@@ -76,29 +77,26 @@ export async function embedText(text: string): Promise<number[]> {
 // Indexa um documento. Se o conteúdo não mudou (mesmo checksum), não faz nada.
 export async function ingestDocument(db: Db, doc: { slug: string; titulo: string; origem: string; text: string }): Promise<"novo" | "atualizado" | "sem_mudanca"> {
   const checksum = createHash("sha256").update(doc.text).digest("hex");
-  const existing = await db.from("knowledge_sources").select("id, checksum").eq("slug", doc.slug).maybeSingle();
+  const existing = await db.from("knowledge_sources").select("id, checksum, ativo, titulo, origem").eq("slug", doc.slug).maybeSingle();
   if (existing.error) throw new Error(`knowledge_sources: ${existing.error.message}`);
-  if (existing.data && existing.data.checksum === checksum) return "sem_mudanca";
-
-  const source = await db
-    .from("knowledge_sources")
-    .upsert({ slug: doc.slug, titulo: doc.titulo, origem: doc.origem, checksum, ativo: true, indexed_at: new Date().toISOString() }, { onConflict: "slug" })
-    .select("id")
-    .single();
-  if (source.error) throw new Error(`knowledge_sources: ${source.error.message}`);
-  const sourceId = (source.data as { id: number }).id;
-
   const chunks = chunkMarkdown(doc.text);
-  const del = await db.from("knowledge_chunks").delete().eq("source_id", sourceId);
-  if (del.error) throw new Error(`limpar trechos antigos: ${del.error.message}`);
+  if (!chunks.length) throw new Error("documento sem conteúdo; índice anterior preservado");
+  if (existing.data?.checksum === checksum && existing.data.ativo && existing.data.titulo === doc.titulo && existing.data.origem === doc.origem) {
+    const counted = await db.from("knowledge_chunks").select("id", { count: "exact", head: true }).eq("source_id", existing.data.id);
+    if (counted.error) throw new Error(`knowledge_chunks: ${counted.error.message}`);
+    if (counted.count === chunks.length) return "sem_mudanca";
+  }
+
+  // Preparar os vetores antes de qualquer escrita. A troca de trechos e checksum é uma transação.
   const rows = [];
-  for (const [ordem, chunk] of chunks.entries()) {
-    rows.push({ source_id: sourceId, ordem, secao: chunk.secao, conteudo: chunk.conteudo, embedding: JSON.stringify(await embedText(`${chunk.secao}\n${chunk.conteudo}`)) });
+  for (const chunk of chunks) {
+    rows.push({ secao: chunk.secao, conteudo: chunk.conteudo, embedding: JSON.stringify(await embedText(`${chunk.secao}\n${chunk.conteudo}`)) });
   }
-  if (rows.length) {
-    const inserted = await db.from("knowledge_chunks").insert(rows);
-    if (inserted.error) throw new Error(`knowledge_chunks: ${inserted.error.message}`);
-  }
+  const saved = await db.rpc("replace_knowledge_document", {
+    p_slug: doc.slug, p_titulo: doc.titulo, p_origem: doc.origem, p_checksum: checksum,
+    p_expected_checksum: existing.data?.checksum ?? null, p_chunks: rows,
+  });
+  if (saved.error) throw new Error(`indexação atômica: ${saved.error.message}`);
   return existing.data ? "atualizado" : "novo";
 }
 
@@ -107,5 +105,7 @@ export async function searchKnowledge(db: Db, query: string, limit = 5): Promise
   const embedding = await embedText(query);
   const { data, error } = await db.rpc("search_knowledge", { p_query: query, p_embedding: JSON.stringify(embedding), p_limit: limit });
   if (error) throw new Error(`search_knowledge: ${error.message}`);
-  return ((data ?? []) as { titulo: string; secao: string; conteudo: string; origem: string; score: number }[]).map((r) => ({ ...r, score: Number(r.score) }));
+  return ((data ?? []) as { titulo: string; secao: string; conteudo: string; origem: string; score: number }[])
+    .filter((r) => isCurrentKnowledgeSource(r.origem))
+    .map((r) => ({ ...r, score: Number(r.score) }));
 }

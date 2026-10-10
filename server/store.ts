@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseFromEnv } from "./supabaseClient.ts";
 
 // Banco da Maia no Supabase (projeto Agent Maia). Guarda metadados de eventos, aprovações e
-// resultados das consultas, e o texto das conversas do dono e da Maia (nunca de terceiros).
+// resultados das consultas e as mensagens do owner/Maia. Contexto elegível de grupos e membros
+// fica em group_messages com retenção própria, conforme docs/regras-da-maia.md.
 // Tabelas e funções estão na migração maia_schema_v1 (e maia_record_group_activity_fn).
 
 export type Db = SupabaseClient;

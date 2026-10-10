@@ -22,6 +22,10 @@ mexe no banco sem migração não está concluída.
 
 ## Comandos
 
+Para o comportamento da Maia, `config/maia-rules.json` versiona o catálogo aprovado e `maia_rules` guarda a versão ativada. `pnpm rules:generate` atualiza somente o documento gerado; não grava no banco. A migração de alinhamento compara o valor anterior de cada regra antes de atualizar e interrompe diante de edição concorrente, inclusive desativação. Regras desconhecidas são preservadas; `pnpm rules:verify` acusa divergência para revisão. Alterações futuras exigem nova migração e versão do catálogo, sem editar a migração já aplicada.
+
+A atualização do conhecimento usa `replace_knowledge_document`, RPC exclusiva do servidor, que troca trechos e checksum na mesma transação com comparação da versão anterior. Fontes históricas são desativadas somente após indexação bem-sucedida das regras vigentes; seus trechos são mantidos para reversão. `pnpm knowledge:sync` faz essa sincronização e deve ser executado apenas dentro de uma atualização autorizada.
+
 | Comando | O que faz |
 |---|---|
 | `pnpm db:new nome_em_snake_case` | Cria `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com o cabeçalho padrão |
