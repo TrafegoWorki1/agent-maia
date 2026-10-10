@@ -11,7 +11,7 @@ import { recentArts, instagramPerformance, listInstagramAccounts, publishInstagr
 import { createImage, FORMATS } from "./imagegen.ts";
 import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { registerGroup } from "./groups.ts";
+import { registerGroup, requestCreateGroup } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
@@ -134,6 +134,29 @@ server.registerTool("grupo_cadastrar", { description: "Cadastra um grupo existen
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   await registerGroup(getDb(), found.group.jid, found.group.subject, "cadastrado"); return `Grupo "${found.group.subject}" cadastrado.`;
 }));
+
+// Criar grupo não passa pelo guard genérico: ele usa o mesmo fluxo persistido
+// do roteador do owner, que cria uma aprovação do tipo "grupo" e só chama a
+// Evolution depois do OK. Assim o processo não fica aguardando 10 min no SDK.
+server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda aprovação antes de sair para a Evolution.", inputSchema: { grupo: z.string().min(2).max(100), participantes: z.array(z.string().min(10).max(20)).min(1).max(100) } }, async ({ grupo, participantes }) => {
+  if (channel !== "whatsapp") return result("A criação de grupo é feita pelo WhatsApp, com aprovação.", true);
+  if (requester().role !== "owner") return result("Só o owner pode solicitar a criação de grupo.", true);
+  const numbers = [...new Set(participantes.map((item) => item.replace(/\D/g, "")).filter((number) => number.length >= 12 && number.length <= 13))];
+  if (numbers.length !== participantes.length) return result("Informe todos os participantes com DDI e DDD (12 ou 13 dígitos).", true);
+  const db = getDb();
+  try {
+    const reply = await requestCreateGroup({
+      db,
+      notifyOwner: async (text) => {
+        await sendOwnerText(process.env.EVOLUTION_OWNER_NUMBER ?? "", text);
+        await recordMessage(db, { channel: "whatsapp", author: "maia", text });
+      },
+    }, grupo.trim(), numbers);
+    return result(reply);
+  } catch (error) {
+    return result(`Não consegui solicitar a criação do grupo: ${error instanceof Error ? error.message : String(error)}`, true);
+  }
+});
 
 server.registerTool("membro_cadastrar", { description: "Cadastra um membro e suas permissões.", inputSchema: { nome: z.string().min(2).max(60), numero: z.string().min(10).max(20), permissoes: z.array(z.string().max(40)).max(12).optional() } }, async ({ nome, numero, permissoes }) => guarded("mcp__maia__membro_cadastrar", { nome, numero, permissoes }, async () => {
   const registered = await registerMember(getDb(), { name: nome, number: numero, permissions: permissoes }); if (!registered.ok) throw new Error(registered.error);
