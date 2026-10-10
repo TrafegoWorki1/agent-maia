@@ -56,6 +56,16 @@ export function ConnectionsPage() {
             </tbody>
           </table></div>
         </Panel>
+        <Panel title="LinkedIn · Zernio" caption="A Maia tem acesso à conta conectada e usa a integração com aprovação para ações públicas.">
+          <div className="table-wrap"><table>
+            <thead><tr><th>Conexão</th><th>Status</th><th>Objetivo atual</th></tr></thead>
+            <tbody><tr>
+              <td>LinkedIn da Worki</td>
+              <td><StatusPill status="alvo" label="Conectado" /></td>
+              <td>Consultar conta, organizações e métricas; publicar ou agendar posts com aprovação. DMs/InMail não estão disponíveis.</td>
+            </tr></tbody>
+          </table></div>
+        </Panel>
         <Panel title="Sincronização das fontes" caption="Coleta prevista a cada 30 minutos. Após 60 minutos sem leitura bem-sucedida, a fonte requer atenção.">
           <div className="table-wrap"><table>
             <thead><tr><th>Fonte</th><th>Estado da coleta</th><th>Última tentativa</th><th>Diagnóstico</th></tr></thead>
