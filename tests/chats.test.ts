@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { findChats, findInstanceContacts } from "../server/chats.ts";
+import { findChats, findInstanceContacts, markMessagesRead } from "../server/chats.ts";
 
 describe("conversas e contatos da instância (só leitura)", () => {
   beforeEach(() => {
@@ -42,6 +42,49 @@ describe("conversas e contatos da instância (só leitura)", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     expect((await findChats()).ok).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("marcar mensagem como lida (markMessagesRead)", () => {
+  beforeEach(() => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("manda remoteJid, fromMe e o id de cada mensagem", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await markMessagesRead("5585911112222@s.whatsapp.net", ["MSG1", "MSG2"]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/chat/markMessageAsRead/i");
+    expect(JSON.parse(init.body as string)).toEqual({
+      readMessages: [
+        { remoteJid: "5585911112222@s.whatsapp.net", fromMe: false, id: "MSG1" },
+        { remoteJid: "5585911112222@s.whatsapp.net", fromMe: false, id: "MSG2" },
+      ],
+    });
+  });
+
+  it("sem ids, não chama a rede", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await markMessagesRead("x@s.whatsapp.net", []);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("HTTP de erro lança (quem chama decide ignorar; é cosmético)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 500 })));
+    await expect(markMessagesRead("x@s.whatsapp.net", ["MSG1"])).rejects.toThrow("500");
+  });
+
+  it("sem a Evolution configurada, lança sem tentar a rede", async () => {
+    delete process.env.EVOLUTION_API_URL;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(markMessagesRead("x@s.whatsapp.net", ["MSG1"])).rejects.toThrow("não configurada");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

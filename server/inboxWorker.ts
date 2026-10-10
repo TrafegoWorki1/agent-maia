@@ -4,6 +4,7 @@ import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
 import { handleApproverText } from "./groups.ts";
 import { handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
+import { markMessagesRead } from "./chats.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
@@ -34,11 +35,19 @@ const IDLE_MS = 3_000;
 const STALE_MS = 5 * 60 * 1000;
 const PURGE_MS = 10 * 60 * 1000;
 
+// Marca como lida só quando a mensagem de fato vai ser processada (ver server/chats.ts). Nunca bloqueia: é cosmético.
+function markRead(jid: string, keyId: string | null): void {
+  if (!keyId) return;
+  void markMessagesRead(jid, [keyId]).catch((error) => console.error("[worker] marcar como lida:", error instanceof Error ? error.message : error));
+}
+const dmJid = (digits: string) => `${digits}@s.whatsapp.net`;
+
 // Processa um item. Retorna o resultado registrado em events (sem o texto de terceiros).
 export async function processItem(db: Db, item: InboxItem, now = new Date()): Promise<void> {
   const owner = process.env.EVOLUTION_OWNER_NUMBER ?? "";
 
   if (item.sender === "owner" && item.kind === "text" && item.payload) {
+    markRead(dmJid(owner), item.key_id);
     await recordMessage(db, { channel: "whatsapp", author: "owner", text: item.payload }, now);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "handled" }, now);
     // Entra no lote da conversa: o despacho é feito pelo laço de lotes, nunca aqui.
@@ -66,6 +75,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "member" && item.kind === "text" && item.payload) {
     const req = JSON.parse(item.payload) as { from: string; name: string; text: string };
     const digits = req.from.replace(/\D/g, "");
+    markRead(dmJid(digits), item.key_id);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "handled" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: req.name, text: req.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
     await upsertContact(db, { number: digits, name: req.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
@@ -88,6 +98,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   }
 
   if (item.sender === "approver" && item.kind === "text" && item.payload) {
+    markRead(dmJid(process.env.EVOLUTION_APPROVER_NUMBER ?? ""), item.key_id);
     await recordMessage(db, { channel: "whatsapp", author: "approver", text: item.payload }, now);
     // Resposta de aprovação (SIM ou NÃO, com número): decidida pelo banco.
     const handled = await handleApproverText({ db, notifyOwner }, item.payload).catch((error) => {
@@ -109,6 +120,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
       await upsertContact(db, { number: request.participant, name: request.name, conv: request.jid, source: "grupo" }).catch(() => {});
       if (request.addressed === false) return;
     }
+    markRead(request.jid, item.key_id);
     if (request.register) {
       void registerGroupFromOwner(db, request.jid).catch((error) => console.error("[worker] cadastro de grupo:", error instanceof Error ? error.message : error));
       return;
@@ -121,6 +133,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "other" && item.kind === "text" && item.payload) {
     const reply = JSON.parse(item.payload) as { from: string; name: string; text: string };
     const digits = reply.from.replace(/\D/g, "");
+    markRead(dmJid(digits), item.key_id);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_reply" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: reply.name, text: reply.text, keyId: item.key_id, at: now }).catch(() => {});
     await upsertContact(db, { number: digits, name: reply.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
