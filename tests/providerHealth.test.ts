@@ -12,6 +12,11 @@ describe("classificação de erros", () => {
     expect(classifyError("429 Too Many Requests").kind).toBe("rate_limit");
   });
 
+  it("reconhece o limite semanal retornado pelo Claude Agent SDK", () => {
+    const quota = classifyError("Agent SDK falhou (success): You've hit your weekly limit · resets 5am (America/Sao_Paulo)");
+    expect([quota.kind, quota.fallbackAllowed]).toEqual(["quota", true]);
+  });
+
   it("autenticação, permissão, orçamento e limite de passos nunca permitem fallback", () => {
     for (const text of ["Invalid API key (401)", "permission denied", "Agent SDK falhou (error_max_budget_usd)", "error_max_turns"]) {
       expect(classifyError(text).fallbackAllowed).toBe(false);
