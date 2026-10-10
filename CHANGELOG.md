@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Sem aviso de "recebi/transcrevendo/analisando" em áudio e mídia
+
+- **Feedback do owner:** ao mandar áudio ou documento, a Maia avisava "Recebi o áudio, transcrevendo (pode levar até um minuto)..." / "Recebi o documento, analisando...". Mecânica interna irrelevante, mesmo padrão da correção anterior sobre "o WhatsApp aceitou o envio".
+- **Correção:** removido esse aviso intermediário de `handleOwnerAudio`, `handleOwnerMedia`, `handleMemberAudio` e `handleMemberMedia` (`server/ownerRouter.ts`). A Maia processa e responde direto, sem anunciar que está processando.
+- **Verificação:** `pnpm typecheck` e `pnpm test` (291) aprovados. Corrigido de passagem um teste (`rules.test.ts`) que passou a estourar o timeout padrão do vitest ao montar o Postgres de teste com as 24 migrações reais.
+
 ## 2026-10-10 — Ponte temporária Supabase → Meta Ads para vídeo/imagem do WhatsApp
 
 - **Pergunta do owner:** mandar um vídeo pra Maia e pedir pra subir na conta de anúncio funcionaria? Ele suspeitava que precisaria de uma conexão temporária com o Supabase.
