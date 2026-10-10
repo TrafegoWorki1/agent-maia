@@ -8,6 +8,19 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-09
+
+### Corrigido (fallback do Claude para o Codex no limite)
+- O classificador agora reconhece limite semanal do Claude Agent SDK (`weekly limit`), registra o cooldown e encaminha a próxima mensagem ao Codex.
+- Cumprimentos repetidos como `oii` e qualquer mensagem elegível seguem para o Codex enquanto o Claude estiver em cooldown.
+
+### Alterado (Codex via SDK com ferramentas internas)
+- `@openai/codex-sdk` substituiu a chamada bruta ao CLI. No Windows, o SDK usa o `codex.exe` nativo; o atalho `codex.cmd` não funciona com o `spawn` do SDK.
+- Novo `server/codexMaiaMcp.ts`: ponte MCP local para conhecimento, contatos, grupos/enquetes, artes, Instagram, imagem, agendamento e cadastro de membros.
+- A ponte reaplica permissões e aprovações. Credenciais do Supabase, Evolution e Zernio ficam somente no servidor e no `.env`, nunca no modelo.
+- Conectores exclusivos do Claude (Gmail, Meta Ads, Drive/Sheets e Agenda) continuam fora do Codex. Não houve migração de banco: são usadas as tabelas e funções existentes.
+- Verificado: SDK respondeu pelo Codex e `buscar_conhecimento` retornou dados reais do banco. O typecheck completo foi bloqueado por memória/espaço insuficientes neste PC; sintaxe e diff foram validados.
+
 ## 2026-10-08
 
 ### Adicionado (registro do launcher em arquivo)
