@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInstagramPost, buildLinkedInPost, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, ZernioError } from "../server/integrations/zernio.ts";
+import { buildInstagramPost, buildLinkedInPost, dmWindowOpen, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, sendInboxMessage, ZernioError, type InboxMessage } from "../server/integrations/zernio.ts";
 
 const NOW = new Date("2026-10-09T12:00:00Z");
 const base = { accountId: "acc123", caption: "Legenda do post", imageUrl: "https://cdn.exemplo.com/arte.png" };
@@ -79,6 +79,24 @@ describe("arquivos de arte", () => {
   });
 });
 
+describe("janela de 24h do Direct (regra da Meta)", () => {
+  const NOW_DM = new Date("2026-10-10T18:00:00Z");
+  const msg = (direction: InboxMessage["direction"], createdAt: string): InboxMessage => ({ message: "x", senderName: null, direction, createdAt });
+
+  it("aberta com mensagem recebida há menos de 24h", () => {
+    expect(dmWindowOpen([msg("incoming", "2026-10-10T10:00:00Z")], NOW_DM)).toBe(true);
+  });
+
+  it("fechada com a última recebida há mais de 24h, mesmo com mensagens enviadas depois", () => {
+    expect(dmWindowOpen([msg("outgoing", "2026-10-10T17:00:00Z"), msg("incoming", "2026-10-09T10:00:00Z")], NOW_DM)).toBe(false);
+  });
+
+  it("fechada sem nenhuma mensagem recebida", () => {
+    expect(dmWindowOpen([msg("outgoing", "2026-10-10T17:00:00Z")], NOW_DM)).toBe(false);
+    expect(dmWindowOpen([], NOW_DM)).toBe(false);
+  });
+});
+
 describe("erros da Zernio", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -127,5 +145,21 @@ describe("erros da Zernio", () => {
     const payload = { post: { _id: "p1", status: "published", platforms: [{ platformPostUrl: "https://instagram.com/p/abc" }] } };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(payload), { status: 201 })));
     await expect(publishInstagramPost(base)).resolves.toMatchObject({ postId: "p1", status: "published", url: "https://instagram.com/p/abc", scheduled: false });
+  });
+
+  it("lista de contas traz o profileId (precisa dele para criar automação)", async () => {
+    process.env.ZERNIO_API_KEY = "k";
+    const payload = { accounts: [{ _id: "acc1", platform: "instagram", username: "hericksonmaia", isActive: true, profileId: { _id: "prof1", name: "Default" } }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 })));
+    await expect(listInstagramAccounts()).resolves.toEqual([{ id: "acc1", username: "hericksonmaia", active: true, profileId: "prof1" }]);
+  });
+
+  it("envio de DM manda a chave de idempotência e devolve o id da mensagem", async () => {
+    process.env.ZERNIO_API_KEY = "k";
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ data: { messageId: "m1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(sendInboxMessage("conv1", "acc1", "oi", "chave-1")).resolves.toEqual({ messageId: "m1" });
+    const init = fetchMock.mock.calls[0][1];
+    expect((init?.headers as Record<string, string>)["Idempotency-Key"]).toBe("chave-1");
   });
 });
