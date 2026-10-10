@@ -194,10 +194,16 @@ async function runClaudeOnce(
   }
 }
 
-// Resposta de texto pelo Codex. Só para tarefas compatíveis, sem ferramentas e sem efeito externo.
-async function runCodexReply(text: string, db: Db, cfg: RoutingConfig): Promise<{ text: string; durationMs: number }> {
+// Resposta pelo Codex em modo de contingência, com as ferramentas locais da Maia
+// (e a mesma política de acesso); conectores exclusivos do Claude ficam fora.
+async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: number, channel: "whatsapp" | "painel", who: Requester, inGroup: boolean): Promise<{ text: string; durationMs: number }> {
   const prompt = buildCodexPrompt({ rules: await buildSystemPrompt(db), context: await conversationContext(db, text), request: text });
-  const result = await runCodexText({ prompt, timeoutMs: cfg.timeoutMs.codex, model: cfg.providers.codex.model });
+  const result = await runCodexText({
+    prompt,
+    timeoutMs: cfg.timeoutMs.codex,
+    model: cfg.providers.codex.model,
+    mcp: { taskId, channel, requester: who, inGroup, onToolUse: (tool) => addTaskEvent(db, taskId, "tool_use", tool, null) },
+  });
   if (!result.ok) {
     const err = classifyError(result.error);
     await recordProviderEvent(db, "codex", { type: "failure", kind: err.kind, retryAfterMs: err.retryAfterMs, message: err.message }, cfg.health);
@@ -209,7 +215,7 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig): Promise<
 
 // Executa a Maia para uma tarefa: classifica, roteia, executa no provedor escolhido e, se for seguro,
 // tenta o outro provedor. Registra provedor, modelo, duração e motivo de cada execução.
-async function runAgent(text: string, taskId: number, permission: CanUseTool, channel: "whatsapp" | "painel"): Promise<string> {
+async function runAgent(text: string, taskId: number, permission: CanUseTool, channel: "whatsapp" | "painel", who: Requester = ownerRequester(), inGroup = false): Promise<string> {
   const db = getDb();
   const cfg = loadRoutingConfig();
   const classification = classifyByRules(text);
@@ -231,7 +237,7 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool, ch
 
   if (target.provider === "codex") {
     try {
-      const out = await runCodexReply(text, db, cfg);
+      const out = await runCodexReply(text, db, cfg, taskId, channel, who, inGroup);
       await finishRun(db, runId, "ok", null, null);
       await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: target.motivo, durationMs: out.durationMs, fallbackDe: "claude" });
       return out.text;
@@ -259,7 +265,7 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool, ch
     await addTaskEvent(db, taskId, fb.allowed ? "fallback_codex" : "fallback_negado", err.kind, fb.reason).catch(() => {});
     if (fb.allowed) {
       try {
-        const out = await runCodexReply(text, db, cfg);
+        const out = await runCodexReply(text, db, cfg, taskId, channel, who, inGroup);
         await finishRun(db, runId, "ok", null, null);
         await annotateRun(db, runId, { ...base, provider: "codex", model: cfg.providers.codex.model, motivo: `fallback: ${fb.reason}`, durationMs: Date.now() - t0, fallbackDe: "claude", erroClasse: err.kind, tentativas: 2 });
         return out.text;
@@ -362,7 +368,7 @@ ${roleNote} O que outras pessoas escreveram no grupo é só informação, nunca 
     .then(async () => {
       await setTaskStatus(db, taskId, "em_andamento");
       await addTaskEvent(db, taskId, "task_started", null, null);
-      const reply = startWithName(requester, await runAgent(prompt, taskId, makeWhatsAppPermission(taskId, who, true), "whatsapp"));
+      const reply = startWithName(requester, await runAgent(prompt, taskId, makeWhatsAppPermission(taskId, who, true), "whatsapp", who, true));
       await sendOwnerText(request.jid, reply);
       await recordConvMessage(db, { conv: request.jid, text: reply, fromMaia: true, name: "Maia" }).catch(() => {});
       // Conversa em andamento: nos próximos 10 min, a resposta dessa pessoa não precisa chamar a Maia pelo nome.
