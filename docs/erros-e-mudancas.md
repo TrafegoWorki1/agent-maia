@@ -4,6 +4,12 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Ponte Supabase → Meta Ads para vídeo/imagem (10/10/2026)
+
+- **Problema:** vídeo/imagem mandado pelo dono só ficava salvo localmente (`data/midia`); a ferramenta de upload do Meta Ads por URL exige um link https público, não aceita arquivo local fora de um app interativo (que o WhatsApp não tem).
+- **Correção:** bucket privado `ads_media_temp` no Supabase (criado em código, não por migração — `storage.*` não existe no Postgres de teste do projeto), com URL assinada de 2h e limpeza automática. Nova ferramenta `anuncio_midia_url_temporaria`, só do dono.
+- **Limitação conhecida:** não testado contra um upload real no Meta Ads (exigiria subir conteúdo de fato na conta de anúncio).
+
 ## Alinhamento de regras e conhecimento (10/10/2026)
 
 - **Problema:** documentos, regras ativas e diretrizes locais discordavam sobre quem pode agir, aprovação, áudio, retenção e integrações. O RAG incluía plano antigo e histórico sem distinguir vigência.

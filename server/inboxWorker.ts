@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
+import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
 import { handleApproverText } from "./groups.ts";
 import { handleGroupAudio, handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { markMessagesRead } from "./chats.ts";
@@ -253,6 +254,8 @@ async function main(): Promise<void> {
         if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia (dono 24 h / membros 7 dias) apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
+        const adsMediaPurged = await purgeTempAdMedia(db).catch((error) => { console.error("[worker] limpeza do bucket de anúncios:", error instanceof Error ? error.message : error); return 0; });
+        if (adsMediaPurged > 0) console.log(`[worker] ${adsMediaPurged} arquivo(s) temporário(s) de anúncio apagado(s) do Supabase`);
       }
     } catch (error) {
       console.error("[worker] erro no ciclo:", error instanceof Error ? error.message : error);
