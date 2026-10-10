@@ -1,5 +1,6 @@
 import { DeliveryError, sendTextChecked, splitReply } from "./evolutionSend.ts";
-import { addTaskEvent, markTaskReplied, setTaskStatus, type Db } from "./store.ts";
+import { addTaskEvent, markTaskReplied, recordMessage, setTaskStatus, type Db } from "./store.ts";
+import { recordConvMessage } from "./conversations.ts";
 
 export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string) {
   const r = await db.from("response_deliveries").upsert(splitReply(text).map((part, i) => ({ task_id: taskId, recipient, part: i, text: part, request_text: i === 0 ? request?.slice(0,16000) ?? null : null })), { onConflict: "task_id,part", ignoreDuplicates: true });
@@ -23,6 +24,13 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
       const remaining = await db.from("response_deliveries").select("id", { count: "exact", head: true }).eq("task_id", item.task_id).neq("status", "sent");
       if (remaining.error) throw new Error(remaining.error.message);
       if (!remaining.count) {
+        // Também na retomada após reinício: resposta aceita entra no contexto
+        // comum dos modelos, e não fica disponível apenas no painel de entrega.
+        const full = await db.from("response_deliveries").select("text").eq("task_id",item.task_id).order("part");
+        if (full.error) throw new Error(full.error.message);
+        const text = (full.data ?? []).map((p) => p.text ?? "").join("");
+        if (item.recipient.endsWith("@g.us")) await recordConvMessage(db,{ conv:item.recipient,text,fromMaia:true,name:"Maia" });
+        else await recordMessage(db,{ channel:"whatsapp",author:"maia",text });
         await markTaskReplied(db, item.task_id);
         await addTaskEvent(db, item.task_id, "replied", null, "Todas as partes aceitas; não confirma leitura");
         await setTaskStatus(db, item.task_id, "concluida");

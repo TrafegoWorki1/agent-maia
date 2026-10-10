@@ -26,6 +26,8 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Produção: `https://agent-maia.vercel.app` em READY para a aplicação inicial, com `api/workspace` instalada; pedido sem login retornou 401 `login_required`. Teste do proprietário autenticado/validação visual ainda não realizado nesta sessão.
 - Após a correção da política SDK: 191 testes de aplicação em 31 arquivos aprovados; TypeScript e `db:validate` aprovados. Os 27 testes de banco também passaram. Não foi alterada a migração após aplicá-la.
 - Resumo/Indicadores rotulam os registros de IA como execuções, para não confundir com os três estados do trabalho. Plano atualizado: implementação disponível, ativação contínua local e revisão humana de 20 casos ainda pendentes. Consulta real de eficácia retorna 100 candidatos, zero avaliações e notas nulas, sem inventar resultados.
+- Retomada de resposta: consumidor da outbox registra o texto aceito no contexto comum do WhatsApp/grupo antes de encerrar a execução; caminho imediato não duplica eventos de resposta. Assim o próximo modelo tem a resposta no histórico mesmo se houve reinício durante a entrega.
+- Testes adicionais da outbox cobrem partes em ordem, contexto após aceitação completa, retomada sem reenviar parte aceita e bloqueio após falha/timeout, sem nova chamada da LLM.
 
 ## Atualização de 10/10/2026: relevância, eficácia e qualidade
 
