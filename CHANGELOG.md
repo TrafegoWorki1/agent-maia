@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Permissões compactas
+
+- **Ajuste solicitado:** os cartões de permissão ficaram altos demais. Altura mínima reduzida de 91 para 44 px, padding de 14×12 para 9×10 px e espaçamento entre cartões de 9 para 6 px; título e descrição continuam completos, sem corte de texto.
+- **Grade:** colunas se ajustam à largura disponível do perfil, sem forçar uma coluna em todos os tamanhos abaixo de 1150 px. Em telas estreitas, os cartões continuam empilhados.
+- **Verificação:** `pnpm build` e os 7 testes de Pessoas aprovados. Sem alterações de lógica ou autorização. Conferência visual no navegador não realizada; aviso de bundle acima de 500 kB permanece.
+
 ## 2026-10-10 — Pessoas
 
 - **Interface:** substituídos os blocos repetidos de permissões por um diretório compacto e um perfil selecionado. Resumo de cadastros, busca por nome (sem exigir acentos) ou WhatsApp, filtros por status, iniciais por papel, números formatados e permissões em cartões; identidade marfim/dourado/verde preservada.
