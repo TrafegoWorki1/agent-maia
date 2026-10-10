@@ -8,6 +8,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Pessoas
+
+- **Interface:** substituídos os blocos repetidos de permissões por um diretório compacto e um perfil selecionado. Resumo de cadastros, busca por nome (sem exigir acentos) ou WhatsApp, filtros por status, iniciais por papel, números formatados e permissões em cartões; identidade marfim/dourado/verde preservada.
+- **Responsividade e acessibilidade:** no celular, lista e perfil têm navegação de ida e volta. Campos rotulados, seleção/filtros com `aria-pressed`, foco visível, mensagens de erro/sucesso e estado de carregamento. Nenhuma dependência adicionada.
+- **Acesso:** mantidos o RPC `is_owner`, as consultas existentes e o modo somente leitura; permissões do proprietário continuam protegidas. Nenhuma tabela, migration ou regra de RLS alterada.
+- **Bug corrigido:** adicionar WhatsApp rejeitava números com espaços/parênteses porque removia apenas a letra `D` (`/D/g`). Agora remove caracteres não numéricos (`/\D/g`). Gravações têm bloqueio contra duplo clique e tratamento de falhas.
+- **Cadastro parcial:** se a pessoa é salva mas o vínculo do número falha, a tela abre o perfil salvo e orienta a adicionar o número; o formulário não fica convidando a cadastrar a mesma pessoa novamente.
+- **Verificação:** `pnpm typecheck` e `pnpm build` aprovados; `pnpm test`: 240 testes da aplicação (7 novos da tela Pessoas) e 27 testes de banco temporário aprovados. Interações da tela testadas com Supabase simulado, sem gravações no banco remoto. O build mantém o aviso de bundle acima de 500 kB.
+- **Pendente:** inspeção visual autenticada em desktop/celular. O navegador desta sessão está indisponível; testes de DOM e build não substituem essa conferência.
+
 ## 2026-10-10
 
 ### Marcar mensagem como lida (markMessageAsRead), de forma honesta
