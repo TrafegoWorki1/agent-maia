@@ -34,7 +34,7 @@ export function classifyError(input: unknown): ClassifiedError {
   else if (/unauthorized|\b401\b|not logged in|invalid api key|login required|authentication/.test(t)) kind = "auth";
   else if (/\b403\b|permission denied|not allowed|recusad|sem aprovação/.test(t)) kind = "permission";
   else if (/tool.*not found|unknown tool|no such tool/.test(t)) kind = "tool_missing";
-  else if (/usage limit|limit reached|hit your limit|quota|credit balance|exceeded your/.test(t)) kind = "quota";
+  else if (/usage limit|(?:daily|weekly|monthly|token) limit|limit reached|hit your (?:daily|weekly|monthly|token)? ?limit|limit exceeded|quota|credit balance|exceeded your/.test(t)) kind = "quota";
   else if (/rate.?limit|too many requests|\b429\b|overloaded|\b529\b/.test(t)) kind = "rate_limit";
   else if (/\b50[234]\b|service unavailable|bad gateway|temporarily unavailable|econnreset|enotfound|fetch failed/.test(t)) kind = "unavailable";
   else if (/timed? ?out|etimedout|tempo esgotado/.test(t)) kind = "timeout";
