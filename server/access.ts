@@ -50,7 +50,12 @@ export const MAX_DM_PER_TASK = 3;
 const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar)$/;
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
-const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar)$/;
+const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar|arquivo_reenviar)$/;
+
+// Quem pode conversar com a Maia no privado: o dono sempre; membro só com a permissão conversa.maia.
+export function canConverse(who: Requester): boolean {
+  return who.role === "owner" || who.permissions.has("conversa.maia");
+}
 
 // Permissão de leitura por conector (Drive entra como planilhas). Sem mapa, a leitura é livre.
 function readPermission(toolName: string): string | null {
@@ -89,6 +94,7 @@ const SECRET_PATH = /(^|[\\/])(\.env[^\\/]*|\.git|node_modules|\.claude[^\\/]*|\
 export interface BuiltinRoots {
   projectRoot: string;
   mediaDir: string;
+  memberMediaDir?: string;
 }
 
 function inside(path: string, root: string): boolean {
@@ -103,7 +109,7 @@ export function decideBuiltin(toolName: string, input: Record<string, unknown>, 
     const target = raw ? resolvePath(raw) : roots.projectRoot;
     if (SECRET_PATH.test(target)) return { decision: "deny", reason: "arquivo de segredos ou configuração" };
     if (who.role === "owner") return inside(target, roots.projectRoot) ? { decision: "allow", reason: "dono lê o projeto" } : { decision: "deny", reason: "fora do projeto" };
-    if (toolName === "Read" && inside(target, roots.mediaDir)) return { decision: "allow", reason: "mídia enviada" };
+    if (toolName === "Read" && (inside(target, roots.mediaDir) || (roots.memberMediaDir && inside(target, roots.memberMediaDir)))) return { decision: "allow", reason: "mídia enviada" };
     return { decision: "deny", reason: "só o dono lê arquivos do projeto" };
   }
   return who.role === "owner" ? { decision: "allow", reason: "ferramenta interna do dono" } : { decision: "deny", reason: "ferramenta interna só para o dono" };

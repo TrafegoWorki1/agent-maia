@@ -1,7 +1,8 @@
 import { relative } from "node:path";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
@@ -273,6 +274,25 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           const result = await registerMember(getDb(), { name: args.nome, number: args.numero, permissions: args.permissoes });
           if (!result.ok) return { content: [{ type: "text", text: `Não cadastrei: ${result.error}.` }], isError: true };
           return { content: [{ type: "text", text: `${args.nome} cadastrado(a) como membro. Permissões: conversa e resumo${args.permissoes?.length ? `, ${args.permissoes.join(", ")}` : ""}.` }] };
+        },
+      ),
+      tool(
+        "arquivo_reenviar",
+        "Reenvia ao owner, no WhatsApp dele, um arquivo (imagem, vídeo ou documento) que um membro ou contato mandou à Maia. Útil quando o owner pede o arquivo original, não só o resumo. Só o owner usa esta ferramenta.",
+        { de: z.string().max(80).optional().describe("Nome ou número de quem mandou o arquivo. Sem isso, pega o arquivo mais recente recebido de qualquer pessoa.") },
+        async (args) => {
+          try {
+            const found = await findReceivedMedia(getDb(), args.de);
+            if (!found) return { content: [{ type: "text", text: `Não achei nenhum arquivo${args.de ? ` de "${args.de}"` : ""} recebido recentemente (retenção de 7 dias).` }], isError: true };
+            const id = await sendFile(process.env.EVOLUTION_OWNER_NUMBER ?? "", found.path, found.mediaType, found.mimetype, found.caption, found.fileName);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "arquivo_reenviar", found.fromName || found.fromNumber).catch(() => {});
+              if (id) await addTaskEvent(getDb(), taskId, "task_verified", "arquivo_reenviar", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `Reenviei${id ? ` (mensagem ${id})` : ""} o arquivo de ${found.fromName || `+${found.fromNumber}`} (${found.receivedAt.slice(0, 16).replace("T", " ")} UTC).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui reenviar: ${error instanceof Error ? error.message : String(error)}. O arquivo pode já ter sido apagado (retenção de 7 dias).` }], isError: true };
+          }
         },
       ),
       tool(

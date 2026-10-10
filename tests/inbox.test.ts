@@ -72,6 +72,28 @@ describe("triagem do webhook para a fila", () => {
     expect(toInboxRow(quoted, OWNER, APPROVER, new Map([[OP, {}]]), now)).toMatchObject({ kind: "text" });
   });
 
+  it("membro autorizado (conversa.maia) fala com a Maia no privado; sem a permissão, nada entra", () => {
+    const members = new Set(["5585911112222"]);
+    const dm = (from: string) => message(from, { pushName: "Jéssica", message: { conversation: "Preciso de ajuda" } });
+    const row = toInboxRow(dm("5585911112222"), OWNER, APPROVER, undefined, new Date(), undefined, members);
+    expect(row).toMatchObject({ kind: "text", sender: "member" });
+    expect(JSON.parse(row!.payload!)).toEqual({ from: "5585911112222", name: "Jéssica", text: "Preciso de ajuda" });
+    // sem estar na lista de membros, a mensagem não guarda o texto
+    expect(toInboxRow(dm("5585911112222"), OWNER, APPROVER, undefined, new Date(), undefined, new Set())).toMatchObject({ kind: "event", sender: "other", payload: null });
+    // membro tem prioridade sobre "contatado": se for membro, nunca cai no fluxo de contato/outreach
+    const contacted = new Set(["5585911112222"]);
+    expect(toInboxRow(dm("5585911112222"), OWNER, APPROVER, undefined, new Date(), contacted, members)).toMatchObject({ sender: "member" });
+  });
+
+  it("áudio de membro autorizado guarda a referência, com quem mandou", () => {
+    const members = new Set(["5585911112222"]);
+    const audio = message("5585911112222", { pushName: "Jéssica", message: { audioMessage: { mimetype: "audio/ogg; codecs=opus" } } });
+    const row = toInboxRow(audio, OWNER, APPROVER, undefined, new Date(), undefined, members);
+    expect(row).toMatchObject({ kind: "audio", sender: "member" });
+    expect(JSON.parse(row!.payload!)).toMatchObject({ mimetype: "audio/ogg; codecs=opus", from: "5585911112222", name: "Jéssica" });
+    expect(toInboxRow(audio, OWNER, APPROVER, undefined, new Date(), undefined, new Set())).toMatchObject({ kind: "event", sender: "other", payload: null });
+  });
+
   it("resposta de quem a Maia contatou entra com texto; de outros não", () => {
     const dm = (from: string) => message(from, { pushName: "Jéssica", message: { conversation: "Já resolvi!" } });
     const contacted = new Set(["5585911112222"]);

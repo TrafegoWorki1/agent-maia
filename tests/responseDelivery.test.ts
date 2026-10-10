@@ -1,7 +1,8 @@
-import { beforeEach,describe,it,expect,vi } from "vitest";
+import { afterEach,beforeEach,describe,it,expect,vi } from "vitest";
 import { runResponseDeliveries } from "../server/responseDelivery.ts";
 import { DeliveryError,sendTextChecked } from "../server/evolutionSend.ts";
 import { recordMessage,markTaskReplied,type Db } from "../server/store.ts";
+import { recordConvMessage } from "../server/conversations.ts";
 vi.mock("../server/store.ts",()=>({ addTaskEvent:vi.fn().mockResolvedValue(undefined),markTaskReplied:vi.fn().mockResolvedValue(undefined),recordMessage:vi.fn().mockResolvedValue(undefined),setTaskStatus:vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../server/conversations.ts",()=>({ recordConvMessage:vi.fn() }));
 vi.mock("../server/evolutionSend.ts",async(importOriginal)=>({ ...await importOriginal<typeof import("../server/evolutionSend.ts")>(),sendTextChecked:vi.fn() }));
@@ -34,7 +35,10 @@ function database(rows: Part[]): Db {
 }
 function parts():Part[]{return [0,1].map(i=>({id:i+1,task_id:8,part:i,recipient:"5511999999999",text:i?"mundo":"Olá ",status:"pending"}));}
 describe("outbox preserva entrega e contexto sem repetir trabalho",()=>{
-  beforeEach(()=>vi.mocked(sendTextChecked).mockResolvedValue("id-confirmado"));
+  // Os testes abaixo tratam o destinatário fixo (5511999999999) como o dono: é o caso histórico e majoritário
+  // (recordMessage no histórico comum). O caso de membro/contato (dm:<número>) tem teste próprio mais abaixo.
+  beforeEach(()=>{vi.mocked(sendTextChecked).mockResolvedValue("id-confirmado");process.env.EVOLUTION_OWNER_NUMBER="5511999999999";});
+  afterEach(()=>{delete process.env.EVOLUTION_OWNER_NUMBER;});
   it("só conclui e registra contexto após todas as partes aceitas",async()=>{
     const rows=parts();await runResponseDeliveries(database(rows));
     expect(rows.map(r=>r.status)).toEqual(["sent","sent"]);
@@ -61,5 +65,11 @@ describe("outbox preserva entrega e contexto sem repetir trabalho",()=>{
     const rows=parts();vi.mocked(sendTextChecked).mockRejectedValueOnce(new DeliveryError("HTTP 400",false));
     await expect(runResponseDeliveries(database(rows),8)).rejects.toMatchObject({uncertain:false});
     expect(rows[0].status).toBe("failed");expect(recordMessage).not.toHaveBeenCalled();
+  });
+  it("resposta a membro/contato (não o dono, não um grupo) grava na conversa dm:<número>, não no histórico comum",async()=>{
+    const rows=[{id:1,task_id:9,part:0,recipient:"5588888888888",text:"Oi!",status:"pending"}];
+    await runResponseDeliveries(database(rows));
+    expect(recordMessage).not.toHaveBeenCalled();
+    expect(recordConvMessage).toHaveBeenCalledWith(expect.anything(),{conv:"dm:5588888888888",text:"Oi!",fromMaia:true,name:"Maia"});
   });
 });

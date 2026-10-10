@@ -6,7 +6,7 @@ import { supabaseFromEnv } from "./supabaseClient.ts";
 // Tabelas e funções estão na migração maia_schema_v1 (e maia_record_group_activity_fn).
 
 export type Db = SupabaseClient;
-export type Sender = "owner" | "approver" | "other" | "none" | "group";
+export type Sender = "owner" | "approver" | "other" | "none" | "group" | "member";
 export type ApprovalStatus = "pending" | "approved" | "denied" | "expired";
 export type SourceId = "gmail" | "meta" | "sheets" | "calendar";
 

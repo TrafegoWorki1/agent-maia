@@ -1,13 +1,13 @@
 import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
-import { purgeOldMedia } from "./media.ts";
+import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
 import { handleApproverText } from "./groups.ts";
-import { handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText } from "./ownerRouter.ts";
+import { handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
-import { handleGroupMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
+import { handleGroupMessage, handleMemberMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
@@ -24,7 +24,7 @@ import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMe
 export interface InboxItem {
   id: number;
   kind: "text" | "audio" | "event" | "media";
-  sender: "owner" | "approver" | "other" | "group" | "none";
+  sender: "owner" | "approver" | "other" | "group" | "none" | "member";
   payload: string | null;
   key_id: string | null;
 }
@@ -59,6 +59,31 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     const ref = JSON.parse(item.payload) as Omit<MediaRef, "from">;
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "media" }, now);
     void handleOwnerMedia({ ...ref, from: owner }).catch((error) => console.error("[worker] mídia:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  // Membro cadastrado (permissão conversa.maia) falando com a Maia no privado.
+  if (item.sender === "member" && item.kind === "text" && item.payload) {
+    const req = JSON.parse(item.payload) as { from: string; name: string; text: string };
+    const digits = req.from.replace(/\D/g, "");
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "handled" }, now);
+    await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: req.name, text: req.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
+    await upsertContact(db, { number: digits, name: req.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
+    void handleMemberMessage(req).catch((error) => console.error("[worker] privado de membro:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "member" && item.kind === "audio" && item.payload) {
+    const ref = JSON.parse(item.payload) as MemberAudioRef;
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "audio" }, now);
+    void handleMemberAudio(ref).catch((error) => console.error("[worker] áudio de membro:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "member" && item.kind === "media" && item.payload) {
+    const ref = JSON.parse(item.payload) as MemberMediaRef;
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "media" }, now);
+    void handleMemberMedia(ref).catch((error) => console.error("[worker] mídia de membro:", error instanceof Error ? error.message : error));
     return;
   }
 
@@ -201,8 +226,8 @@ async function main(): Promise<void> {
         lastPurge = Date.now();
         const purged = await db.rpc("purge_inbox_payloads");
         if (purged.error) console.error("[worker] limpeza do texto:", purged.error.message);
-        const mediaPurged = purgeOldMedia();
-        if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia com mais de 24 h apagado(s)`);
+        const mediaPurged = purgeOldMedia(MEDIA_DIR, MEDIA_TTL_MS) + purgeOldMedia(MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS);
+        if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia (dono 24 h / membros 7 dias) apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
       }
