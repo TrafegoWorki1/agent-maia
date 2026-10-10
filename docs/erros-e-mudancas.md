@@ -2,6 +2,12 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Remoção da moldura das permissões (10/10/2026)
+
+- **Correção do entendimento:** o usuário se referia ao quadro claro em torno de cada permissão. O ajuste anterior de tamanho não resolvia esse detalhe visual.
+- **Mudança:** removidos borda e fundo de cada item, inclusive dos selecionados. Checkbox, textos completos, foco de teclado e indicador verde de seleção mantidos; nenhuma alteração na lógica de acesso.
+- **Verificação:** build e 7 testes de Pessoas aprovados. Conferência visual no navegador não realizada; aviso de bundle acima de 500 kB permanece.
+
 ## Permissões mais compactas (10/10/2026)
 
 - **Problema:** cartões com altura mínima de 91 px e padding amplo ocupavam espaço excessivo; o breakpoint de 1150 px também forçava uma única coluna mesmo com espaço para duas.

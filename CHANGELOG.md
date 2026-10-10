@@ -8,6 +8,11 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Permissões sem moldura
+
+- **Esclarecimento do pedido:** o incômodo era a moldura clara ao redor de cada permissão. Removidos borda, fundo branco e fundo verde dos itens selecionados; permanecem checkbox, título, descrição e indicador de seleção. Tamanho compacto e autorização preservados.
+- **Verificação:** `pnpm build` e os 7 testes de Pessoas aprovados. Alteração apenas visual em CSS; inspeção visual no navegador não realizada e aviso de bundle acima de 500 kB permanece.
+
 ## 2026-10-10 — Permissões compactas
 
 - **Ajuste solicitado:** os cartões de permissão ficaram altos demais. Altura mínima reduzida de 91 para 44 px, padding de 14×12 para 9×10 px e espaçamento entre cartões de 9 para 6 px; título e descrição continuam completos, sem corte de texto.
