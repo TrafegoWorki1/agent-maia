@@ -39,9 +39,10 @@ describe("roteador", () => {
     if (!("blocked" in d)) expect([d.provider, d.direct]).toEqual(["codex", "imagem"]);
   });
 
-  it("não promete carrossel enquanto ele não existe", () => {
+  it("carrossel recebe resposta do provedor disponível", () => {
     const d = route({ classification: classifyByRules("faz um carrossel"), claude: healthy("claude"), codex: healthy("codex"), cfg, now: NOW });
-    expect("blocked" in d).toBe(true);
+    if ("blocked" in d) throw new Error("não deveria bloquear");
+    expect(d.provider).toBe("claude");
   });
 
   it("usa o modelo econômico para conversa simples e o principal para análise", () => {
@@ -58,9 +59,10 @@ describe("roteador", () => {
     expect(d.provider).toBe("codex");
   });
 
-  it("com o Claude em cooldown, análise não vai ao Codex (precisa de conectores)", () => {
+  it("com o Claude em cooldown, análise recebe resposta do Codex", () => {
     const d = route({ classification: classifyByRules("analisa as campanhas"), claude: cooling("claude"), codex: healthy("codex"), cfg, now: NOW });
-    expect("blocked" in d).toBe(true);
+    if ("blocked" in d) throw new Error("não deveria bloquear");
+    expect(d.provider).toBe("codex");
   });
 
   it("arte com o executor criativo indisponível bloqueia com motivo claro", () => {
@@ -73,7 +75,7 @@ describe("configuração", () => {
   it("o arquivo só substitui o que está nele", () => {
     const merged = mergeConfig(DEFAULT_CONFIG, { fallback: { enabled: false }, images: { dailyLimit: 3 } });
     expect(merged.fallback.enabled).toBe(false);
-    expect(merged.fallback.categories).toEqual(["conversa", "resumo"]);
+    expect(merged.fallback.categories).toEqual(["conversa", "consulta", "resumo", "analise", "tarefa_tecnica", "escrita_externa", "geral", "carrossel"]);
     expect(merged.images.dailyLimit).toBe(3);
     expect(merged.providers.claude.models.economico).toBe("haiku");
   });

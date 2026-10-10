@@ -10,7 +10,7 @@ export const CAPABILITIES: Record<ProviderId, { tools: "mcp" | "nenhuma"; catego
   },
   codex: {
     tools: "nenhuma",
-    categories: ["conversa", "resumo", "imagem", "carrossel"],
+    categories: ["conversa", "consulta", "resumo", "analise", "tarefa_tecnica", "escrita_externa", "geral", "imagem", "carrossel"],
     observacao: "Texto sem ferramentas e geração de imagem em sandbox. Sem conectores.",
   },
 };
