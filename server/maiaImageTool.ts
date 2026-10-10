@@ -5,7 +5,8 @@ import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evol
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
+import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, ZernioError } from "./integrations/zernio.ts";
+import { randomUUID } from "node:crypto";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
@@ -25,6 +26,19 @@ export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
+}
+
+// Mesma regra do instagram_publicar: só funciona com exatamente uma conta de Instagram ativa na Zernio
+// (hoje só a @hericksonmaia). Evita adivinhar qual conta usar se um dia houver mais de uma.
+async function singleActiveInstagramAccount(): Promise<{ ok: true; id: string; username: string; profileId: string } | { ok: false; error: string }> {
+  const accounts = (await listInstagramAccounts()).filter((a) => a.active);
+  if (accounts.length === 0) return { ok: false, error: "nenhuma conta de Instagram ativa na Zernio" };
+  if (accounts.length > 1) return { ok: false, error: "há mais de uma conta de Instagram ativa e a escolha ainda não é suportada" };
+  return { ok: true, id: accounts[0].id, username: accounts[0].username, profileId: accounts[0].profileId };
+}
+
+function zernioErrorText(error: unknown): string {
+  return error instanceof ZernioError ? error.message : error instanceof Error ? error.message : String(error);
 }
 
 export function createImageServer(channel: "whatsapp" | "painel", taskId?: number) {
@@ -510,6 +524,245 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             // Não repete sozinho: quem pediu decide se tenta de novo, depois de conferir no Instagram.
             return { content: [{ type: "text", text: `A publicação falhou: ${error instanceof Error ? error.message : String(error)}. Confira o Instagram antes de tentar de novo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_stories",
+        "Lista os Stories ativos do Instagram da Worki agora. Só leitura.",
+        {},
+        async () => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui listar: ${account.error}.` }], isError: true };
+            const stories = await listInstagramStories(account.id);
+            if (stories.length === 0) return { content: [{ type: "text", text: "Nenhum Story ativo agora." }] };
+            return { content: [{ type: "text", text: stories.map((s) => `${s.id} (${s.mediaType ?? "story"})${s.permalink ? ` | ${s.permalink}` : ""}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar os Stories: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_stories_metricas",
+        "Mostra as métricas (views, alcance, respostas) de um Story ativo do Instagram, pelo id devolvido por instagram_stories. Só leitura.",
+        { story_id: z.string().min(1).max(80).describe("Id do Story, como veio de instagram_stories.") },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui consultar: ${account.error}.` }], isError: true };
+            const insights = await getStoryInsights(account.id, args.story_id);
+            return { content: [{ type: "text", text: JSON.stringify(insights) }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar as métricas do Story: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_musica_buscar",
+        "Pesquisa músicas ou sons originais no catálogo do Instagram, para usar num Reels. Só leitura. Hoje falha se a conta não estiver conectada por Facebook Login na Zernio (diz isso na resposta).",
+        {
+          tipo: z.enum(["music", "original_sound"]).describe("music = música do catálogo; original_sound = som original."),
+          busca: z.string().max(100).optional().describe("Termo de busca. Sem isso, mostra os em alta."),
+        },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui buscar: ${account.error}.` }], isError: true };
+            const audios = await searchInstagramAudio(account.id, args.tipo, args.busca);
+            if (audios.length === 0) return { content: [{ type: "text", text: "Nenhum resultado." }] };
+            return { content: [{ type: "text", text: audios.map((a) => `${a.id}: ${a.title ?? "sem título"}${a.artist ? ` — ${a.artist}` : ""}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui buscar música: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_musica_detalhar",
+        "Revalida uma música antes de usar num Reels (licença/disponibilidade podem mudar). Use o id de instagram_musica_buscar. Só leitura.",
+        { audio_id: z.string().min(1).max(80) },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui consultar: ${account.error}.` }], isError: true };
+            const detail = await getInstagramAudioDetail(account.id, args.audio_id);
+            return { content: [{ type: "text", text: JSON.stringify(detail) }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar a música: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_seguidor_status",
+        "Mostra se uma pessoa (pelo id de participante de uma conversa do Direct) segue a conta ou é seguida por ela. Só informativo: curtida ou seguida NUNCA autoriza mandar mensagem a quem não escreveu primeiro. Só leitura.",
+        { user_id: z.string().min(1).max(60).describe("Id da pessoa no Instagram, como vem nas conversas do Direct.") },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui consultar: ${account.error}.` }], isError: true };
+            const status = await getFollowStatus(account.id, args.user_id);
+            return { content: [{ type: "text", text: `${status.name ?? status.username ?? status.userId}: ${status.isFollower === null ? "status de seguidor desconhecido" : status.isFollower ? "segue a conta" : "não segue a conta"}; ${status.isFollowedByAccount ? "a conta segue essa pessoa" : "a conta não segue essa pessoa"}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_conversas_listar",
+        "Lista as conversas recentes do Direct do Instagram da Worki (quem escreveu, não o conteúdo). Só leitura.",
+        {},
+        async () => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui listar: ${account.error}.` }], isError: true };
+            const conversations = await listInboxConversations(account.id);
+            if (conversations.length === 0) return { content: [{ type: "text", text: "Nenhuma conversa no Direct." }] };
+            return { content: [{ type: "text", text: conversations.map((c) => `${c.id}: ${c.participantName ?? "sem nome"}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui listar as conversas: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_conversa_mensagens",
+        "Mostra as últimas mensagens de uma conversa do Direct do Instagram, pelo id de instagram_conversas_listar. Só leitura.",
+        { conversa_id: z.string().min(1).max(80), quantidade: z.number().int().min(1).max(50).optional() },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não consegui consultar: ${account.error}.` }], isError: true };
+            const messages = await getConversationMessages(args.conversa_id, account.id, { limit: args.quantidade ?? 20 });
+            if (messages.length === 0) return { content: [{ type: "text", text: "Nenhuma mensagem." }] };
+            const lines = messages.map((m) => `[${m.direction === "incoming" ? "recebida" : "enviada"} ${m.createdAt.slice(0, 16).replace("T", " ")}] ${m.senderName ?? ""}: ${m.message}`);
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui ler a conversa: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_direct_responder",
+        "Responde uma mensagem do Direct do Instagram. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. A janela de resposta da Meta é de até 24h desde a última mensagem recebida da pessoa; fora disso, não envia (a mensagem é bloqueada, não tentada).",
+        {
+          conversa_id: z.string().min(1).max(80).describe("Id da conversa, como em instagram_conversas_listar."),
+          texto: z.string().min(1).max(1000).describe("Texto da resposta."),
+        },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não enviei: ${account.error}.` }], isError: true };
+            // Confere a janela de 24h agora, com as mensagens reais, nunca com o que foi combinado antes.
+            const messages = await getConversationMessages(args.conversa_id, account.id, { limit: 20, sortOrder: "desc" });
+            if (!dmWindowOpen(messages)) {
+              return { content: [{ type: "text", text: "Não enviei: a janela de 24h desde a última mensagem recebida dessa pessoa já fechou (regra da Meta). Não dá para mandar mensagem de marketing fora dela." }], isError: true };
+            }
+            const idempotencyKey = randomUUID();
+            const result = await sendInboxMessage(args.conversa_id, account.id, args.texto, idempotencyKey);
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_direct_responder", result.messageId).catch(() => {});
+            return { content: [{ type: "text", text: `Mensagem enviada no Direct (@${account.username})${result.messageId ? ` (${result.messageId})` : ""}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar: ${zernioErrorText(error)}. Confira o Direct antes de tentar de novo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacoes_listar",
+        "Lista as automações de comentário → DM já cadastradas na Zernio para o Instagram, com nome e se está ativa. Só leitura.",
+        {},
+        async () => {
+          try {
+            const automations = await listCommentAutomations();
+            if (automations.length === 0) return { content: [{ type: "text", text: "Nenhuma automação cadastrada." }] };
+            return { content: [{ type: "text", text: automations.map((a) => `${a.id}: "${a.name}" — ${a.isActive ? "ativa" : "pausada"}${a.keywords.length ? ` | palavras: ${a.keywords.join(", ")}` : ""}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui listar as automações: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacao_detalhar",
+        "Mostra os detalhes de uma automação de comentário → DM pelo id de instagram_automacoes_listar. Só leitura.",
+        { automacao_id: z.string().min(1).max(80) },
+        async (args) => {
+          try {
+            const a = await getCommentAutomation(args.automacao_id);
+            return { content: [{ type: "text", text: `"${a.name}" — ${a.isActive ? "ativa" : "pausada"}. Gatilho: ${a.trigger ?? "comentário"}. Palavras: ${a.keywords.join(", ") || "qualquer comentário"}. DM: ${a.dmMessage ?? "—"}. Resposta pública: ${a.commentReply ?? "—"}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar a automação: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacao_criar",
+        "Cria uma automação de comentário → DM no Instagram da Worki (ex.: quem comentar uma palavra recebe uma mensagem no Direct). Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Nasce sempre PAUSADA — ativar é uma ferramenta separada (instagram_automacao_ativar), com aprovação própria.",
+        {
+          nome: z.string().min(1).max(100),
+          mensagem_direct: z.string().min(1).max(1000).describe("Texto que a pessoa recebe no Direct."),
+          resposta_publica: z.string().max(500).optional().describe("Resposta pública ao comentário (opcional)."),
+          palavras_chave: z.array(z.string().min(1).max(60)).max(20).optional().describe("Palavras que disparam a automação. Sem isso, qualquer comentário dispara."),
+          post_id: z.string().max(80).optional().describe("Id do post/story na Zernio ou na plataforma. Sem isso, vale para qualquer post."),
+          gatilho: z.enum(["comment", "story_reply", "story_mention"]).optional(),
+        },
+        async (args) => {
+          try {
+            const account = await singleActiveInstagramAccount();
+            if (!account.ok) return { content: [{ type: "text", text: `Não criei: ${account.error}.` }], isError: true };
+            const automation = await createCommentAutomation({
+              profileId: account.profileId,
+              accountId: account.id,
+              name: args.nome,
+              dmMessage: args.mensagem_direct,
+              commentReply: args.resposta_publica,
+              keywords: args.palavras_chave,
+              platformPostId: args.post_id,
+              trigger: args.gatilho,
+            });
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_criar", automation.id).catch(() => {});
+            return { content: [{ type: "text", text: `Automação "${automation.name}" criada, PAUSADA (id ${automation.id}). Peça instagram_automacao_ativar quando quiser ligar.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui criar a automação: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacao_ativar",
+        "Liga ou pausa uma automação de comentário → DM já criada, pelo id de instagram_automacoes_listar. Ação que sai para fora: ligar afeta todo mundo que comentar no post, então sempre pede OK do owner ou do aprovador, mesmo para pausar.",
+        { automacao_id: z.string().min(1).max(80), ativar: z.boolean().describe("true liga, false pausa.") },
+        async (args) => {
+          try {
+            const automation = await setCommentAutomationActive(args.automacao_id, args.ativar);
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_ativar", automation.id).catch(() => {});
+            return { content: [{ type: "text", text: `Automação "${automation.name}" agora está ${automation.isActive ? "ATIVA" : "pausada"}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui alterar a automação: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacao_excluir",
+        "Exclui de vez uma automação de comentário → DM. Ação que sai para fora, sem volta: só roda depois do OK do owner ou do aprovador.",
+        { automacao_id: z.string().min(1).max(80) },
+        async (args) => {
+          try {
+            await deleteCommentAutomation(args.automacao_id);
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_excluir", args.automacao_id).catch(() => {});
+            return { content: [{ type: "text", text: "Automação excluída." }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui excluir a automação: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_automacao_logs",
+        "Mostra os últimos disparos (entregas, cliques, falhas) de uma automação de comentário → DM. Só leitura.",
+        { automacao_id: z.string().min(1).max(80) },
+        async (args) => {
+          try {
+            const logs = await getCommentAutomationLogs(args.automacao_id);
+            if (logs.length === 0) return { content: [{ type: "text", text: "Nenhum disparo registrado ainda." }] };
+            return { content: [{ type: "text", text: JSON.stringify(logs.slice(0, 20)) }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar os logs: ${zernioErrorText(error)}` }], isError: true };
           }
         },
       ),

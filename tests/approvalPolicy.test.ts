@@ -16,6 +16,25 @@ describe("ação pública ou de risco: sempre OK do dono", () => {
     expect(decideAccess("mcp__maia__instagram_publicar", owner, {}, false).decision).toBe("approve");
     expect(decideAccess("mcp__maia__instagram_publicar", member("escrita.pedir", "mensagem.enviar"), {}, false).decision).toBe("approve");
   });
+  it("LinkedIn exige aprovação para publicar, inclusive para o owner", () => {
+    expect(requiresApproval("mcp__maia__linkedin_publicar")).toBe(true);
+    expect(decideAccess("mcp__maia__linkedin_publicar", owner, {}, false).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__linkedin_publicar", member("escrita.pedir"), {}, false).decision).toBe("approve");
+    for (const name of ["linkedin_contas", "linkedin_organizacoes", "linkedin_desempenho"]) {
+      expect(decideAccess(`mcp__maia__${name}`, owner, {}, true).decision).toBe("allow");
+    }
+  });
+  it("Instagram (Zernio): responder Direct e criar/ativar/excluir automação exigem OK, inclusive do owner; pausar também, porque usa a mesma ferramenta de ativar", () => {
+    for (const t of ["mcp__maia__instagram_direct_responder", "mcp__maia__instagram_automacao_criar", "mcp__maia__instagram_automacao_ativar", "mcp__maia__instagram_automacao_excluir"]) {
+      expect(requiresApproval(t), t).toBe(true);
+      expect(decideAccess(t, owner, {}, false).decision, t).toBe("approve");
+    }
+  });
+  it("Instagram (Zernio): consultas (stories, músicas, Direct, automações) são leitura livre", () => {
+    for (const name of ["instagram_stories", "instagram_stories_metricas", "instagram_musica_buscar", "instagram_musica_detalhar", "instagram_seguidor_status", "instagram_conversas_listar", "instagram_conversa_mensagens", "instagram_automacoes_listar", "instagram_automacao_detalhar", "instagram_automacao_logs"]) {
+      expect(decideAccess(`mcp__maia__${name}`, owner, {}, true).decision, name).toBe("allow");
+    }
+  });
 });
 
 describe("dono tem autonomia no que é interno e privado", () => {
