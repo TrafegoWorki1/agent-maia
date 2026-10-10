@@ -16,6 +16,7 @@ bug, qual era o sintoma e a causa.
 - **Painel:** Conexões e dados exibe o status "LinkedIn conectado" e o objetivo atual da integração.
 - **Validação:** a chave existente em `.env` foi conferida contra a Zernio; há uma conta LinkedIn ativa e nenhuma organização retornada. `pnpm typecheck` passou; `pnpm test` passou com 214 testes da aplicação e 27 de banco.
 - **Banco:** nenhuma tabela ou migration nova foi necessária; a integração usa o cliente server-side já existente e `ZERNIO_API_KEY` permanece fora do frontend.
+- **Ajuste de interface:** o painel de Conexões e dados agora exibe Instagram e LinkedIn juntos no bloco de redes sociais da Zernio.
 
 ## 2026-10-10
 

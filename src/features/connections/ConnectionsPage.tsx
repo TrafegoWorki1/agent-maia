@@ -56,10 +56,14 @@ export function ConnectionsPage() {
             </tbody>
           </table></div>
         </Panel>
-        <Panel title="LinkedIn · Zernio" caption="A Maia tem acesso à conta conectada e usa a integração com aprovação para ações públicas.">
+        <Panel title="Redes sociais · Zernio" caption="A Maia tem acesso às contas conectadas e usa a integração com aprovação para ações públicas.">
           <div className="table-wrap"><table>
             <thead><tr><th>Conexão</th><th>Status</th><th>Objetivo atual</th></tr></thead>
             <tbody><tr>
+              <td>Instagram da Worki</td>
+              <td><StatusPill status="alvo" label="Conectado" /></td>
+              <td>Consultar desempenho; publicar ou agendar uma arte com legenda e aprovação. Mensagens e ações em massa não estão disponíveis.</td>
+            </tr><tr>
               <td>LinkedIn da Worki</td>
               <td><StatusPill status="alvo" label="Conectado" /></td>
               <td>Consultar conta, organizações e métricas; publicar ou agendar posts com aprovação. DMs/InMail não estão disponíveis.</td>
