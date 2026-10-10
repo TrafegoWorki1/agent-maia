@@ -203,9 +203,10 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: n
     prompt,
     timeoutMs: cfg.timeoutMs.codex,
     model: cfg.providers.codex.model,
-    mcp: { taskId, channel, requester: who, inGroup, onToolUse: async (tool) => {
+    mcp: { taskId, channel, requester: who, inGroup, onToolUse: async (tool, failed) => {
       await markTaskKind(db, taskId, "operacional");
       await addTaskEvent(db, taskId, "tool_use", tool, null);
+      if (failed) await addTaskEvent(db, taskId, "tool_failed", tool, "A chamada da ferramenta falhou no transporte/política do SDK; não presume efeito externo");
     } },
   });
   if (!result.ok) {

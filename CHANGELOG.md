@@ -12,6 +12,9 @@ bug, qual era o sintoma e a causa.
 
 ### Aplicação do plano de eficácia: tarefas, lembretes, entrega e avaliação
 
+- Teste real pela LLM encontrou bloqueio de `tarefas_listar` pela aprovação interativa do CLI, apesar da autorização correta na ponte. Configuração explícita `default_tools_approval_mode = approve` apenas no servidor local Maia elimina a segunda pergunta impossível em modo não interativo. O gate `allowed/guarded` da Maia continua exigindo permissões/OK antes de qualquer efeito; sandbox read-only e rede do modelo continuam desligados. Consultas têm metadados read-only. Orientação conferida na documentação oficial de MCP do Codex.
+- Revalidação pela LLM confirmou a consulta real de tarefas/lembretes via SDK; erros de chamada do transporte/política geram `tool_failed` mesmo com resposta textual. Ativação do worker em segundo plano recusada pela política da sessão; abrir `Iniciar Maia.bat` para consumo contínuo. Deploy inicial READY; rota nova sem login testada (401).
+
 - Tarefas de trabalho separadas de `tasks` (execuções da IA): Pendente, Em andamento e Concluída; responsável, prazo em Brasília, revisão concorrente, histórico transacional e evidência informada obrigatória ao concluir. Atraso é calculado, não um estado adicional.
 - Lembrete de prazo automático e lembretes manuais persistidos, editáveis/canceláveis enquanto pendentes; claim atômico e ID de aceitação. Reinício/timeout/erro 5xx fica incerto e não gera repetição. Conclusão cancela pendências. Envio em andamento não pode ser reagendado silenciosamente.
 - As mesmas cinco ferramentas de trabalho são compartilhadas pelos SDKs Claude e Codex. Dados completos do owner exigem autorização para outros papéis; conectores exclusivos do Claude e regras de risco permanecem iguais. O comando `tarefa ...` deixa de criar apenas log de execução.
