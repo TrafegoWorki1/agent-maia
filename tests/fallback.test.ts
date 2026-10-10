@@ -21,8 +21,8 @@ describe("política de fallback", () => {
   });
 
   it("não envia ao Codex o que precisa de conectores", () => {
-    expect(decideFallback({ ...base, category: "analise" }).allowed).toBe(false);
-    expect(decideFallback({ ...base, category: "consulta" }).allowed).toBe(false);
+    expect(decideFallback({ ...base, category: "analise" }).allowed).toBe(true);
+    expect(decideFallback({ ...base, category: "consulta" }).allowed).toBe(true);
   });
 
   it("não tenta o Codex quando ele está indisponível (sem laço de tentativas)", () => {

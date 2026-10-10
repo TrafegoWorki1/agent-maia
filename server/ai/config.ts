@@ -11,7 +11,7 @@ export const DEFAULT_CONFIG: RoutingConfig = {
   timeoutMs: { claude: 300_000, codex: 120_000 },
   concurrency: { claude: 1, codex: 1 },
   health: { cooldownMs: 15 * 60 * 1000, degradedAfter: 2, unavailableAfter: 5 },
-  fallback: { enabled: true, categories: ["conversa", "resumo"] },
+  fallback: { enabled: true, categories: ["conversa", "consulta", "resumo", "analise", "tarefa_tecnica", "escrita_externa", "geral", "carrossel"] },
   jev: { activeRouting: false, minConfidence: 0.8 },
   images: { dailyLimit: 10 },
 };

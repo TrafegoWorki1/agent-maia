@@ -8,10 +8,6 @@ export function route(input: { classification: Classification; claude: HealthRec
   const { classification, claude, codex, cfg, now } = input;
   const { category, complexity } = classification;
 
-  if (category === "carrossel") {
-    return { blocked: true, motivo: "A criação de carrossel ainda não está disponível. Posso criar uma arte avulsa." };
-  }
-
   if (category === "imagem") {
     if (!cfg.providers.codex.enabled || !isRoutable(codex, now)) return { blocked: true, motivo: "O criador de artes está indisponível agora." };
     return { provider: "codex", tier: "principal", model: cfg.providers.codex.model, category, complexity, direct: "imagem", motivo: "arte vai direto ao executor criativo" };
