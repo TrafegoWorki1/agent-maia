@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildInstagramPost, buildLinkedInPost, dmWindowOpen, getPostStatus, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, sendInboxMessage, ZernioError, type InboxMessage } from "../server/integrations/zernio.ts";
 
 const NOW = new Date("2026-10-09T12:00:00Z");
-const base = { accountId: "acc123", caption: "Legenda do post", imageUrl: "https://cdn.exemplo.com/arte.png" };
+const base = { accountId: "acc123", caption: "Legenda do post", mediaUrls: ["https://cdn.exemplo.com/arte.png"], kind: "foto" as const };
 
 describe("montagem da publicação no Instagram", () => {
   it("publica agora quando não há horário", () => {
     const built = buildInstagramPost(base, NOW);
     expect(built.ok && built.body).toMatchObject({
       content: "Legenda do post",
-      mediaItems: [{ type: "image", url: base.imageUrl }],
+      mediaItems: [{ type: "image", url: base.mediaUrls[0] }],
       platforms: [{ platform: "instagram", accountId: "acc123" }],
       publishNow: true,
     });
@@ -32,9 +32,29 @@ describe("montagem da publicação no Instagram", () => {
     expect(buildInstagramPost({ ...base, caption: "a".repeat(2200) }, NOW).ok).toBe(true);
   });
 
-  it("recusa imagem sem endereço https e conta não informada", () => {
-    expect(buildInstagramPost({ ...base, imageUrl: "http://exemplo.com/a.png" }, NOW).ok).toBe(false);
+  it("recusa mídia sem endereço https e conta não informada", () => {
+    expect(buildInstagramPost({ ...base, mediaUrls: ["http://exemplo.com/a.png"] }, NOW).ok).toBe(false);
     expect(buildInstagramPost({ ...base, accountId: "" }, NOW).ok).toBe(false);
+  });
+
+  it("carrossel exige 2 a 10 imagens; foto/reels/story exigem exatamente 1", () => {
+    expect(buildInstagramPost({ ...base, kind: "carrossel", mediaUrls: [base.mediaUrls[0]] }, NOW).ok).toBe(false);
+    expect(buildInstagramPost({ ...base, kind: "carrossel", mediaUrls: Array(11).fill(base.mediaUrls[0]) }, NOW).ok).toBe(false);
+    const carrossel = buildInstagramPost({ ...base, kind: "carrossel", mediaUrls: [base.mediaUrls[0], base.mediaUrls[0]] }, NOW);
+    expect(carrossel.ok && carrossel.body.mediaItems).toHaveLength(2);
+    expect(buildInstagramPost({ ...base, kind: "foto", mediaUrls: [base.mediaUrls[0], base.mediaUrls[0]] }, NOW).ok).toBe(false);
+  });
+
+  it("reels exige vídeo .mp4 e marca platformSpecificData.isReel", () => {
+    expect(buildInstagramPost({ ...base, kind: "reels", mediaUrls: ["https://cdn.exemplo.com/video.png"] }, NOW).ok).toBe(false);
+    const reel = buildInstagramPost({ ...base, kind: "reels", mediaUrls: ["https://cdn.exemplo.com/video.mp4"] }, NOW);
+    expect(reel.ok && reel.body.mediaItems).toEqual([{ type: "video", url: "https://cdn.exemplo.com/video.mp4" }]);
+    expect(reel.ok && reel.body.platforms).toMatchObject([{ platformSpecificData: { isReel: true } }]);
+  });
+
+  it("story marca platformSpecificData.isStory", () => {
+    const story = buildInstagramPost({ ...base, kind: "story" }, NOW);
+    expect(story.ok && story.body.platforms).toMatchObject([{ platformSpecificData: { isStory: true } }]);
   });
 });
 

@@ -45,16 +45,9 @@ import {
 // ficam em access.ts; aprovações pontuais usam os aprovadores ativos de approvals.ts.
 // Cada pedido vira uma tarefa (tabela tasks) com os eventos da execução (tabela task_events).
 
-const MAX_PREVIEW = 300;
-
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 let queue: Promise<void> = Promise.resolve();
-
-function preview(input: Record<string, unknown>): string {
-  const raw = JSON.stringify(input);
-  return raw.length > MAX_PREVIEW ? `${raw.slice(0, MAX_PREVIEW)}…` : raw;
-}
 
 // Permissão do WhatsApp (privado e grupo). Quem decide é `decideAccess` (server/access.ts), por código: o dono faz o que é
 // interno e privado; membro faz o que a permissão cobre; ação pública, de risco ou fora da permissão espera OK do dono.
@@ -81,12 +74,13 @@ function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(
       return { behavior: "deny", message: "Já existe outra ação aguardando aprovação do dono." };
     }
 
-    const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: preview(input), taskId });
+    const action = describeAction(toolName, input);
+    const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: action.slice(0, 500), taskId });
     await setTaskStatus(db, taskId, "aguardando_aprovacao");
     await addTaskEvent(db, taskId, "approval_requested", toolName, null);
     // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK — só o que ela
-    // vai fazer, em português. O preview() cru continua só no registro interno (summary da aprovação).
-    const request = `Pedido de aprovação (#${approval.id})${requester ? ` feito por ${requester} ${local}` : ""}: ${describeAction(toolName, input)} (${verdict.reason}).
+    // vai fazer, em português, com o resumo legível persistido no painel de operações.
+    const request = `Pedido de aprovação (#${approval.id})${requester ? ` feito por ${requester} ${local}` : ""}: ${action} (${verdict.reason}).
 
 Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 10 minutos, é recusada.`;
     await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });

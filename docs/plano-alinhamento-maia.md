@@ -1,10 +1,10 @@
 # Plano de execução: alinhamento do comportamento da Maia
 
-Data: 10/10/2026. Status: implementação autorizada pelo owner e em validação.
+Data: 10/10/2026. Status: implementação e ativação concluídas; validações externas controladas pendentes.
 
 Este documento registra o plano de trabalho e não é uma instrução ativa para a Maia. A política vigente é gerada em `docs/regras-da-maia.md`. Não incluir este plano automaticamente na base de conhecimento.
 
-Atualização de escopo autorizada durante a implementação: incluir nas regras os novos recursos do Instagram que o owner está implementando no Claude em paralelo — consultas, resposta elegível no Direct e automações de comentário para DM, com aprovações específicas. Preservar os arquivos dessa implementação. As restrições a DM fria e prospecção autônoma permanecem.
+Atualização de escopo autorizada durante a implementação: incluir consultas, resposta elegível no Direct e automações de comentário para DM, com aprovações específicas. A ponte Codex também expõe esses recursos sob os mesmos controles. As restrições a DM fria e prospecção autônoma permanecem.
 
 ## Objetivo
 
@@ -122,3 +122,12 @@ Entrega: versão ativa confirmada, evidências e procedimento de reversão regis
 - Erros, melhorias, verificações e limitações estão nos registros Markdown já existentes.
 
 Implementar em entregas pequenas e revisar entre elas. Não declarar “sem erros”; declarar o que foi verificado e quais riscos ainda permanecem.
+
+## Estado final e reversão
+
+- Catálogo local, Markdown gerado e 39 regras ativas no Supabase foram conferidos na versão 2026-10-10.2, hash 5f40630d48d31010801c35e10eedcdd4507dcce36d943c5c00b6a56b0326c0ca.
+- Sincronização do conhecimento concluída; docs/regras-da-maia.md está ativo e os trechos históricos foram preservados, com as fontes históricas inativas.
+- Reversão das regras: usar data/backups/rules-2026-10-10-before.json como baseline aprovada para restaurar os 31 registros iniciais; desativar os oito códigos introduzidos no catálogo 2026-10-10.1. Para as duas regras de Instagram ajustadas na versão 2026-10-10.2, restaurar os textos de baseline registrados em 20261010181720_maia_instagram_media_policy_alignment.sql. Aplicar em nova migração, abortando se os valores atuais não forem os esperados. Não apagar linhas nem histórico.
+- Reversão do conhecimento: os chunks das três fontes históricas (claude-md, erros-e-mudancas, plano) continuam no banco. Em sincronização coordenada com o código revertido, desativar regras-maia e reativar essas três fontes. Não apagar chunks.
+- Reversão do código: criar commits de reversão para e2b63b5 e para esta entrega, sem reset/force-push; preservar as ferramentas Instagram anteriores. Manter as migrações aditivas das RPCs. Sincronizar regras e conhecimento com a versão de código revertida e reiniciar o worker. Não executar DDL avulso.
+- A reversão não foi executada. Os fluxos externos do Instagram não foram usados para disparar mensagens, posts ou automações de teste.
