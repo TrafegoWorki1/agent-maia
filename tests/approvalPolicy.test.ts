@@ -50,6 +50,11 @@ describe("membro só faz o que a permissão cobre", () => {
     expect(decideAccess("mcp__maia__membro_cadastrar", member("escrita.pedir", "mensagem.enviar"), {}, false).decision).toBe("approve");
     expect(decideAccess("mcp__maia__membro_cadastrar", owner, {}, false).decision).toBe("allow");
   });
+  it("resumo operacional completo é interno do dono; membro precisa de aprovação", () => {
+    expect(decideAccess("mcp__maia__operacao_resumo", owner, {}, true).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__operacao_resumo", member("sheets.ler"), {}, true).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__operacao_resumo", guest, {}, true).decision).toBe("approve");
+  });
   it("visitante nunca age sozinho", () => {
     expect(decideAccess("mcp__claude_ai_Gmail__search_threads", guest, {}, true).decision).toBe("approve");
     expect(decideAccess("mcp__claude_ai_Google_Drive__create_file", guest, {}, false).decision).toBe("approve");

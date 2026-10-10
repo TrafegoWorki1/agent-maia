@@ -7,6 +7,7 @@ import { recordConvMessage } from "./conversations.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT } from "./integrations/zernio.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
+import { operationalSummary } from "./operationalSummary.ts";
 import { addTaskEvent, getDb } from "./store.ts";
 import { registerGroup } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
@@ -18,7 +19,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -28,6 +29,18 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
     name: "maia",
     version: "1.0.0",
     tools: [
+      tool(
+        "operacao_resumo",
+        "Consulta a organização operacional atual: pedidos recentes, estados das execuções, aprovações pendentes e conexões. Dados internos do owner; não é uma lista de tarefas com prazo.",
+        {},
+        async () => {
+          try {
+            return { content: [{ type: "text", text: JSON.stringify(await operationalSummary(getDb())) }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar a operação: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
       tool(
         "gerar_imagem",
         "Cria uma arte a partir de um briefing, com o formato feed (4:5), story (9:16) ou quadrado (1:1). Use quando o dono pedir uma imagem ou arte.",
