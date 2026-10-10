@@ -78,10 +78,18 @@ describe("contrato entre catálogo, Markdown e migração", () => {
     expect(md).toBe(renderRulesDocument());
     expect(md).toContain(formatRules(RULE_CATALOG));
   });
-  it("a migração entrega exatamente o catálogo revisado", () => {
-    const sql = readFileSync(new URL("../supabase/migrations/20261010175923_maia_knowledge_atomic_rules_alignment.sql", import.meta.url), "utf8");
-    const serialized = sql.split("$rules_catalog$")[1];
-    expect(validateRules(JSON.parse(serialized))).toEqual(RULE_CATALOG);
+  // Não lê um arquivo de migração específico: migração aplicada é imutável (docs/database-migrations.md),
+  // então uma regra nova vem por migração nova, nunca editando a anterior. O teste roda TODAS as migrações
+  // reais (PGlite) e confere se a tabela final bate com o catálogo — é o que importa de verdade.
+  it("as migrações, todas juntas, entregam exatamente o catálogo revisado", async () => {
+    const { buildLocalDb } = await import("../scripts/db/local.ts");
+    const local = await buildLocalDb();
+    try {
+      const rows = (await local.db.query<Record<string, unknown>>("select codigo, categoria, titulo, texto, ordem, ativa from public.maia_rules order by ordem")).rows;
+      expect(validateRules(rows)).toEqual(RULE_CATALOG);
+    } finally {
+      await local.close();
+    }
     expect(JSON.stringify(RULE_CATALOG)).not.toMatch(/\b\d{10,15}\b/);
   });
 });
