@@ -36,6 +36,8 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__maia__instagram_automacao_excluir": (i) => `excluir a automação de comentário ${str(i, "automacao_id") ?? "?"}`,
   "mcp__maia__instagram_post_cancelar": (i) => `cancelar o post do Instagram ${str(i, "post_id") ?? "?"}`,
   "mcp__maia__instagram_post_editar": (i) => `editar o post do Instagram ${str(i, "post_id") ?? "?"}${str(i, "legenda") ? `: nova legenda “${str(i, "legenda")?.slice(0, 140)}”` : ""}${str(i, "agendar_para") ? `; novo horário ${str(i, "agendar_para")}` : ""}`,
+  "mcp__maia__linkedin_post_cancelar": (i) => `cancelar o post do LinkedIn ${str(i, "post_id") ?? "?"}`,
+  "mcp__maia__linkedin_post_editar": (i) => `editar o post do LinkedIn ${str(i, "post_id") ?? "?"}${str(i, "conteudo") ? `: novo texto “${str(i, "conteudo")?.slice(0, 140)}”` : ""}${str(i, "agendar_para") ? `; novo horário ${str(i, "agendar_para")}` : ""}`,
   "mcp__claude_ai_instamany__send_message": () => "mandar uma mensagem direta no Instagram",
   "mcp__claude_ai_instamany__set_flow_status": () => "ativar ou desativar um fluxo do Instagram",
   "mcp__claude_ai_Google_Drive__share_file": () => "compartilhar um arquivo do Drive",

@@ -5,7 +5,7 @@ import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evol
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, ZernioError } from "./integrations/zernio.ts";
+import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
 import { randomUUID } from "node:crypto";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
@@ -799,6 +799,113 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: JSON.stringify(logs.slice(0, 20)) }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui consultar os logs: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_contas",
+        "Lista as contas do LinkedIn conectadas na Zernio. Só leitura.",
+        {},
+        async () => {
+          try {
+            const accounts = await listLinkedInAccounts();
+            if (accounts.length === 0) return { content: [{ type: "text", text: "Nenhuma conta LinkedIn conectada na Zernio." }] };
+            return { content: [{ type: "text", text: accounts.map((a) => `${a.name} (${a.id}) — ${a.active ? "ativa" : "inativa"}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_organizacoes",
+        "Lista as páginas de empresa administradas por uma conta do LinkedIn, pelo id de linkedin_contas. Só leitura.",
+        { conta: z.string().min(1).max(100) },
+        async (args) => {
+          try {
+            const organizations = await listLinkedInOrganizations(args.conta);
+            if (organizations.length === 0) return { content: [{ type: "text", text: "Nenhuma organização encontrada para essa conta." }] };
+            return { content: [{ type: "text", text: organizations.map((o) => `${o.name} (${o.id})${o.url ? ` — ${o.url}` : ""}`).join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_desempenho",
+        "Mostra o desempenho dos posts mais recentes do LinkedIn. Só leitura.",
+        { limite: z.number().int().min(1).max(20).optional() },
+        async (args) => {
+          try {
+            const { posts, totalPosts } = await linkedinPerformance(args.limite ?? 5);
+            if (posts.length === 0) return { content: [{ type: "text", text: "Nenhum post do LinkedIn encontrado na Zernio." }] };
+            return { content: [{ type: "text", text: `Total de posts conhecidos: ${totalPosts ?? "—"}.\n${posts.map((p) => `${p.publishedAt?.slice(0, 10) ?? "sem data"}: "${p.caption}" | alcance ${p.alcance ?? "—"}, curtidas ${p.curtidas ?? "—"}`).join("\n")}` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui consultar o LinkedIn: ${zernioErrorText(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_publicar",
+        "Publica (ou agenda) um texto, com uma arte opcional, no LinkedIn. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador.",
+        {
+          conteudo: z.string().min(1).max(2200).describe("Texto final do post."),
+          arte: z.string().min(3).max(200).optional().describe("Caminho da arte dentro da pasta de artes (opcional)."),
+          conta: z.string().max(100).optional().describe("Id da conta LinkedIn, se houver mais de uma ativa."),
+          organizacao: z.string().max(100).optional().describe("Id da página de empresa, para postar como organização em vez do perfil pessoal."),
+          agendar_para: z.string().max(40).optional().describe("Data e hora ISO no futuro, para agendar. Sem isso, publica agora."),
+        },
+        async (args) => {
+          try {
+            const accounts = (await listLinkedInAccounts()).filter((a) => a.active);
+            const selected = args.conta ? accounts.find((a) => a.id === args.conta) : accounts.length === 1 ? accounts[0] : null;
+            if (!selected) return { content: [{ type: "text", text: args.conta ? "Não publiquei: a conta LinkedIn informada não está conectada ou ativa." : "Não publiquei: é necessário haver exatamente uma conta LinkedIn ativa, ou informar qual conta." }], isError: true };
+            let imageUrl: string | null = null;
+            if (args.arte) {
+              const art = resolveArtPath(args.arte);
+              if (!art.ok) return { content: [{ type: "text", text: `Não publiquei: ${art.error}.` }], isError: true };
+              imageUrl = await uploadImage(art.path);
+            }
+            const result = await publishLinkedInPost({ accountId: selected.id, content: args.conteudo, imageUrl, organizationId: args.organizacao ?? null, scheduledFor: args.agendar_para ?? null });
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "linkedin_publicar", result.postId).catch(() => {});
+            const check = result.postId && !result.scheduled ? await getPostStatus(result.postId).catch(() => null) : null;
+            const verified = check?.status === "published";
+            if (verified && taskId) await addTaskEvent(getDb(), taskId, "task_verified", "linkedin_publicar", result.postId).catch(() => {});
+            return { content: [{ type: "text", text: `${result.scheduled ? "Agendamento aceito" : "Post criado"} no LinkedIn (${selected.name}). Status: ${check?.status ?? result.status}.${result.url ? ` Link: ${result.url}` : ""}${result.scheduled ? "" : verified ? " Conferido na Zernio." : " Não consegui conferir o estado final; confirme no LinkedIn."}` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `A publicação falhou: ${zernioErrorText(error)}. Confira o LinkedIn antes de tentar de novo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_post_cancelar",
+        "Cancela um post do LinkedIn que AINDA NÃO foi publicado (rascunho, agendado ou com falha), pelo id devolvido por linkedin_publicar. Ação que sai para fora: só roda depois do OK do owner ou do aprovador.",
+        { post_id: z.string().min(1).max(60) },
+        async (args) => {
+          try {
+            await cancelScheduledPost(args.post_id);
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "linkedin_post_cancelar", args.post_id).catch(() => {});
+            return { content: [{ type: "text", text: "Post cancelado." }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui cancelar: ${zernioErrorText(error)}. Se já foi publicado, confira se a Zernio aceita despublicar no LinkedIn antes de tentar de novo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "linkedin_post_editar",
+        "Edita o texto e/ou o horário de um post do LinkedIn que AINDA NÃO foi publicado, pelo id de linkedin_publicar. Ação que sai para fora: só roda depois do OK do owner ou do aprovador.",
+        {
+          post_id: z.string().min(1).max(60),
+          conteudo: z.string().min(1).max(2200).optional(),
+          agendar_para: z.string().max(40).optional().describe("Novo horário ISO no futuro. Sem isso, mantém o horário atual."),
+        },
+        async (args) => {
+          if (!args.conteudo && !args.agendar_para) return { content: [{ type: "text", text: "Não editei: diga o que mudar (texto ou horário)." }], isError: true };
+          try {
+            await updateScheduledPost(args.post_id, { caption: args.conteudo, scheduledFor: args.agendar_para });
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "linkedin_post_editar", args.post_id).catch(() => {});
+            return { content: [{ type: "text", text: "Post atualizado." }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui editar: ${zernioErrorText(error)}.` }], isError: true };
           }
         },
       ),
