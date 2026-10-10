@@ -83,7 +83,7 @@ export function ResumoPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Resumo" subtitle="Tarefas de hoje, nota da semana e o que pede atenção." />
+      <PageHeader eyebrow="Operação" title="Resumo" subtitle="Execuções de hoje, nota da semana e o que pede atenção. Trabalho e prazos estão em Tarefas e eficácia." />
       <Loading snapshot={snapshot} error={error}>
         {(s) => {
           const today = s.tasks.today;
@@ -91,7 +91,7 @@ export function ResumoPage() {
           return (
             <>
               <section className="metrics-grid" aria-label="Números-chave">
-                <Kpi label="Tarefas hoje" value={String(today.total)} helper="Pedidos operacionais" status={today.total ? "alvo" : "sem_dado"} />
+                <Kpi label="Execuções hoje" value={String(today.total)} helper="Pedidos operacionais à IA; não tarefas de trabalho" status={today.total ? "alvo" : "sem_dado"} />
                 <Kpi label="Em andamento" value={String(today.byStatus.em_andamento ?? 0)} status={today.byStatus.em_andamento ? "atencao" : "sem_dado"} />
                 <Kpi label="Concluídas" value={String(today.byStatus.concluida ?? 0)} status={today.byStatus.concluida ? "alvo" : "sem_dado"} />
                 <Kpi label="Com erro" value={String((today.byStatus.falhou ?? 0) + (today.byStatus.incerta ?? 0))} status={(today.byStatus.falhou ?? 0) + (today.byStatus.incerta ?? 0) ? "critico" : "alvo"} helper="Com erro ou incertas" />
@@ -107,7 +107,7 @@ export function ResumoPage() {
                     status={q.overall === null ? "sem_dado" : q.overall >= 7 ? "alvo" : "atencao"}
                   />
                   <Kpi label="Teto por incidente" value={q.incidents.length ? `${q.criticalCap} / 10` : "Não aplicado"} helper={q.incidents.length ? `${q.incidents.length} ação(ões) externa(s) sem aprovação válida` : "Nenhum incidente crítico comprovado nos registros"} status={q.incidents.length ? "critico" : "alvo"} />
-                  <Kpi label="Respondidas" value={`${q.counts.replied} de ${q.counts.tasks}`} helper="Tarefas operacionais da semana" />
+                  <Kpi label="Respondidas" value={`${q.counts.replied} de ${q.counts.tasks}`} helper="Execuções operacionais da semana" />
                 </section>
                 <Table
                   head={["Dimensão", "Peso", "Nota", "Amostra"]}
@@ -130,7 +130,7 @@ export function ResumoPage() {
                 />
               </Panel>}
 
-              <Panel title="Tarefas recentes" caption="Texto limitado a 40 caracteres. A conversa completa fica em Conversa com Maia.">
+              <Panel title="Execuções recentes" caption="Pedidos à IA, não tarefas de trabalho. Texto limitado a 40 caracteres. A conversa completa fica em Conversa com Maia.">
                 <Table
                   head={["Quando", "Canal", "Pedido", "Tipo", "Situação", "Respondida"]}
                   rows={s.tasks.recent.map((t) => [
@@ -170,12 +170,12 @@ export function IndicadoresPage() {
           }
           return (
             <>
-              <Panel title="Entrega operacional" caption={`Semana ${q.week} · tarefas operacionais registradas. Conversas simples não entram nesta amostra.`}>
+              <Panel title="Entrega operacional" caption={`Semana ${q.week} · execuções operacionais registradas. Conversas simples não entram nesta amostra.`}>
                 <section className="metrics-grid" aria-label="Desempenho operacional">
                   <Kpi label="Pedidos operacionais" value={String(counts.tasks)} helper="Total da semana" />
                   <Kpi label="Taxa de resposta" value={counts.tasks ? `${Math.round(counts.replied / counts.tasks * 100)}%` : "sem dado"} helper={`${counts.replied} de ${counts.tasks} pedidos com resposta registrada`} />
                   <Kpi label="Execuções sem erro ou interrupção" value={counts.terminal ? `${Math.round(completed / counts.terminal * 100)}%` : "sem dado"} helper={`${completed} de ${counts.terminal} encerradas; não comprova a resolução de todo pedido`} />
-                  <Kpi label="Falhas" value={String(counts.failures)} helper="Tarefas encerradas com erro" status={counts.failures ? "critico" : "sem_dado"} />
+                  <Kpi label="Falhas" value={String(counts.failures)} helper="Execuções encerradas com erro" status={counts.failures ? "critico" : "sem_dado"} />
                   <Kpi label="Resultados incertos" value={String(counts.uncertain)} helper="Execuções que precisam de conferência" status={counts.uncertain ? "atencao" : "sem_dado"} />
                   <Kpi label="Pedidos sem resposta" value={String(counts.tasks - counts.replied)} helper="Pedidos operacionais da semana" status={counts.tasks > counts.replied ? "atencao" : "alvo"} />
                   <Kpi label="Falhas de envio" value={counts.deliveryFailures === undefined ? "sem dado" : String(counts.deliveryFailures)} helper="Erros de envio registrados pela Evolution" status={counts.deliveryFailures ? "critico" : "sem_dado"} />

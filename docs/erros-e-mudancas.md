@@ -25,6 +25,7 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 - Revalidação do Codex via SDK pela LLM: chamou `mcp__maia__tarefas_listar` e retornou corretamente “Tarefas reais: 1. Lembretes persistidos: 1.” em 13,35 s. Consulta somente leitura, sem enviar outra mensagem nem avaliar a própria qualidade. Falhas do transporte/política SDK agora geram `tool_failed`, mesmo que o modelo responda.
 - Produção: `https://agent-maia.vercel.app` em READY para a aplicação inicial, com `api/workspace` instalada; pedido sem login retornou 401 `login_required`. Teste do proprietário autenticado/validação visual ainda não realizado nesta sessão.
 - Após a correção da política SDK: 191 testes de aplicação em 31 arquivos aprovados; TypeScript e `db:validate` aprovados. Os 27 testes de banco também passaram. Não foi alterada a migração após aplicá-la.
+- Resumo/Indicadores rotulam os registros de IA como execuções, para não confundir com os três estados do trabalho. Plano atualizado: implementação disponível, ativação contínua local e revisão humana de 20 casos ainda pendentes. Consulta real de eficácia retorna 100 candidatos, zero avaliações e notas nulas, sem inventar resultados.
 
 ## Atualização de 10/10/2026: relevância, eficácia e qualidade
 
