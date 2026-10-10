@@ -8,6 +8,14 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Eventos de grupo da Evolution ativados (e um incidente corrigido na hora)
+
+- **Pedido do owner:** depois da ferramenta de trocar foto de grupo, verificar se os eventos da Evolution necessários para usar os endpoints de forma eficiente estavam ativados.
+- **Implementado:** `evolutionWebhook.ts` reconhece `groups.upsert`, `group.update` e `group-participants.update` como `group_change`; `inbox.ts` transforma isso num item de fila (`sender: "group"`, `payload: "cache_reset"`, sem key_id); `inboxWorker.ts` chama `resetGroupCache()` ao processar — assim o cache de 15 min de `server/groups.ts` é invalidado na hora que algo muda, em vez de só expirar por tempo ou a Maia reconsultar e bater no limite da Evolution (rate-overlimit).
+- **Bug real encontrado ao vivo:** o enum de eventos desta instância usa `GROUP_UPDATE` (singular) e não `GROUPS_UPDATE` (plural, como a documentação pública da Evolution mostra) — a Evolution recusou com HTTP 400 e devolveu o enum aceito; corrigido em `scripts/register-evolution-webhook.ts`.
+- **Incidente causado e corrigido na mesma sessão:** o script usava `WEBHOOK_PUBLIC_URL` (variável do túnel Cloudflare do launcher legado, `pnpm start:legacy`, que muda a cada execução) com o caminho `/webhook`. Esse valor estava parado no `.env` de uma sessão antiga. Rodar o script com `--apply` **sobrescreveu o webhook de produção**, apontando a Evolution para esse túnel morto em vez de `api/webhook.ts` na Vercel — ou seja, por alguns minutos a Maia não teria recebido nenhuma mensagem nova. Percebido e corrigido na hora (webhook restaurado para a URL certa, com os eventos novos). Script corrigido para nunca mais depender de `WEBHOOK_PUBLIC_URL`: nova variável `EVOLUTION_WEBHOOK_URL`, estática, só para a URL real de produção (documentada em `.env.example`).
+- **Verificação:** `pnpm typecheck` e `pnpm test` (296) aprovados; webhook real conferido (`GET /webhook/find`) com a URL e os 6 eventos corretos.
+
 ## 2026-10-10 — Trocar foto de grupo (e auditoria dos eventos da Evolution)
 
 - **Pedido do owner:** mandou a logo da Worki e pediu pra Maia colocar como foto do grupo Operacional; ela respondeu que não tem ferramenta pra isso. O owner questionou se a Evolution de fato não tem endpoint — não tinha: o código-fonte da Evolution API confirma `POST /group/updateGroupPicture/{instance}`, corpo `{ groupJid, image }`, aceitando tanto URL https quanto base64. Só não estava implementado neste projeto.

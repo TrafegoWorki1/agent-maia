@@ -139,6 +139,13 @@ describe("triagem do webhook para a fila", () => {
     expect(toInboxRow(group, OWNER, APPROVER)).toEqual({ kind: "event", sender: "group", key_id: "G1", payload: "120363@g.us" });
   });
 
+  it("grupo mudou por fora (foto, nome, participante): vira pedido de invalidar o cache, sem precisar de key_id", () => {
+    const changed = (event: string) => ({ event, instance: "wt_test", data: { id: "120363@g.us" } });
+    expect(toInboxRow(changed("groups.update"), OWNER, APPROVER)).toEqual({ kind: "event", sender: "group", key_id: null, payload: "cache_reset" });
+    expect(toInboxRow(changed("groups.upsert"), OWNER, APPROVER)).toMatchObject({ payload: "cache_reset" });
+    expect(toInboxRow(changed("group-participants.update"), OWNER, APPROVER)).toMatchObject({ payload: "cache_reset" });
+  });
+
   it("mensagem enviada pela própria conta não entra como conversa", () => {
     expect(toInboxRow(message(OWNER, { message: { conversation: "resposta da Maia" } }, true), OWNER, APPROVER)).toMatchObject({ sender: "none", payload: null });
   });

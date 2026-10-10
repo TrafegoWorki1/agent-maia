@@ -152,6 +152,14 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     return;
   }
 
+  if (item.sender === "group" && item.kind === "event" && item.payload === "cache_reset") {
+    // Grupo mudou por fora da Maia (foto, nome, participantes): invalida o cache ao vivo em vez de
+    // esperar os 15 min de TTL ou reconsultar e bater no rate-overlimit da Evolution.
+    resetGroupCache();
+    await recordEvent(db, { event: "groups.update", kind: "event", sender: "group" as Sender, outcome: "cache_reset" }, now);
+    return;
+  }
+
   if (item.sender === "group" && item.payload) {
     // Só o endereço do grupo: conta a atividade, sem texto.
     await recordGroupActivity(db, item.payload, now);
