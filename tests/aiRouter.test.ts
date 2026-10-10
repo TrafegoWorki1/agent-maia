@@ -22,6 +22,7 @@ describe("classificação por regras", () => {
     expect(classifyByRules("resume a conversa de ontem").category).toBe("resumo");
     expect(classifyByRules("quanto gastei hoje?").category).toBe("consulta");
     expect(classifyByRules("bom dia").category).toBe("conversa");
+    expect(classifyByRules("oii").category).toBe("conversa");
   });
 
   it("marca como risco alto o que altera algo externo", () => {

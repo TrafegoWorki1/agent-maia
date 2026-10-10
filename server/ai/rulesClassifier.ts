@@ -18,6 +18,6 @@ export function classifyByRules(text: string): Classification {
   if (/\b(analis\w+|compar\w+|relatorio|desempenho|roi|cpl|cpa|estrategia|planej\w+)\b/.test(t)) return make("analise", "complexa", "baixo", "pedido de análise");
   if (/\bresum\w+/.test(t)) return make("resumo", "simples", "baixo", "pedido de resumo");
   if (/\b(quanto|quais|qual|mostre|liste|me diz\w*|status|gasto|saldo|tem algum)\b/.test(t)) return make("consulta", "intermediaria", "baixo", "pergunta de consulta");
-  if (text.trim().length < 40 && /^(oi|ola|bom dia|boa tarde|boa noite|obrigad\w+|valeu|ok|certo|beleza)\b/.test(t)) return make("conversa", "simples", "baixo", "cumprimento ou conversa curta");
+  if (text.trim().length < 40 && /^(oi+|ola|bom dia|boa tarde|boa noite|obrigad\w+|valeu|ok|certo|beleza)\b/.test(t)) return make("conversa", "simples", "baixo", "cumprimento ou conversa curta");
   return make("geral", "intermediaria", "baixo", "sem categoria específica");
 }
