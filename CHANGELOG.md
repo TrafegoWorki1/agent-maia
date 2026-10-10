@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Instagram: carrossel, Reels, Story, cancelar e editar post
+
+- **Pedido do owner:** publicar Reels, Stories e carrossel, e poder cancelar/editar um post, "que funcione já".
+- **Confirmado ao vivo antes de codar** (rascunho de teste, nunca publicado, apagado depois): `platformSpecificData.isReel`/`isStory` são aceitos e preservados pela Zernio para Instagram; `POST /media/presign` aceita `video/mp4` do mesmo jeito que imagem; `PUT /v1/posts/{id}` edita post não publicado (legenda, mídia, agendamento); `DELETE /v1/posts/{id}` cancela post não publicado e devolve a cota. Post já publicado no Instagram não pode ser cancelado (Unpublish não suporta Instagram) nem editar legenda — a Zernio recusa, e as ferramentas repassam esse erro em vez de inventar sucesso.
+- **`server/integrations/zernio.ts`:** `InstagramPostInput` agora aceita `mediaUrls[]` + `kind` (foto/carrossel/reels/story); `buildInstagramPost` valida 2-10 imagens no carrossel, exatamente 1 mídia nos demais, e `.mp4` para Reels. Novas `cancelScheduledPost` e `updateScheduledPost`. `resolveVideoPost` aceita `.mp4` até 200 MB na pasta de artes.
+- **`instagram_publicar`** ganhou o parâmetro `tipo` e aceita várias artes (carrossel); novas ferramentas `instagram_post_cancelar` e `instagram_post_editar`, ambas sempre com aprovação.
+- **Achado da sessão:** `GET /connect/instagram` (reconectar a conta) devolveu 402 — a conta já usa as 2 contas sociais grátis do plano Zernio; precisaria de forma de pagamento para reconectar via Facebook Login (necessário para o catálogo de música de Reels).
+- **Verificação:** `pnpm typecheck`, `pnpm test` (284), `pnpm rules:check` e `pnpm db:validate` aprovados.
+
 ## 2026-10-10 — Alinhamento de regras, prompt e conhecimento
 
 - **Causa:** decisões antigas e atuais conviviam como instruções vigentes: identidade negava áudio, regras divergiam sobre aprovação e retenção, planos da demo eram consultados como estado operacional e faltava regra específica de LinkedIn.
