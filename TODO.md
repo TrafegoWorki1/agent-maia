@@ -24,4 +24,4 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 
 Permissões por pessoa, áudio pelo Whisper, grupos cadastrados, cota de imagens, tarefas/lembretes e integração Zernio já existem. Não tratá-los como funcionalidades futuras por causa dos planos históricos.
 
-Os novos recursos do Instagram são uma implementação paralela do owner no Claude: a política deste alinhamento já contempla as consultas, respostas elegíveis no Direct e automações com aprovação. Sua disponibilidade depende da entrega das ferramentas no executor usado e da conexão Zernio.
+As ferramentas Instagram agora estão disponíveis nos executores Claude e Codex. Validação autenticada da interface e dos fluxos externos segue pendente; áudio pode exigir reconexão Facebook Login. Não testar envio real sem um cenário de teste autorizado.

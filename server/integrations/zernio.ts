@@ -30,7 +30,7 @@ function describeFailure(status: number, body: unknown): string {
   return `a Zernio recusou o pedido (HTTP ${status})${detail ? `: ${detail.slice(0, 160)}` : ""}`;
 }
 
-async function request(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, body?: unknown, timeoutMs = 30_000, extraHeaders?: Record<string, string>): Promise<{ status: number; json: unknown }> {
+async function request(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown, timeoutMs = 30_000, extraHeaders?: Record<string, string>): Promise<{ status: number; json: unknown }> {
   const key = process.env.ZERNIO_API_KEY;
   if (!key) throw new ZernioError("Zernio não configurada (ZERNIO_API_KEY ausente)", 0);
   const response = await fetch(BASE + path, {
@@ -164,6 +164,20 @@ export function resolveArtPath(relativePath: string): { ok: true; path: string }
   return { ok: true, path: full };
 }
 
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+
+// Mesma pasta de artes, mas aceitando .mp4 para Reels, com um teto de upload maior (a Zernio/Instagram
+// podem recusar por duração ou tamanho próprios; esse teto é só para não tentar subir algo absurdo).
+export function resolveVideoPath(relativePath: string): { ok: true; path: string } | { ok: false; error: string } {
+  const full = resolve(ARTE_ROOT, relativePath);
+  const rel = relative(ARTE_ROOT, full);
+  if (rel.startsWith("..") || rel === "" || resolve(ARTE_ROOT, rel) !== full) return { ok: false, error: "o vídeo precisa estar na pasta de artes da Maia" };
+  if (!/\.mp4$/i.test(full)) return { ok: false, error: "só .mp4" };
+  if (!existsSync(full)) return { ok: false, error: "arquivo não encontrado" };
+  if (statSync(full).size > MAX_VIDEO_BYTES) return { ok: false, error: "o vídeo passa de 200 MB" };
+  return { ok: true, path: full };
+}
+
 // Últimas artes geradas, para o agente escolher qual publicar. Só caminhos relativos e datas.
 export function recentArts(limit = 5): { path: string; modifiedAt: string }[] {
   const root = join(ARTE_ROOT, "pedidos");
@@ -180,24 +194,32 @@ export function recentArts(limit = 5): { path: string; modifiedAt: string }[] {
   return found.sort((a, b) => b.mtime - a.mtime).slice(0, limit).map((f) => ({ path: f.path, modifiedAt: new Date(f.mtime).toISOString() }));
 }
 
-// Envia a imagem ao armazenamento da Zernio e devolve o endereço público. Não publica nada.
+// Envia um arquivo (imagem ou vídeo) ao armazenamento da Zernio e devolve o endereço público. Não publica nada.
+// Confirmado ao vivo em 10/10/2026: POST /media/presign aceita contentType video/mp4 do mesmo jeito que imagem.
 export async function uploadImage(path: string): Promise<string> {
-  const contentType = /\.png$/i.test(path) ? "image/png" : "image/jpeg";
-  const presign = await request("POST", "/media/presign", { filename: basename(path), contentType });
+  const contentType = /\.png$/i.test(path) ? "image/png" : /\.mp4$/i.test(path) ? "video/mp4" : "image/jpeg";
+  const presign = await request("POST", "/media/presign", { filename: basename(path), contentType }, 60_000);
   if (!ok(presign.status)) throw new ZernioError(describeFailure(presign.status, presign.json), presign.status);
   const { uploadUrl, publicUrl } = presign.json as { uploadUrl?: string; publicUrl?: string };
   if (!uploadUrl || !publicUrl) throw new ZernioError("a Zernio não devolveu o endereço de envio", presign.status);
-  const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: readFileSync(path), signal: AbortSignal.timeout(60_000) });
-  if (!put.ok) throw new ZernioError(`falha ao enviar a imagem (HTTP ${put.status})`, put.status);
+  const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: readFileSync(path), signal: AbortSignal.timeout(120_000) });
+  if (!put.ok) throw new ZernioError(`falha ao enviar o arquivo (HTTP ${put.status})`, put.status);
   return publicUrl;
 }
 
-export interface InstagramPostInput {
+export type InstagramPostKind = "foto" | "carrossel" | "reels" | "story";
+
+interface InstagramPostBase {
   accountId: string;
   caption: string;
-  imageUrl: string;
   scheduledFor?: string | null;
 }
+
+export type InstagramPostInput = InstagramPostBase & (
+  | { mediaUrls: string[]; kind: InstagramPostKind; imageUrl?: never }
+  // Compatibilidade para integrações existentes que publicam somente uma foto.
+  | { imageUrl: string; mediaUrls?: never; kind?: never }
+);
 
 export interface LinkedInPostInput {
   accountId: string;
@@ -251,17 +273,28 @@ export async function linkedinPerformance(limit = 10): Promise<{ posts: PostPerf
   return { posts, totalPosts: num(data.overview?.totalPosts) };
 }
 
-// Monta o corpo do pedido. Função pura e testável: valida legenda, imagem e horário.
+// Monta o corpo do pedido. Função pura e testável: valida legenda, mídia e horário.
+// isReel/isStory em platformSpecificData confirmados ao vivo em 10/10/2026 (rascunho de teste, nunca
+// publicado, apagado depois): a Zernio aceita e preserva esses dois campos para o Instagram.
 export function buildInstagramPost(input: InstagramPostInput, now = new Date()): { ok: true; body: Record<string, unknown> } | { ok: false; error: string } {
   const caption = input.caption.trim();
   if (!caption) return { ok: false, error: "a legenda está vazia" };
   if (caption.length > MAX_CAPTION) return { ok: false, error: `a legenda passa de ${MAX_CAPTION} caracteres` };
-  if (!/^https:\/\//i.test(input.imageUrl)) return { ok: false, error: "a imagem precisa de um endereço público https" };
   if (!input.accountId) return { ok: false, error: "conta do Instagram não informada" };
+  const mediaUrls = input.mediaUrls ?? [input.imageUrl];
+  const kind = input.kind ?? "foto";
+  if (mediaUrls.length === 0 || !mediaUrls[0]) return { ok: false, error: "nenhuma mídia informada" };
+  if (mediaUrls.some((u) => !/^https:\/\//i.test(u))) return { ok: false, error: "a mídia precisa de um endereço público https" };
+  if (kind === "carrossel" && (mediaUrls.length < 2 || mediaUrls.length > 10)) return { ok: false, error: "carrossel precisa de 2 a 10 imagens" };
+  if (kind !== "carrossel" && mediaUrls.length !== 1) return { ok: false, error: `${kind} usa só uma mídia` };
+  if (kind === "reels" && !/\.mp4(\?|$)/i.test(mediaUrls[0])) return { ok: false, error: "Reels precisa de um vídeo .mp4" };
+
+  const mediaType = kind === "reels" ? "video" : "image";
+  const platformSpecificData = kind === "reels" ? { isReel: true } : kind === "story" ? { isStory: true } : undefined;
   const body: Record<string, unknown> = {
     content: caption,
-    mediaItems: [{ type: "image", url: input.imageUrl }],
-    platforms: [{ platform: "instagram", accountId: input.accountId }],
+    mediaItems: mediaUrls.map((url) => ({ type: mediaType, url })),
+    platforms: [{ platform: "instagram", accountId: input.accountId, ...(platformSpecificData ? { platformSpecificData } : {}) }],
   };
   if (input.scheduledFor) {
     const when = Date.parse(input.scheduledFor);
@@ -272,6 +305,31 @@ export function buildInstagramPost(input: InstagramPostInput, now = new Date()):
     body.publishNow = true;
   }
   return { ok: true, body };
+}
+
+// Cancela um post ainda não publicado (rascunho, agendado, falho, parcial ou já cancelado). Confirmado ao
+// vivo: DELETE /v1/posts/{id} funciona para esses estados e devolve a cota de upload. Post já publicado no
+// Instagram NÃO pode ser cancelado/despublicado pela Zernio (Unpublish não suporta Instagram) — a Zernio
+// recusa com um erro próprio, que esta função repassa tal como vier, sem inventar um resultado de sucesso.
+export async function cancelScheduledPost(postId: string): Promise<void> {
+  const { status, json } = await request("DELETE", `/posts/${encodeURIComponent(postId)}`);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+}
+
+export interface UpdatePostInput {
+  caption?: string;
+  scheduledFor?: string | null;
+}
+
+// Edita um post ainda não publicado (legenda e/ou horário). Confirmado ao vivo: PUT /v1/posts/{id}; um post
+// já publicado só aceita mudar a configuração de reciclagem, então a Zernio recusa qualquer outra edição
+// depois de publicado — a função não tenta contornar isso.
+export async function updateScheduledPost(postId: string, patch: UpdatePostInput): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (patch.caption !== undefined) body.content = patch.caption;
+  if (patch.scheduledFor !== undefined) body.scheduledFor = patch.scheduledFor;
+  const { status, json } = await request("PUT", `/posts/${encodeURIComponent(postId)}`, body);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
 }
 
 // Lê o post na Zernio depois de criado. É a conferência da publicação: confirma o status real, não o do pedido.
@@ -442,7 +500,8 @@ export function dmWindowOpen(messages: InboxMessage[], now = new Date()): boolea
   const lastIncoming = messages.find((m) => m.direction === "incoming");
   if (!lastIncoming) return false;
   const at = Date.parse(lastIncoming.createdAt);
-  return !Number.isNaN(at) && now.getTime() - at <= DM_WINDOW_MS;
+  const elapsed = now.getTime() - at;
+  return Number.isFinite(at) && elapsed >= 0 && elapsed <= DM_WINDOW_MS;
 }
 
 // Manda a mensagem no Direct. Quem chama deve ter conferido dmWindowOpen com as mensagens atuais antes de

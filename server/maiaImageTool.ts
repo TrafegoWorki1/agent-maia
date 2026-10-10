@@ -5,7 +5,7 @@ import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evol
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, ZernioError } from "./integrations/zernio.ts";
+import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, ZernioError } from "./integrations/zernio.ts";
 import { randomUUID } from "node:crypto";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { searchKnowledge } from "./knowledge.ts";
@@ -490,22 +490,25 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_publicar",
-        "Publica (ou agenda) UM post de imagem no Instagram da Worki, com a legenda dada e uma arte da pasta de artes. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador. Nunca publique sem a legenda final aprovada pelo dono.",
+        "Publica (ou agenda) um post no Instagram da Worki: foto única, carrossel (2-10 imagens), Reels (vídeo .mp4) ou Story. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador. Nunca publique sem a legenda final aprovada pelo dono.",
         {
+          tipo: z.enum(["foto", "carrossel", "reels", "story"]).default("foto").describe("foto = 1 imagem; carrossel = 2 a 10 imagens; reels = 1 vídeo .mp4; story = 1 imagem como Story."),
           legenda: z.string().min(1).max(2200).describe("Legenda final do post."),
-          arte: z.string().min(3).max(200).describe("Caminho da arte dentro da pasta de artes, como em artes_recentes (ex.: pedidos/2026-10-09-abc123/arte.png)."),
+          artes: z.array(z.string().min(3).max(200)).min(1).max(10).describe("Caminho(s) da arte dentro da pasta de artes, como em artes_recentes (ex.: pedidos/2026-10-09-abc123/arte.png). Carrossel: 2 a 10. Os demais: exatamente 1."),
           agendar_para: z.string().max(40).optional().describe("Data e hora ISO no futuro, para agendar. Sem isso, publica agora."),
         },
         async (args) => {
           try {
-            const art = resolveArtPath(args.arte);
-            if (!art.ok) return { content: [{ type: "text", text: `Não publiquei: ${art.error}.` }], isError: true };
+            const resolver = args.tipo === "reels" ? resolveVideoPath : resolveArtPath;
+            const resolved = args.artes.map(resolver);
+            const bad = resolved.find((r) => !r.ok) as { ok: false; error: string } | undefined;
+            if (bad) return { content: [{ type: "text", text: `Não publiquei: ${bad.error}.` }], isError: true };
             const accounts = (await listInstagramAccounts()).filter((a) => a.active);
             if (accounts.length !== 1) {
               return { content: [{ type: "text", text: accounts.length === 0 ? "Não publiquei: nenhuma conta de Instagram ativa na Zernio." : "Não publiquei: há mais de uma conta de Instagram ativa e a escolha ainda não é suportada." }], isError: true };
             }
-            const imageUrl = await uploadImage(art.path);
-            const result = await publishInstagramPost({ accountId: accounts[0].id, caption: args.legenda, imageUrl, scheduledFor: args.agendar_para ?? null });
+            const mediaUrls = await Promise.all(resolved.map((r) => uploadImage((r as { ok: true; path: string }).path)));
+            const result = await publishInstagramPost({ accountId: accounts[0].id, caption: args.legenda, mediaUrls, kind: args.tipo, scheduledFor: args.agendar_para ?? null });
             if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_publicar", result.postId).catch(() => {});
             // Conferência: lê o post de volta na Zernio. Publicado ou agendado só vale com o status real.
             let url = result.url;
@@ -524,6 +527,39 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             // Não repete sozinho: quem pediu decide se tenta de novo, depois de conferir no Instagram.
             return { content: [{ type: "text", text: `A publicação falhou: ${error instanceof Error ? error.message : String(error)}. Confira o Instagram antes de tentar de novo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_post_cancelar",
+        "Cancela um post do Instagram que AINDA NÃO foi publicado (rascunho, agendado ou com falha), pelo id devolvido por instagram_publicar. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Um post JÁ publicado não pode ser cancelado pela Zernio (a ferramenta avisa isso, não inventa um resultado).",
+        { post_id: z.string().min(1).max(60) },
+        async (args) => {
+          try {
+            await cancelScheduledPost(args.post_id);
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_post_cancelar", args.post_id).catch(() => {});
+            return { content: [{ type: "text", text: "Post cancelado." }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui cancelar: ${zernioErrorText(error)}. Se já foi publicado, a Zernio não deixa desfazer no Instagram.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "instagram_post_editar",
+        "Edita a legenda e/ou o horário de um post do Instagram que AINDA NÃO foi publicado, pelo id de instagram_publicar. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Um post JÁ publicado não aceita editar legenda/horário pela Zernio (a ferramenta avisa isso).",
+        {
+          post_id: z.string().min(1).max(60),
+          legenda: z.string().min(1).max(2200).optional(),
+          agendar_para: z.string().max(40).optional().describe("Novo horário ISO no futuro. Sem isso, mantém o horário atual."),
+        },
+        async (args) => {
+          if (!args.legenda && !args.agendar_para) return { content: [{ type: "text", text: "Não editei: diga o que mudar (legenda ou horário)." }], isError: true };
+          try {
+            await updateScheduledPost(args.post_id, { caption: args.legenda, scheduledFor: args.agendar_para });
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "instagram_post_editar", args.post_id).catch(() => {});
+            return { content: [{ type: "text", text: "Post atualizado." }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui editar: ${zernioErrorText(error)}. Se já foi publicado, a Zernio só deixa mudar a configuração de reciclagem.` }], isError: true };
           }
         },
       ),

@@ -26,19 +26,24 @@ describe("descrição de ação para o pedido de OK (sem ferramenta, sem JSON)",
   });
 
   it("Instagram, LinkedIn e InstaMany", () => {
-    expect(describeAction("mcp__maia__instagram_publicar", {})).toBe("publicar no Instagram");
-    expect(describeAction("mcp__maia__linkedin_publicar", {})).toBe("publicar no LinkedIn");
+    expect(describeAction("mcp__maia__instagram_publicar", { legenda: "Promo de hoje" })).toContain("Promo de hoje");
+    expect(describeAction("mcp__maia__linkedin_publicar", { conteudo: "Novidade" })).toContain("Novidade");
     expect(describeAction("mcp__claude_ai_instamany__send_message", {})).toBe("mandar uma mensagem direta no Instagram");
   });
 
-  it("Instagram pela Zernio: Direct e automação de comentário, sem nome de ferramenta nem JSON", () => {
-    expect(describeAction("mcp__maia__instagram_direct_responder", { conversa_id: "c1", texto: "oi" })).toBe("responder uma mensagem no Direct do Instagram");
+  it("Instagram pela Zernio: Direct, automação, cancelar e editar post, sem nome de ferramenta nem JSON cru", () => {
+    const direct = describeAction("mcp__maia__instagram_direct_responder", { conversa_id: "c1", texto: "oi" });
+    expect(direct).toContain("c1");
+    expect(direct).toContain("oi");
     const criar = describeAction("mcp__maia__instagram_automacao_criar", { nome: "Lançamento", mensagem_direct: "..." });
-    expect(criar).toBe('criar a automação "Lançamento" de comentário no Instagram (nasce pausada)');
-    expect(describeAction("mcp__maia__instagram_automacao_ativar", { automacao_id: "a1", ativar: true })).toBe("ativar uma automação de comentário no Instagram");
-    expect(describeAction("mcp__maia__instagram_automacao_ativar", { automacao_id: "a1", ativar: false })).toBe("pausar uma automação de comentário no Instagram");
-    expect(describeAction("mcp__maia__instagram_automacao_excluir", { automacao_id: "a1" })).toBe("excluir uma automação de comentário no Instagram");
-    for (const d of [criar]) { expect(d).not.toContain("mcp__"); expect(d).not.toContain("{"); }
+    expect(criar).toContain("Lançamento");
+    expect(criar).toContain("pausada");
+    expect(describeAction("mcp__maia__instagram_automacao_ativar", { automacao_id: "a1", ativar: true })).toContain("ativar");
+    expect(describeAction("mcp__maia__instagram_automacao_ativar", { automacao_id: "a1", ativar: false })).toContain("pausar");
+    expect(describeAction("mcp__maia__instagram_automacao_excluir", { automacao_id: "a1" })).toContain("excluir");
+    expect(describeAction("mcp__maia__instagram_post_cancelar", { post_id: "p1" })).toContain("p1");
+    expect(describeAction("mcp__maia__instagram_post_editar", { post_id: "p1", legenda: "Nova" })).toContain("Nova");
+    for (const d of [direct, criar]) { expect(d).not.toContain("mcp__"); expect(d).not.toContain("{"); }
   });
 
   it("conectores por padrão: e-mail, agenda, anúncios e apagar", () => {

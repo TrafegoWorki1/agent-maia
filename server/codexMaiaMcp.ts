@@ -3,12 +3,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { loadLocalEnv } from "./loadEnv.ts";
 import { describeAction } from "./actionDescriptions.ts";
 import { getDb, addTaskEvent, setTaskStatus, recordMessage } from "./store.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
-import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost } from "./integrations/zernio.ts";
+import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, dmWindowOpen, sendInboxMessage, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, type InstagramPostKind } from "./integrations/zernio.ts";
 import { recordActionEvidence } from "./actionEvidence.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
@@ -58,12 +59,13 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
     await addTaskEvent(db, taskId, "access_denied", tool, "outra aprovação já pendente");
     return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
   }
-  const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: JSON.stringify(input).slice(0, 300), taskId });
+  const action = describeAction(tool, input);
+  const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: action.slice(0, 500), taskId });
   await setTaskStatus(db, taskId, "aguardando_aprovacao");
   await addTaskEvent(db, taskId, "approval_requested", tool, null);
   const who = requester();
   // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK.
-  const notice = `Pedido de aprovação (#${approval.id})${inGroup ? ` feito por ${who.name || "alguém"} no grupo` : ""}: ${describeAction(tool, input)} (${verdict.reason}).\n\nResponda OK para aprovar ou NÃO para recusar.`;
+  const notice = `Pedido de aprovação (#${approval.id})${inGroup ? ` feito por ${who.name || "alguém"} no grupo` : ""}: ${action} (${verdict.reason}).\n\nResponda OK para aprovar ou NÃO para recusar.`;
   await recordMessage(db, { channel: "whatsapp", author: "maia", text: notice });
   for (const to of await approverNumbers(db)) void sendOwnerText(to, notice);
   const outcome = await waitApproval(db, approval.id, approval.expiresAt);
@@ -115,6 +117,63 @@ server.registerTool("instagram_desempenho", { description: "Mostra desempenho do
   const { posts, totalPosts } = await instagramPerformance(limite ?? 5);
   return posts.length ? `Total: ${totalPosts ?? "—"}\n${posts.map((p) => `${p.publishedAt?.slice(0, 10) ?? "sem data"}: ${p.caption} | alcance ${p.alcance ?? "—"}, curtidas ${p.curtidas ?? "—"}`).join("\n")}` : "Nenhum post encontrado.";
 }));
+
+async function singleInstagramAccount() {
+  const accounts = (await listInstagramAccounts()).filter((account) => account.active);
+  if (accounts.length !== 1) throw new Error(accounts.length ? "Há mais de uma conta Instagram ativa; escolha explícita ainda não é suportada." : "Nenhuma conta Instagram ativa.");
+  return accounts[0];
+}
+
+server.registerTool("instagram_stories", { description: "Lista Stories ativos da conta Instagram conectada. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__instagram_stories", {}, async () => {
+  const account = await singleInstagramAccount();
+  const stories = await listInstagramStories(account.id);
+  return stories.length ? stories.map((story) => `${story.id} (${story.mediaType ?? "story"})${story.permalink ? ` | ${story.permalink}` : ""}`).join("\n") : "Nenhum Story ativo.";
+}));
+server.registerTool("instagram_stories_metricas", { description: "Consulta métricas de um Story ativo. Somente leitura.", inputSchema: { story_id: z.string().min(1).max(80) } }, async ({ story_id }) => guarded("mcp__maia__instagram_stories_metricas", { story_id }, async () => JSON.stringify(await getStoryInsights((await singleInstagramAccount()).id, story_id))));
+server.registerTool("instagram_musica_buscar", { description: "Pesquisa músicas ou sons no catálogo Instagram. Pode exigir reconexão da conta por Facebook Login.", inputSchema: { tipo: z.enum(["music", "original_sound"]), busca: z.string().max(100).optional() } }, async ({ tipo, busca }) => guarded("mcp__maia__instagram_musica_buscar", { tipo, busca }, async () => {
+  const tracks = await searchInstagramAudio((await singleInstagramAccount()).id, tipo, busca);
+  return tracks.length ? tracks.map((track) => `${track.id}: ${track.title ?? "sem título"} — ${track.artist ?? "artista desconhecido"}`).join("\n") : "Nenhum áudio encontrado.";
+}));
+server.registerTool("instagram_musica_detalhar", { description: "Consulta detalhes e disponibilidade de uma faixa. Somente leitura.", inputSchema: { audio_id: z.string().min(1).max(100) } }, async ({ audio_id }) => guarded("mcp__maia__instagram_musica_detalhar", { audio_id }, async () => JSON.stringify(await getInstagramAudioDetail((await singleInstagramAccount()).id, audio_id))));
+server.registerTool("instagram_seguidor_status", { description: "Consulta se um perfil segue ou é seguido pela conta Instagram conectada. Somente leitura; não autoriza DM.", inputSchema: { usuario_id: z.string().min(1).max(100) } }, async ({ usuario_id }) => guarded("mcp__maia__instagram_seguidor_status", { usuario_id }, async () => JSON.stringify(await getFollowStatus((await singleInstagramAccount()).id, usuario_id))));
+server.registerTool("instagram_conversas_listar", { description: "Lista conversas do Direct Instagram. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__instagram_conversas_listar", {}, async () => {
+  const conversations = await listInboxConversations((await singleInstagramAccount()).id);
+  return conversations.length ? conversations.map((conversation) => `${conversation.id}: ${conversation.participantName ?? "sem nome"}`).join("\n") : "Nenhuma conversa no Direct.";
+}));
+server.registerTool("instagram_conversa_mensagens", { description: "Lê mensagens recentes de uma conversa do Direct. Somente leitura.", inputSchema: { conversa_id: z.string().min(1).max(80) } }, async ({ conversa_id }) => guarded("mcp__maia__instagram_conversa_mensagens", { conversa_id }, async () => {
+  const messages = await getConversationMessages(conversa_id, (await singleInstagramAccount()).id, { limit: 20, sortOrder: "desc" });
+  return messages.map((message) => `[${message.direction === "incoming" ? "recebida" : "enviada"} ${message.createdAt}] ${message.senderName ?? ""}: ${message.message}`).join("\n") || "Nenhuma mensagem encontrada.";
+}));
+server.registerTool("instagram_direct_responder", { description: "Responde uma conversa elegível do Direct. Requer aprovação e janela de 24h desde a mensagem recebida.", inputSchema: { conversa_id: z.string().min(1).max(80), texto: z.string().min(1).max(1000) } }, async ({ conversa_id, texto }) => guarded("mcp__maia__instagram_direct_responder", { conversa_id, texto }, async () => {
+  const account = await singleInstagramAccount();
+  const messages = await getConversationMessages(conversa_id, account.id, { limit: 20, sortOrder: "desc" });
+  if (!dmWindowOpen(messages)) throw new Error("A janela de resposta de 24h está fechada; não enviei a mensagem.");
+  const sent = await sendInboxMessage(conversa_id, account.id, texto, randomUUID());
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_direct_responder", sent.messageId).catch(() => {});
+  return `Mensagem enviada no Direct (${sent.messageId ?? "sem id devolvido"}).`;
+}));
+server.registerTool("instagram_automacoes_listar", { description: "Lista automações de comentário→DM. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__instagram_automacoes_listar", {}, async () => {
+  const automations = await listCommentAutomations();
+  return automations.length ? automations.map((automation) => `${automation.id}: ${automation.name} — ${automation.isActive ? "ativa" : "pausada"}`).join("\n") : "Nenhuma automação cadastrada.";
+}));
+server.registerTool("instagram_automacao_detalhar", { description: "Consulta detalhes de uma automação. Somente leitura.", inputSchema: { automacao_id: z.string().min(1).max(80) } }, async ({ automacao_id }) => guarded("mcp__maia__instagram_automacao_detalhar", { automacao_id }, async () => JSON.stringify(await getCommentAutomation(automacao_id))));
+server.registerTool("instagram_automacao_criar", { description: "Cria automação de comentário→DM pausada. Requer aprovação.", inputSchema: { nome: z.string().min(1).max(100), mensagem_direct: z.string().min(1).max(1000), resposta_publica: z.string().max(500).optional(), palavras_chave: z.array(z.string().min(1).max(60)).max(20).optional(), post_id: z.string().max(80).optional(), gatilho: z.enum(["comment", "story_reply", "story_mention"]).optional() } }, async (args) => guarded("mcp__maia__instagram_automacao_criar", args, async () => {
+  const account = await singleInstagramAccount();
+  const automation = await createCommentAutomation({ profileId: account.profileId, accountId: account.id, name: args.nome, dmMessage: args.mensagem_direct, commentReply: args.resposta_publica, keywords: args.palavras_chave, platformPostId: args.post_id, trigger: args.gatilho });
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_criar", automation.id).catch(() => {});
+  return `Automação “${automation.name}” criada pausada (id ${automation.id}).`;
+}));
+server.registerTool("instagram_automacao_ativar", { description: "Ativa ou pausa automação de comentário→DM. Requer aprovação.", inputSchema: { automacao_id: z.string().min(1).max(80), ativar: z.boolean() } }, async ({ automacao_id, ativar }) => guarded("mcp__maia__instagram_automacao_ativar", { automacao_id, ativar }, async () => {
+  const automation = await setCommentAutomationActive(automacao_id, ativar);
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_ativar", automation.id).catch(() => {});
+  return `Automação “${automation.name}” ${automation.isActive ? "ativa" : "pausada"}.`;
+}));
+server.registerTool("instagram_automacao_excluir", { description: "Exclui automação de comentário→DM. Requer aprovação.", inputSchema: { automacao_id: z.string().min(1).max(80) } }, async ({ automacao_id }) => guarded("mcp__maia__instagram_automacao_excluir", { automacao_id }, async () => {
+  await deleteCommentAutomation(automacao_id);
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_automacao_excluir", automacao_id).catch(() => {});
+  return "Automação excluída.";
+}));
+server.registerTool("instagram_automacao_logs", { description: "Consulta os logs de disparo de uma automação. Somente leitura.", inputSchema: { automacao_id: z.string().min(1).max(80) } }, async ({ automacao_id }) => guarded("mcp__maia__instagram_automacao_logs", { automacao_id }, async () => JSON.stringify((await getCommentAutomationLogs(automacao_id)).slice(0, 20))));
 
 server.registerTool("linkedin_contas", { description: "Lista contas LinkedIn conectadas na Zernio. Somente leitura.", inputSchema: {} }, async () => guarded("mcp__maia__linkedin_contas", {}, async () => {
   const accounts = await listLinkedInAccounts();
@@ -215,14 +274,32 @@ server.registerTool("grupo_agendar", { description: "Agenda texto ou enquete par
   return `Agendado (#${id}) para ${when.at.toISOString()}.`;
 }));
 
-server.registerTool("instagram_publicar", { description: "Publica ou agenda uma arte no Instagram. Sempre pede aprovação.", inputSchema: { legenda: z.string().min(1).max(2200), arte: z.string().min(3).max(200), agendar_para: z.string().max(40).optional() } }, async ({ legenda, arte, agendar_para }) => guarded("mcp__maia__instagram_publicar", { legenda, arte, agendar_para }, async () => {
-  const art = resolveArtPath(arte); if (!art.ok) throw new Error(art.error);
+server.registerTool("instagram_publicar", { description: "Publica ou agenda foto, carrossel, Reels ou Story. Sempre pede aprovação.", inputSchema: { legenda: z.string().min(1).max(2200), arte: z.string().min(3).max(200).optional(), artes: z.array(z.string().min(3).max(200)).min(1).max(10).optional(), tipo: z.enum(["foto", "carrossel", "reels", "story"]).optional(), agendar_para: z.string().max(40).optional() } }, async ({ legenda, arte, artes, tipo, agendar_para }) => guarded("mcp__maia__instagram_publicar", { legenda, arte, artes, tipo, agendar_para }, async () => {
+  if (arte && artes) throw new Error("Informe arte ou artes, não os dois.");
+  const paths = artes ?? (arte ? [arte] : []);
+  if (!paths.length) throw new Error("Informe uma arte ou uma lista de artes.");
+  const kind: InstagramPostKind = tipo ?? (paths.length > 1 ? "carrossel" : "foto");
+  const resolved = paths.map((path) => kind === "reels" ? resolveVideoPath(path) : resolveArtPath(path));
+  const bad = resolved.find((item) => !item.ok) as { ok: false; error: string } | undefined;
+  if (bad) throw new Error(bad.error);
+  const mediaUrls = await Promise.all(resolved.map((item) => uploadImage((item as { ok: true; path: string }).path)));
   const accounts = (await listInstagramAccounts()).filter((a) => a.active); if (accounts.length !== 1) throw new Error("É necessário haver exatamente uma conta Instagram ativa.");
-  const post = await publishInstagramPost({ accountId: accounts[0].id, caption: legenda, imageUrl: await uploadImage(art.path), scheduledFor: agendar_para ?? null });
+  const post = await publishInstagramPost({ accountId: accounts[0].id, caption: legenda, mediaUrls, kind, scheduledFor: agendar_para ?? null });
   const check = post.postId ? await getPostStatus(post.postId).catch(() => null) : null;
   const verified = check && (post.scheduled ? ["scheduled", "published"].includes(check.status) : check.status === "published");
   await recordActionEvidence(getDb(), taskId, "instagram_publicar", post.postId, verified ? post.postId : null);
   return `${post.scheduled ? "Agendamento aceito" : "Post criado"} no Instagram (@${accounts[0].username}). Status: ${check?.status ?? post.status}.${verified ? " Conferido na Zernio." : " Não consegui conferir o estado final; confirme no Instagram antes de tentar novamente."}`;
+}));
+server.registerTool("instagram_post_cancelar", { description: "Cancela um post Instagram ainda não publicado. Requer aprovação.", inputSchema: { post_id: z.string().min(1).max(60) } }, async ({ post_id }) => guarded("mcp__maia__instagram_post_cancelar", { post_id }, async () => {
+  await cancelScheduledPost(post_id);
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_post_cancelar", post_id).catch(() => {});
+  return "Post cancelado.";
+}));
+server.registerTool("instagram_post_editar", { description: "Edita legenda ou horário de post Instagram ainda não publicado. Requer aprovação.", inputSchema: { post_id: z.string().min(1).max(60), legenda: z.string().min(1).max(2200).optional(), agendar_para: z.string().min(10).max(40).optional() } }, async (args) => guarded("mcp__maia__instagram_post_editar", args, async () => {
+  if (!args.legenda && !args.agendar_para) throw new Error("Informe a nova legenda ou o novo horário.");
+  await updateScheduledPost(args.post_id, { caption: args.legenda, scheduledFor: args.agendar_para });
+  await addTaskEvent(getDb(), taskId, "external_done", "instagram_post_editar", args.post_id).catch(() => {});
+  return "Post atualizado.";
 }));
 
 server.registerTool("linkedin_publicar", { description: "Publica ou agenda um texto ou uma arte no LinkedIn. Sempre pede aprovação.", inputSchema: { conteudo: z.string().min(1).max(2200), arte: z.string().min(3).max(200).optional(), conta: z.string().max(100).optional(), organizacao: z.string().max(100).optional(), agendar_para: z.string().max(40).optional() } }, async ({ conteudo, arte, conta, organizacao, agendar_para }) => guarded("mcp__maia__linkedin_publicar", { conteudo, arte, conta, organizacao, agendar_para }, async () => {

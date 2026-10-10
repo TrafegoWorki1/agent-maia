@@ -62,7 +62,7 @@ export function ConnectionsPage() {
             <tbody><tr>
               <td>Instagram da Worki</td>
               <td><StatusPill status="alvo" label="Conectado" /></td>
-              <td>Consultar desempenho; publicar ou agendar uma arte com legenda e aprovação. Mensagens e ações em massa não estão disponíveis.</td>
+              <td>Consultar posts, Stories, métricas, músicas e conversas; publicar fotos, carrosséis, Reels e Stories; editar/cancelar posts ainda não publicados; responder Direct com aprovação dentro de 24h; gerenciar automações de comentário para DM com aprovação. A busca de áudio depende de reconexão Facebook Login.</td>
             </tr><tr>
               <td>LinkedIn da Worki</td>
               <td><StatusPill status="alvo" label="Conectado" /></td>
