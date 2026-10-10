@@ -17,6 +17,7 @@ bug, qual era o sintoma e a causa.
 ### Alterado (Codex via SDK com ferramentas internas)
 - `@openai/codex-sdk` substituiu a chamada bruta ao CLI. No Windows, o SDK usa o `codex.exe` nativo; o atalho `codex.cmd` não funciona com o `spawn` do SDK.
 - Novo `server/codexMaiaMcp.ts`: ponte MCP local para conhecimento, contatos, grupos/enquetes, artes, Instagram, imagem, agendamento e cadastro de membros.
+- `grupo_criar` entrou na ponte: usa o mesmo fluxo persistido do roteador do owner (somente owner, participantes com DDI/DDD, aprovação do tipo grupo e criação na Evolution somente depois do OK).
 - A ponte reaplica permissões e aprovações. Credenciais do Supabase, Evolution e Zernio ficam somente no servidor e no `.env`, nunca no modelo.
 - Conectores exclusivos do Claude (Gmail, Meta Ads, Drive/Sheets e Agenda) continuam fora do Codex. Não houve migração de banco: são usadas as tabelas e funções existentes.
 - Verificado: SDK respondeu pelo Codex e `buscar_conhecimento` retornou dados reais do banco. O typecheck completo foi bloqueado por memória/espaço insuficientes neste PC; sintaxe e diff foram validados.
