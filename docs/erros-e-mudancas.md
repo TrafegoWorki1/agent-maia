@@ -373,7 +373,7 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 | Área | O que mudou |
 |---|---|
 | Roteador | server/ai/: configuração, classificador por regras, roteador, saúde dos provedores, fallback, métricas. |
-| Fallback | Claude para Codex só em conversa e resumo, com erro de provedor confirmado e sem efeito externo. |
+| Fallback | Claude para Codex quando o Claude entra em cooldown por limite ou indisponibilidade; reconhece inclusive limite semanal. |
 | Jev | Intenção, complexidade e risco, em modo sombra. |
 | Arte | Rota direta ao Codex, com cota diária atômica (10 por dia). |
 | Painel | Página Modelos e Roteamento. |
@@ -386,10 +386,11 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 ### Verificado de verdade
 - Codex em texto, fallback com o Claude em limite forçado, arte direta com envio ao WhatsApp, métricas no banco. 97 testes.
 
-### Limitações
-- Carrossel e executor central de ferramentas compartilhadas não foram implementados.
-- O Codex não tem acesso aos conectores: não assume consultas, análises nem ações.
-- O limite real do Claude não pôde ser provocado; o caminho pós-erro foi validado só em teste unitário.
+### Atualização de 2026-10-09: Codex SDK e ponte de ferramentas
+- O fallback foi ampliado para qualquer mensagem elegível depois que o Claude entra em cooldown; `weekly limit` e cumprimentos repetidos (`oii`) também são reconhecidos.
+- O Codex agora roda pelo SDK oficial e tem uma ponte MCP local (`server/codexMaiaMcp.ts`) para as funções internas e para o banco: conhecimento, contatos, grupos/enquetes, artes, Instagram, imagem, agendamento e cadastro.
+- A ponte reaplica permissões e aprovações. Os segredos permanecem no servidor; conectores exclusivos do Claude continuam indisponíveis ao Codex.
+- Teste real: resposta do SDK e consulta `buscar_conhecimento` ao Supabase concluídos. O typecheck completo foi bloqueado por falta de memória/espaço neste PC.
 
 ### Pendências
 1. Reiniciar a Maia no PC.
