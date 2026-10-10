@@ -37,8 +37,8 @@ describe("conferência do grupo criado", () => {
   });
 });
 
-import { afterEach, vi } from "vitest";
-import { addGroupParticipants, fetchLiveGroups, resetGroupCache, resetGroupCooldown } from "../server/groups.ts";
+import { afterEach, beforeEach, vi } from "vitest";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, fetchLiveGroups, resetGroupCache, resetGroupCooldown, sendGroupInvite, updateGroupParticipants } from "../server/groups.ts";
 
 describe("limite do WhatsApp na lista de grupos", () => {
   afterEach(() => {
@@ -61,20 +61,20 @@ describe("limite do WhatsApp na lista de grupos", () => {
   });
 });
 
-describe("adicionar participante a grupo existente", () => {
+describe("adicionar/remover/promover/rebaixar participante de grupo existente", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("chama o endpoint de atualizar participantes com action add", async () => {
+  it("chama o endpoint de atualizar participantes com a ação pedida", async () => {
     process.env.EVOLUTION_API_URL = "https://evo.exemplo";
     process.env.EVOLUTION_INSTANCE = "i";
     process.env.EVOLUTION_API_KEY = "k";
     const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    const result = await updateGroupParticipants("120363@g.us", "promote", ["5585986139044"]);
     expect(result.ok).toBe(true);
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/group/updateParticipant/i");
     const body = JSON.parse(init.body as string);
-    expect(body).toEqual({ groupJid: "120363@g.us", action: "add", participants: ["5585986139044"] });
+    expect(body).toEqual({ groupJid: "120363@g.us", action: "promote", participants: ["5585986139044"] });
   });
 
   it("HTTP de erro vira detalhe claro, sem exceção", async () => {
@@ -82,7 +82,7 @@ describe("adicionar participante a grupo existente", () => {
     process.env.EVOLUTION_INSTANCE = "i";
     process.env.EVOLUTION_API_KEY = "k";
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 400 })));
-    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    const result = await updateGroupParticipants("120363@g.us", "add", ["5585986139044"]);
     expect(result.ok).toBe(false);
     expect(result.detail).toContain("400");
   });
@@ -91,8 +91,52 @@ describe("adicionar participante a grupo existente", () => {
     delete process.env.EVOLUTION_API_URL;
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const result = await addGroupParticipants("120363@g.us", ["5585986139044"]);
+    const result = await updateGroupParticipants("120363@g.us", "remove", ["5585986139044"]);
     expect(result.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("consultas novas de grupo (info, participantes, convite)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    process.env.EVOLUTION_API_URL = "https://evo.exemplo";
+    process.env.EVOLUTION_INSTANCE = "i";
+    process.env.EVOLUTION_API_KEY = "k";
+  });
+
+  it("findGroupInfos traz descrição, dono e tamanho", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ subject: "Operacional", desc: "Grupo da equipe", owner: "5585992494552@s.whatsapp.net", size: 3, creation: 1760000000 }), { status: 200 })));
+    const result = await fetchGroupInfo("120363@g.us");
+    expect(result).toMatchObject({ ok: true, info: { subject: "Operacional", description: "Grupo da equipe", owner: "5585992494552", size: 3 } });
+  });
+
+  it("participants lista número e quem é admin", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ participants: [{ id: "5585992494552@s.whatsapp.net", admin: "superadmin" }, { id: "5585911112222@s.whatsapp.net", admin: null }] }), { status: 200 })));
+    const result = await fetchGroupParticipants("120363@g.us");
+    expect(result).toMatchObject({ ok: true, participants: [{ number: "5585992494552", isAdmin: true }, { number: "5585911112222", isAdmin: false }] });
+  });
+
+  it("inviteCode monta o link a partir do inviteCode devolvido", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ inviteCode: "ABC123" }), { status: 200 })));
+    const result = await fetchGroupInviteCode("120363@g.us");
+    expect(result).toEqual({ ok: true, link: "https://chat.whatsapp.com/ABC123" });
+  });
+
+  it("sendInvite manda groupJid, números e descrição", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await sendGroupInvite("120363@g.us", "Operacional", ["5585911112222"], "Entra no grupo!");
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/group/sendInvite/i");
+    expect(JSON.parse(init.body as string)).toEqual({ groupJid: "120363@g.us", groupName: "Operacional", numbers: ["5585911112222"], description: "Entra no grupo!" });
+  });
+
+  it("erro HTTP nas consultas novas não lança exceção", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
+    expect((await fetchGroupInfo("x")).ok).toBe(false);
+    expect((await fetchGroupParticipants("x")).ok).toBe(false);
+    expect((await fetchGroupInviteCode("x")).ok).toBe(false);
   });
 });
