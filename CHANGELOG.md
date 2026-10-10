@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — LinkedIn simétrico entre Claude e Codex
+
+- **Correção do owner:** a Zernio é uma API nossa, direta — diferente de um conector MCP exclusivo de um provedor (Gmail/Meta Ads/Instagram do claude.ai, que o Codex de fato não herda). Não há motivo pra um executor ter uma ferramenta Zernio e o outro não.
+- **Achado:** `linkedin_contas`, `linkedin_organizacoes`, `linkedin_desempenho` e `linkedin_publicar` só existiam em `server/codexMaiaMcp.ts` (a ponte do Codex) — o executor principal (Claude, via `server/maiaImageTool.ts`) não tinha nenhuma ferramenta de LinkedIn.
+- **Correção:** as 4 ferramentas de LinkedIn foram copiadas para `maiaImageTool.ts`. Novo par simétrico nos dois lados: `linkedin_post_cancelar` e `linkedin_post_editar`, reaproveitando `cancelScheduledPost`/`updateScheduledPost` (já criadas para o Instagram; não são específicas de uma rede, operam por `postId` da Zernio). `approvalPolicy.ts` passa a exigir OK para cancelar/editar também no LinkedIn.
+- **Verificação:** `pnpm typecheck`, `pnpm test` (285), `pnpm rules:check` e `pnpm db:validate` aprovados.
+
 ## 2026-10-10 — Instagram: carrossel, Reels, Story, cancelar e editar post
 
 - **Pedido do owner:** publicar Reels, Stories e carrossel, e poder cancelar/editar um post, "que funcione já".

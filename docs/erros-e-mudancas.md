@@ -10,6 +10,12 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Correção:** catálogo único versionado, Markdown gerado, prompt com seções e reserva completa; cache isolado por banco e números lidos no momento da execução. Histórico sai da busca operacional, mas os arquivos e trechos permanecem preservados.
 - **Erro de indexação:** checksum era publicado antes de concluir os vetores e os trechos antigos eram apagados antes da troca. Agora a gravação é atômica, compara a versão anterior e permite reparar fonte incompleta/inativa.
 - **Instagram:** versão 2026-10-10.2 alinhada no catálogo, documento e Supabase (39 regras; hash `5f40630d48d31010801c35e10eedcdd4507dcce36d943c5c00b6a56b0326c0ca`). Inclui foto, carrossel, Reels, Story, edição/cancelamento de posts não publicados e privacidade do inbox/automações. Recursos espelhados no executor Codex.
+
+## LinkedIn simétrico entre Claude e Codex (10/10/2026)
+
+- **Problema:** as 4 ferramentas de LinkedIn (contas, organizações, desempenho, publicar) só existiam na ponte do Codex; o executor principal (Claude) não tinha nenhuma.
+- **Correção do owner:** Zernio é API direta, não conector MCP exclusivo — não deve haver diferença de capacidade entre os executores para o que passa por ela.
+- **Mudança:** as 4 ferramentas foram espelhadas no Claude; novas `linkedin_post_cancelar`/`linkedin_post_editar` nos dois executores, reaproveitando as mesmas funções genéricas (por `postId`) já criadas para o Instagram.
 - **Correções:** timestamps futuros não abrem janela do Direct; pedidos de aprovação e resumo persistido mostram a ação e o texto em análise. Manual e painel corrigidos.
 - **Verificação:** migrações validadas, regra remota alinhada e documento sincronizado sem erro; typecheck e regras geradas conferidos. A última suíte completa anterior às correções passou com 281 Vitest + 32 de banco e não foi repetida nesta revisão. Build mantém aviso acima de 500 kB. Conversas reais, inspeção autenticada e ações externas continuam pendentes; consulta de áudio depende de reconexão Facebook Login.
 - **Pendências de produto:** avaliação semântica em conversa real, fingerprint de aprovação e retenção futura de `messages` continuam em `TODO.md`; não foram declarados implementados.
