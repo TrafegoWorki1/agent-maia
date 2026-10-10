@@ -83,7 +83,7 @@ async function guarded(tool: string, input: Record<string, unknown>, run: () => 
 const server = new McpServer({ name: "maia", version: "1.0.0" });
 
 for (const t of workTools) {
-  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape, annotations: { readOnlyHint:t.name === "tarefas_listar", destructiveHint:false, openWorldHint:false } }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args, taskId))));
 }
 server.registerTool("operacao_resumo", { description: "Consulta tarefas de trabalho com prazos/lembretes, pedidos, aprovações e conexões. Dados privados do owner.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));

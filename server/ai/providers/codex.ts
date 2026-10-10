@@ -39,8 +39,14 @@ export interface CodexMcpContext {
   channel: "whatsapp" | "painel";
   requester: Requester;
   inGroup: boolean;
-  onToolUse?: (tool: string) => Promise<void>;
+  onToolUse?: (tool: string, failed?: boolean) => Promise<void>;
 }
+
+// O CLI não precisa pedir uma segunda aprovação interativa para chamar nossa
+// ponte. Isso NÃO autoriza a ação: guarded()/allowed() continuam validando papel,
+// escopo, limites e OK no banco antes de qualquer efeito externo. Só o servidor
+// local "maia" recebe essa configuração; sandbox/rede do modelo não mudam.
+export const MAIA_MCP_POLICY = { default_tools_approval_mode: "approve", required: true } as const;
 
 export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext }): Promise<CodexTextResult> {
   const t0 = Date.now();
@@ -60,7 +66,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
       // segredo do projeto; o processo MCP lê o .env somente do lado servidor.
       codexPathOverride: codexExecutable(),
       env: minimalEnv() as Record<string, string>,
-      config: { mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context } } },
+      config: { mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context, ...MAIA_MCP_POLICY } } },
     });
     const thread = codex.startThread({
       ...(input.model ? { model: input.model } : {}),
@@ -74,7 +80,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     const run = await thread.runStreamed(input.prompt, { signal: controller.signal });
     let final = "";
     for await (const event of run.events) {
-      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") await input.mcp.onToolUse?.(`mcp__maia__${event.item.tool}`);
+      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") await input.mcp.onToolUse?.(`mcp__maia__${event.item.tool}`, event.item.status === "failed" || !!event.item.error);
       if (event.type === "item.completed" && event.item.type === "agent_message") final = event.item.text;
     }
     if (!final.trim()) return { ok: false, error: "o Codex não devolveu resposta", durationMs: Date.now() - t0 };
