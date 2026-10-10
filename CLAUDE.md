@@ -36,6 +36,7 @@ Leia `plan.md`, `TODO.md`, `README.md` e `docs/analise-da-referencia.md` antes d
 
 ## Desenvolvimento
 
+- Organização do painel (10/10/2026): Conexões e dados apresenta disponibilidade, sincronização e erros; Indicadores apresenta desempenho operacional e investimento. Cada KPI identifica período e denominador. Não somar investimentos em moedas diferentes ou inventar métricas de tráfego que a coleta não fornece.
 - Stack atual: React + TypeScript + Vite, pnpm 11.25.0.
 - Instalação: `pnpm install`; execução: `pnpm dev`; qualidade: `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - Mantenha a regra de autorização em `src/lib/authorization.ts`, independente de componentes.

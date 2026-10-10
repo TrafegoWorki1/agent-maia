@@ -8,6 +8,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10
+
+### Corrigido (Indicadores e Conexões exibiam dados semelhantes)
+
+- Problema: ambas as telas usavam cartões de gasto, e-mails não lidos e planilhas recentes, misturando resultados com diagnóstico de integrações.
+- Conexões e dados passou a usar tabelas de serviços e sincronização: estado observado, última tentativa e diagnóstico. A coleta fica desatualizada após 60 minutos; ausência de dados não aparece como conexão ativa. O registro atual não informa separadamente o horário do último dado bom quando há erro.
+- Indicadores passou a mostrar entrega operacional da semana: pedidos, taxa de resposta, taxa de conclusão entre tarefas encerradas, falhas, resultados incertos e aprovações pendentes atuais. Mostra também nota operacional, ações conferidas e percentual de respostas em até dois minutos.
+- Investimento do Meta Ads fica em Indicadores, separado por moeda e identificado pela data da coleta. CTR, CPC, conversões e ROAS dependem de uma futura ampliação da coleta (etapa 2, ainda não implementada).
+- Mudança apenas na apresentação: usa o contrato de dados existente, sem migração ou alteração na coleta.
+- Verificação: TypeScript e build de produção passaram. A revisão de React conferiu dependências/limpeza do polling, estados vazios, tabelas e ausência de valores inventados. Ainda sem inspeção visual no navegador autenticado.
+
 ## 2026-10-09
 
 ### Corrigido (fallback do Claude para o Codex no limite)
