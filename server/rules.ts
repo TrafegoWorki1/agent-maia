@@ -39,17 +39,25 @@ export async function listRules(db: Db): Promise<MaiaRule[]> {
   return (data ?? []) as MaiaRule[];
 }
 
+// Números reais do dono e do aprovador: só aqui, nunca no texto das regras (que a tela "Regras da Maia"
+// mostra por completo). Vêm do .env a cada montagem do prompt, não do banco.
+function runtimeNumbers(): string {
+  const owner = process.env.EVOLUTION_OWNER_NUMBER;
+  const approver = process.env.EVOLUTION_APPROVER_NUMBER;
+  return `Número do dono (para colocar ele num grupo, por exemplo, ou pela aprovação dele): ${owner ?? "não configurado"}. Número do aprovador (só aceita OK/NÃO): ${approver ?? "não configurado"}.`;
+}
+
 // Texto do prompt de sistema, com as regras ativas. Cache curto para não consultar a cada mensagem.
 export async function buildSystemPrompt(db: Db, now = Date.now()): Promise<string> {
   if (cache && now - cache.at < CACHE_MS) return cache.text;
   try {
     const rules = (await listRules(db)).filter((r) => r.ativa);
-    if (rules.length === 0) return `${FALLBACK_PROMPT} ${EXECUTION_GUIDELINES}`;
-    const text = `${rules.map((r) => r.texto).join(" ")} ${EXECUTION_GUIDELINES}`;
+    if (rules.length === 0) return `${FALLBACK_PROMPT} ${EXECUTION_GUIDELINES} ${runtimeNumbers()}`;
+    const text = `${rules.map((r) => r.texto).join(" ")} ${EXECUTION_GUIDELINES} ${runtimeNumbers()}`;
     cache = { at: now, text };
     return text;
   } catch (error) {
     console.error("[regras] usando a cópia de reserva:", error instanceof Error ? error.message : error);
-    return `${FALLBACK_PROMPT} ${EXECUTION_GUIDELINES}`;
+    return `${FALLBACK_PROMPT} ${EXECUTION_GUIDELINES} ${runtimeNumbers()}`;
   }
 }
