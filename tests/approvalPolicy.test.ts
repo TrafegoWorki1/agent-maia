@@ -27,6 +27,12 @@ describe("dono tem autonomia no que é interno e privado", () => {
     expect(decideAccess("mcp__maia__grupo_enviar_texto", owner, { groupRegistered: false }, false).decision).toBe("approve");
     expect(decideAccess("mcp__maia__grupo_agendar", owner, {}, false).decision).toBe("approve");
   });
+  it("adicionar participante a grupo existente segue a mesma regra de grupo cadastrado", () => {
+    expect(decideAccess("mcp__maia__grupo_adicionar_participante", owner, { groupRegistered: true }, false).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__grupo_adicionar_participante", owner, { groupRegistered: false }, false).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__grupo_adicionar_participante", member("mensagem.enviar"), { groupRegistered: true }, false).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__grupo_adicionar_participante", member(), { groupRegistered: true }, false).decision).toBe("approve");
+  });
   it("mais de 3 contatos no mesmo pedido pede OK", () => {
     expect(decideAccess("mcp__maia__contato_enviar_mensagem", owner, { dmInTask: 2 }, false).decision).toBe("allow");
     expect(decideAccess("mcp__maia__contato_enviar_mensagem", owner, { dmInTask: 3 }, false).decision).toBe("approve");

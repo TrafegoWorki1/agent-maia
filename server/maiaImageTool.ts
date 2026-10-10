@@ -11,7 +11,7 @@ import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { addTaskEvent, getDb } from "./store.ts";
-import { registerGroup } from "./groups.ts";
+import { addGroupParticipants, registerGroup } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -175,6 +175,28 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: `Texto enviado no grupo "${group.group.subject}" e aceito pelo WhatsApp (mensagem ${id}).` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_adicionar_participante",
+        "Adiciona uma ou mais pessoas a um grupo do WhatsApp que já existe (diferente de criar grupo). Use quando pedirem para colocar alguém num grupo já existente. Informe o nome exato do grupo.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
+          participantes: z.array(z.string().max(60)).min(1).max(20).describe("Quem adicionar: números com DDI+DDD ou nomes cadastrados em Pessoas."),
+        },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não adicionei: ${group.error}.` }], isError: true };
+          const participants = await resolveMentions(getDb(), args.participantes);
+          if (!participants.ok) return { content: [{ type: "text", text: `Não adicionei: ${participants.error}.` }], isError: true };
+          try {
+            const result = await addGroupParticipants(group.group.jid, participants.numbers);
+            if (!result.ok) return { content: [{ type: "text", text: `Não consegui adicionar ao grupo "${group.group.subject}": ${result.detail}.` }], isError: true };
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_adicionar_participante", group.group.subject).catch(() => {});
+            return { content: [{ type: "text", text: `Pedido aceito pela Evolution para adicionar ${participants.numbers.length} pessoa(s) ao grupo "${group.group.subject}". Não tenho como confirmar aqui se a pessoa entrou de fato (ela pode ter configuração que exige aprovação para entrar); confira no WhatsApp.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui adicionar ao grupo: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }
         },
       ),

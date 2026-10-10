@@ -6,7 +6,7 @@ import type { Db } from "./store.ts";
 // mensagem neste pedido?
 export async function accessContext(db: Db, taskId: number, toolName: string, input: Record<string, unknown>): Promise<AccessContext> {
   const ctx: AccessContext = {};
-  if (/^mcp__maia__grupo_(enviar_texto|enviar_enquete|agendar)$/.test(toolName)) {
+  if (/^mcp__maia__grupo_(enviar_texto|enviar_enquete|agendar|adicionar_participante)$/.test(toolName)) {
     const name = typeof input.grupo === "string" ? input.grupo : "";
     const group = name ? await resolveGroup(name) : null;
     if (group?.ok) {

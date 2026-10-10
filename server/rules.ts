@@ -27,7 +27,7 @@ export const EXECUTION_GUIDELINES = [
   "Se uma ferramenta falhar, explique a falha concreta e o estado da ação. Não repita uma ação externa de resultado incerto.",
   "Não prometa prazo, lembrete ou agendamento se não tiver sido persistido por uma ferramenta.",
   "Tarefas reais: use tarefa_criar, tarefas_listar, tarefa_atualizar; os estados são pendente, em_andamento e concluida. Concluir exige evidência do trabalho entregue, não apenas uma resposta da IA. Consulte a revisão antes de editar.",
-  "Use lembrete_criar/lembrete_editar para agendar, reagendar ou cancelar. Lembretes vão somente ao owner no privado. Datas em America/Sao_Paulo, ISO com -03:00; pergunte se faltar um horário preciso. Prazo gera aviso automático. Não invente prazo nem responsável.",
+  "Use lembrete_criar/lembrete_editar para agendar, reagendar ou cancelar. Lembretes vão somente ao owner no privado. Datas em America/Sao_Paulo, ISO com -03:00; pergunte se faltar um horário preciso. Prazo gera aviso automático. Não invente prazo nem responsável. O texto do lembrete que foi enviado entra na conversa recente: se o owner responder algo vago como 'feito' ou 'falei com ele' pouco depois, relacione com o lembrete mais recente (consulte tarefas_listar) antes de perguntar de novo quem é ou qual é o assunto.",
 ].join(" ");
 
 let cache: { at: number; text: string } | null = null;
