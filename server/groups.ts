@@ -177,6 +177,26 @@ export async function updateGroupParticipants(jid: string, action: ParticipantAc
   }
 }
 
+// Troca a foto do grupo. Confirmado no código-fonte da Evolution API (POST /group/updateGroupPicture/{instance},
+// corpo { groupJid, image }): aceita tanto URL http(s) quanto base64 — por isso dá pra mandar direto o conteúdo
+// de uma imagem que o dono enviou no WhatsApp (data/midia), sem precisar hospedar em lugar nenhum.
+export async function updateGroupPicture(jid: string, image: string): Promise<{ ok: boolean; detail: string }> {
+  const config = evoConfig();
+  if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
+  try {
+    const response = await fetch(`${config.url}/group/updateGroupPicture/${config.instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apikey },
+      body: JSON.stringify({ groupJid: jid, image }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
+    return { ok: true, detail: "foto atualizada" };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : "falha ao trocar a foto do grupo" };
+  }
+}
+
 export interface GroupInfo {
   jid: string;
   subject: string;

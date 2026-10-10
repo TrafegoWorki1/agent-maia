@@ -1,4 +1,5 @@
 import { relative } from "node:path";
+import { readFileSync } from "node:fs";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
@@ -13,7 +14,7 @@ import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { addTaskEvent, getDb } from "./store.ts";
-import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, type ParticipantAction } from "./groups.ts";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
@@ -289,6 +290,30 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: `Convite do grupo "${group.group.subject}" enviado para ${contacts.numbers.length} contato(s).` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar o convite: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_alterar_foto",
+        "Troca a foto de um grupo do WhatsApp, usando uma imagem que o dono mandou (data/midia) ou uma arte gerada (data/arte). Ação que sai para fora, visível a todos do grupo: em grupo cadastrado, o owner não precisa de OK; em grupo não cadastrado, exige aprovação, igual às outras ações de grupo.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo."),
+          arquivo: z.string().min(3).max(300).describe("Caminho da imagem: o que veio no aviso de mídia recebida (data/midia) ou de artes_recentes (data/arte)."),
+        },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não troquei a foto: ${group.error}.` }], isError: true };
+          const owned = resolveOwnerMediaPath(args.arquivo);
+          const resolved = owned.ok ? owned : resolveArtPath(args.arquivo);
+          if (!resolved.ok) return { content: [{ type: "text", text: `Não troquei a foto: ${resolved.error}.` }], isError: true };
+          try {
+            const image = readFileSync(resolved.path).toString("base64");
+            const result = await updateGroupPicture(group.group.jid, image);
+            if (!result.ok) return { content: [{ type: "text", text: `Não consegui trocar a foto: ${result.detail}.` }], isError: true };
+            if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_alterar_foto", group.group.subject).catch(() => {});
+            return { content: [{ type: "text", text: `Foto do grupo "${group.group.subject}" trocada.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui trocar a foto: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }
         },
       ),
