@@ -5,6 +5,7 @@ import { loadLocalEnv } from "./server/loadEnv.ts";
 import { getDb, recentMessages, recoverStaleTasks } from "./server/store.ts";
 import { answerFromPanel } from "./server/maiaOwnerAgent.ts";
 import { buildSnapshot } from "./server/snapshot.ts";
+import { handleWorkspace, json } from "./server/workspaceApi.ts";
 import { isRefreshing, refreshAll, scheduleRefresh } from "./server/refreshJob.ts";
 
 // Só o próprio computador lê o painel: o painel mostra dados pessoais de contas reais.
@@ -38,6 +39,10 @@ function maiaAgentApi(): Plugin {
       // Atualização periódica das fontes (Gmail, Meta Ads, Sheets), só neste processo local.
       const stopRefresh = scheduleRefresh(db);
       server.httpServer?.once("close", stopRefresh);
+      server.middlewares.use("/api/workspace", (req, res) => {
+        if (!isLocalRequest(req.headers.host)) return json(res,403,{ error: "local_only" });
+        void handleWorkspace(req,res,db,"owner-local");
+      });
 
       server.middlewares.use("/api/snapshot", async (req, res) => {
         const send = (status: number, body: unknown) => {

@@ -2,6 +2,25 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Aplicação do plano em 10/10/2026: trabalho, lembretes e eficácia
+
+- Problema: `tarefa ...` criava uma execução da IA, sem prazo/responsável/estado real. Correção: `work_tasks` independente, três estados, revisão otimista, histórico por transação e conclusão com evidência informada. Tarefa respondida pela LLM não é trabalho entregue.
+- Lembretes: prazo gera aviso ao owner, novos horários ISO com fuso explícito; edição/cancelamento, claim atômico, ID de aceitação, falhas/incertezas no painel. Dependem do worker ativo, inclusive após suspensão/reinício do computador; pendências vencidas são consumidas quando ele volta.
+- Falha HTTP 400 anterior: o corpo não era diagnosticado. Agora o erro expõe HTTP e classificação segura, sem salvar conteúdo privado. Resposta persistida, envio dividido, execução e entrega separados. Apenas respostas rejeitadas podem ser reenviadas pontualmente pelo painel; não refaz o pedido nem a ação externa. Timeout/5xx/sem ID/queda não repete automaticamente.
+- Relevância/resolução: revisão humana com resultado esperado, justificativa e eventos; novos pedidos/respostas WhatsApp ficam disponíveis por sete dias na outbox. Registros antigos exigem conferência na conversa original. Sem avaliações não há nota; meta de 90% em pelo menos 20 casos ainda não está comprovada.
+- Claude e Codex compartilham cinco ferramentas novas de trabalho e o resumo atualizado; permissões mantidas. A interface e a API administrativas têm escopo do owner, não autorização por perfil demonstrativo do navegador.
+- Verificações iniciais: TypeScript aprovado; 185 testes de aplicação e 27 de banco temporário aprovados. Incluem RLS/privilégios, constraints, prazo e histórico atômicos, claim sem repetição e ordem das partes de resposta.
+- Impedimentos encontrados: ferramenta do navegador não inicializa (`os error 3`); CLI Supabase recusa o BOM existente no `.env`. Verificação visual autenticada não realizada. Migração executada pela CLI a partir de cópia temporária, preservando `.env` e a versão SQL original.
+- Alteração preexistente em `server/inbox.ts` pertence ao usuário e permanece fora desta entrega/commit.
+
+### Ativação e verificação final
+
+- Migração aplicada com `supabase db push --linked --yes`, preservando versão/histórico. `db:drift`: 565 objetos esperados e 565 reais, sem divergência.
+- Teste real: tarefa técnica #1, lembrete #1, Evolution aceitou o envio com ID `3EB09A20C8D5860DB245C1`. Tarefa encerrada com evidência técnica; não representa tarefa de negócio nem leitura da mensagem. Nenhum envio a terceiros/publicação.
+- Ponte nativa Codex: 21 ferramentas, incluindo as cinco de tarefas/lembretes; consulta somente leitura retornou tarefa/lembrete reais sem erro. Importação do worker no Node 24 validada. A primeira execução nativa detectou propriedade de parâmetro TypeScript incompatível com strip-only; corrigida antes de ativar o worker.
+- Verificação final de lógica/API/DOM: 190 testes em 30 arquivos e 27 testes de banco temporário; TypeScript, reconstrução do esquema e build aprovados. Bundle de 515,88 kB continua com aviso não bloqueante. DOM não substitui revisão visual autenticada.
+- Launcher suporta `--headless` para ativação em segundo plano sem abrir janela do navegador; a abertura normal do `.bat` permanece igual. Worker e deploy serão conferidos após o commit.
+
 ## Atualização de 10/10/2026: relevância, eficácia e qualidade
 
 - Problema confirmado: nota 3/10 limitada por tentativas de publicação bloqueadas/expiradas, sem efeito externo. O cálculo agora exige `external_done` e aprovação anterior da mesma tarefa/operação; uma autorização vale uma ação. Expiração respeitada conta como controle correto.

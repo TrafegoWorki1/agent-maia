@@ -197,7 +197,7 @@ export function buildScorecard(input: ScorecardInput, week: string): Scorecard {
     comunicacao: { passed: replied.length, total: operational.length },
   };
   const dimensions = Object.fromEntries((Object.keys(samples) as Dimension[]).map((key) => [key, score(samples[key].passed, samples[key].total)])) as Scorecard["dimensions"];
-  const deliveryFailures = new Set(eventsOf("task_failed").filter((e) => /Evolution.*(?:sendText|sendMedia|envio)/i.test(e.detail ?? "")).map((e) => e.task_id)).size;
+  const deliveryFailures = new Set([...eventsOf("delivery_failed"), ...eventsOf("task_failed").filter((e) => /Evolution.*(?:sendText|sendMedia|envio)/i.test(e.detail ?? ""))].map((e) => e.task_id)).size;
   const toolFailures = eventsOf("tool_failed").length;
   const withoutEvidence = externalActions - verified;
   const priorities: Scorecard["priorities"] = [];

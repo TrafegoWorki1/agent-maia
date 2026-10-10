@@ -1,15 +1,31 @@
 // Envia texto pela instância da Evolution. Só é usado para responder ao dono autorizado.
 export async function sendOwnerText(number: string, text: string): Promise<void> {
-  const base = process.env.EVOLUTION_API_URL;
-  const key = process.env.EVOLUTION_API_KEY;
-  const instance = process.env.EVOLUTION_INSTANCE;
-  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
-  const response = await fetch(`${base}/message/sendText/${instance}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: key },
-    body: JSON.stringify({ number, text }),
-  });
-  if (!response.ok) throw new Error(`Evolution sendText falhou: HTTP ${response.status}`);
+  for (const part of splitReply(text)) await sendTextChecked(number, part);
+}
+
+export class DeliveryError extends Error {
+  readonly uncertain: boolean;
+  constructor(message: string, uncertain: boolean) { super(message); this.name = "DeliveryError"; this.uncertain = uncertain; }
+}
+
+export function splitReply(text: string, max = 3000): string[] {
+  if (!Number.isInteger(max) || max < 1) throw new DeliveryError("Limite de mensagem inválido", false);
+  const chars = Array.from(text.trim());
+  if (!chars.length) throw new DeliveryError("Evolution sendText: resposta vazia", false);
+  const parts: string[] = [];
+  while (chars.length) parts.push(chars.splice(0, max).join(""));
+  return parts;
+}
+
+// Somente diagnóstico controlado: nunca salva corpo cru (pode conter texto/número/chaves).
+export function deliveryDiagnostic(body: unknown): string {
+  const raw = JSON.stringify(body ?? {}).toLowerCase();
+  if (/not connected|connection closed|disconnected|connection.*not open/.test(raw)) return "instância desconectada";
+  if (/not.*whatsapp|invalid.*number|number.*invalid|exists.*false/.test(raw)) return "destinatário inválido ou não registrado";
+  if (/too long|maximum|max length|length.*exceed/.test(raw)) return "texto excedeu limite";
+  if (/unauthorized|invalid.*key|forbidden/.test(raw)) return "autenticação recusada";
+  if (/required|validation|bad request/.test(raw)) return "validação do pedido recusada";
+  return "sem diagnóstico seguro retornado";
 }
 
 // Limite de tamanho do áudio (nota de voz ou arquivo) baixado da Evolution.
@@ -65,15 +81,19 @@ export async function sendTextChecked(number: string, text: string): Promise<str
   const base = process.env.EVOLUTION_API_URL;
   const key = process.env.EVOLUTION_API_KEY;
   const instance = process.env.EVOLUTION_INSTANCE;
-  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
-  const response = await fetch(`${base}/message/sendText/${instance}`, {
+  if (!base || !key || !instance) throw new DeliveryError("Evolution não configurada no .env", false);
+  if (!text.trim() || !number || Array.from(text).length > 3000) throw new DeliveryError("Evolution sendText: destinatário/texto inválido ou maior que 3000 caracteres", false);
+  let response: Response;
+  try { response = await fetch(`${base.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: key },
     body: JSON.stringify({ number, text }),
     signal: AbortSignal.timeout(20_000),
-  });
+  }); } catch {
+    throw new DeliveryError("Evolution sendText: rede/tempo limite; resultado incerto, não repetir automaticamente", true);
+  }
   const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
   const id = typeof body?.key?.id === "string" ? body.key.id : null;
-  if (!response.ok || !id) throw new Error(`a Evolution não confirmou o envio (HTTP ${response.status})`);
+  if (!response.ok || !id) throw new DeliveryError(`Evolution sendText falhou: HTTP ${response.status}; ${deliveryDiagnostic(body)}${response.ok ? "; sem ID, resultado incerto" : ""}`, response.ok || response.status >= 500 || response.status === 408);
   return id;
 }

@@ -89,4 +89,4 @@ log("launcher", `iniciando (pid ${process.pid}, Node ${process.version})`);
 startWorker();
 log("launcher", `Maia ativa: mensagens chegam pela Vercel (${PUBLIC_URL}). O painel local (porta 3000) não sobe mais por aqui; use pnpm dev se precisar.`);
 log("launcher", "Feche esta janela (ou Ctrl+C) para desligar.");
-spawn("cmd", ["/c", "start", "", PUBLIC_URL], { stdio: "ignore" });
+if (!process.argv.includes("--headless")) spawn("cmd", ["/c", "start", "", PUBLIC_URL], { stdio: "ignore" });

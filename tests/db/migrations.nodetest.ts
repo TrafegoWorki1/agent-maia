@@ -21,6 +21,48 @@ after(async () => {
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
 
+describe("plano de eficácia: trabalho, lembretes e entrega", () => {
+  it("cria histórico e lembrete de prazo na mesma transação; não duplica claim", async () => {
+    const t = (await q("insert into work_tasks(title,responsible,due_at,request_key) values('Validar fluxo','Owner',now() - interval '1 minute','test:work') returning id,revision"))[0];
+    assert.equal(t.revision,1);
+    assert.equal((await q("select * from work_task_updates where work_task_id = $1",[t.id])).length,1);
+    const claimed = await q("select * from claim_task_reminders(10)");
+    assert.equal(claimed.length,1);
+    assert.equal((await q("select * from claim_task_reminders(10)")).length,0);
+    await rejects(q("update work_tasks set due_at = now() where id = $1",[t.id]),/em envio/i);
+    await q("update task_reminders set status = 'failed' where id = $1",[claimed[0].id]);
+    await q("update work_tasks set due_at = now() + interval '1 day' where id = $1",[t.id]);
+    assert.equal((await q("select status from task_reminders where work_task_id = $1",[t.id]))[0].status,"pending");
+    await rejects(q("update work_tasks set status = 'concluida' where id = $1",[t.id]),/check/i);
+    await q("update work_tasks set status = 'concluida',completion_evidence = 'Documento entregue' where id = $1",[t.id]);
+    assert.equal((await q("select status from task_reminders where work_task_id = $1",[t.id]))[0].status,"cancelled");
+    assert.equal((await q("select * from work_task_updates where work_task_id = $1",[t.id])).length,3);
+    await rejects(q("insert into task_reminders(work_task_id,run_at,kind,request_key) values($1,now(),'manual','test:closed')",[t.id]),/concluída/i);
+    await rejects(q("insert into work_tasks(title,responsible,status,request_key) values('X','Owner','atrasada','test:invalid')"),/check/i);
+  });
+  it("entrega guarda ordem e não repete partes aceitas ou incertas", async () => {
+    const t = (await q("insert into tasks(channel,kind,summary,status) values('whatsapp','conversa','Teste entrega','em_andamento') returning id"))[0];
+    await q("insert into response_deliveries(task_id,part,recipient,text) values($1,0,'owner','Parte 1'),($1,1,'owner','Parte 2')",[t.id]);
+    const first = await q("select * from claim_response_delivery($1)",[t.id]);
+    assert.equal(first[0].part,0);
+    assert.equal((await q("select * from claim_response_delivery($1)",[t.id])).length,0);
+    await q("update response_deliveries set status = 'sent',message_id = 'test-msg' where id = $1",[first[0].id]);
+    const second = await q("select * from claim_response_delivery($1)",[t.id]);
+    assert.equal(second[0].part,1);
+    await q("update response_deliveries set status = 'uncertain' where id = $1",[second[0].id]);
+    assert.equal((await q("select * from claim_response_delivery($1)",[t.id])).length,0);
+    await rejects(q("update response_deliveries set status = 'sent' where id = $1",[second[0].id]),/check/i);
+  });
+  it("tabelas privadas não são legíveis por anon e RPCs não são públicas", async () => {
+    for (const table of ['work_tasks','work_task_updates','task_reminders','task_evaluations','response_deliveries']) {
+      assert.equal((await q("select relrowsecurity from pg_class where oid = $1::regclass",[`public.${table}`]))[0].relrowsecurity,true);
+      assert.equal((await q("select has_table_privilege('anon',$1,'select') as allowed",[`public.${table}`]))[0].allowed,false);
+      assert.equal((await q("select has_table_privilege('service_role',$1,'select') as allowed",[`public.${table}`]))[0].allowed,true);
+    }
+    assert.equal((await q("select has_function_privilege('authenticated','claim_task_reminders(integer)','execute') as allowed"))[0].allowed,false);
+  });
+});
+
 describe("migrações reconstroem o banco do zero", () => {
   it("todas as migrações do repositório aplicam em ordem", () => {
     assert.deepEqual(local.applied, listMigrations());

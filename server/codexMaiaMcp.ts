@@ -10,6 +10,7 @@ import { loadContacts, matchContacts, resolveContact, registerMember } from "./c
 import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, uploadImage } from "./integrations/zernio.ts";
 import { recordActionEvidence } from "./actionEvidence.ts";
 import { operationalSummary } from "./operationalSummary.ts";
+import { workTools } from "./workTasks.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { recordConvMessage } from "./conversations.ts";
@@ -81,7 +82,11 @@ async function guarded(tool: string, input: Record<string, unknown>, run: () => 
 
 const server = new McpServer({ name: "maia", version: "1.0.0" });
 
-server.registerTool("operacao_resumo", { description: "Consulta organização operacional atual no banco: pedidos recentes, estados, aprovações e conexões. Dados internos do owner; prazos e lembretes de tarefas ainda não existem.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));
+for (const t of workTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args, taskId))));
+}
+server.registerTool("operacao_resumo", { description: "Consulta tarefas de trabalho com prazos/lembretes, pedidos, aprovações e conexões. Dados privados do owner.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));
 
 server.registerTool("buscar_conhecimento", { description: "Busca regras, decisões e registros na base interna da Maia.", inputSchema: { pergunta: z.string().min(3).max(500) } }, async ({ pergunta }) => guarded("mcp__maia__buscar_conhecimento", { pergunta }, async () => {
   const hits = await searchKnowledge(getDb(), pergunta, 4);

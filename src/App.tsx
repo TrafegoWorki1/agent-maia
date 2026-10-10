@@ -24,6 +24,7 @@ import { seedGroups } from "./data/seed";
 import { LiveChatPage } from "./features/chat/LiveChatPage";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
 import { GruposPage } from "./features/operacao/GruposPage";
+import { TarefasPage } from "./features/operacao/TarefasPage";
 import { PeoplePage } from "./features/people/PeoplePage";
 import { RegrasPage } from "./features/operacao/RegrasPage";
 import { ModelosPage } from "./features/operacao/ModelosPage";
@@ -54,6 +55,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: "resumo", label: "Resumo", icon: Home },
   { id: "indicadores", label: "Indicadores", icon: BarChart3 },
+  { id: "tarefas", label: "Tarefas e eficácia", icon: ShieldCheck },
   { id: "campanhas", label: "Campanhas / aulas", icon: Megaphone },
   { id: "vendas", label: "Vendas e comunidade", icon: CircleDollarSign },
   { id: "insights", label: "Customer insights", icon: Users },
@@ -408,6 +410,7 @@ export default function App() {
     switch (activePage) {
       case "resumo": return <ResumoPage />;
       case "indicadores": return <IndicadoresPage />;
+      case "tarefas": return <TarefasPage />;
       case "campanhas": return <CampanhasPage />;
       case "vendas": return <VendasPage />;
       case "insights": return <InsightsPage />;

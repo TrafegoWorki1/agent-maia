@@ -13,6 +13,8 @@ import { upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { runProactive } from "./proactive.ts";
+import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
+import { runResponseDeliveries } from "./responseDelivery.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -172,6 +174,16 @@ async function main(): Promise<void> {
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);
+  let delivering = false;
+  const deliveries = async () => {
+    if (delivering) return;
+    delivering = true;
+    try { await recoverDeliveries(db); await runResponseDeliveries(db); await runTaskReminders(db); }
+    catch (error) { console.error("[entregas/lembretes]", error instanceof Error ? error.message : error); }
+    finally { delivering = false; }
+  };
+  void deliveries();
+  setInterval(() => void deliveries(), 30_000);
 
   let lastPurge = 0;
   let stopping = false;
