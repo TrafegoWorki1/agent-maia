@@ -2,6 +2,12 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Permissões mais compactas (10/10/2026)
+
+- **Problema:** cartões com altura mínima de 91 px e padding amplo ocupavam espaço excessivo; o breakpoint de 1150 px também forçava uma única coluna mesmo com espaço para duas.
+- **Correção:** altura mínima de 44 px, padding de 9×10 px, gap de 6 px e grade automática conforme a largura do perfil. Descrições completas, tamanho das fontes e controles preservados.
+- **Validação:** build aprovado e 7 testes da tela Pessoas aprovados. Mudança apenas em CSS; sem alterações no banco/permissões. Inspeção visual no navegador não realizada; aviso de bundle acima de 500 kB permanece.
+
 ## Pessoas: organização e visual profissional (10/10/2026)
 
 - **Problema visual:** cada pessoa repetia todos os números e permissões na mesma página, tornando a leitura longa e pouco hierárquica.
