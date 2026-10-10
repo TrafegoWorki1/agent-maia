@@ -1,4 +1,5 @@
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
+import { describeAction } from "./actionDescriptions.ts";
 import { sendOwnerText, DeliveryError } from "./evolutionSend.ts";
 import { deliverResponse } from "./responseDelivery.ts";
 import { createImageServer, IMAGE_TOOL, isLocalSafeTool, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
@@ -85,9 +86,9 @@ function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(
     const approval = await createApproval(db, { kind: "ferramenta", toolName, summary: preview(input), taskId });
     await setTaskStatus(db, taskId, "aguardando_aprovacao");
     await addTaskEvent(db, taskId, "approval_requested", toolName, null);
-    const request = `Pedido de ação de escrita (#${approval.id})${requester ? ` feito por ${requester} ${local}` : ""} (${verdict.reason}):
-${toolName}
-${preview(input)}
+    // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK — só o que ela
+    // vai fazer, em português. O preview() cru continua só no registro interno (summary da aprovação).
+    const request = `Pedido de aprovação (#${approval.id})${requester ? ` feito por ${requester} ${local}` : ""}: ${describeAction(toolName, input)} (${verdict.reason}).
 
 Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 10 minutos, é recusada.`;
     await recordMessage(db, { channel: "whatsapp", author: "maia", text: request });

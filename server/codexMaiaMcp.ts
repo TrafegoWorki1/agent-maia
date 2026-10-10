@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { loadLocalEnv } from "./loadEnv.ts";
+import { describeAction } from "./actionDescriptions.ts";
 import { getDb, addTaskEvent, setTaskStatus, recordMessage } from "./store.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
@@ -61,7 +62,8 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   await setTaskStatus(db, taskId, "aguardando_aprovacao");
   await addTaskEvent(db, taskId, "approval_requested", tool, null);
   const who = requester();
-  const notice = `Pedido de ação (#${approval.id})${inGroup ? ` feito por ${who.name || "alguém"} no grupo` : ""} (${verdict.reason}):\n${tool}\n${JSON.stringify(input).slice(0, 300)}\n\nResponda OK para aprovar ou NÃO para recusar.`;
+  // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK.
+  const notice = `Pedido de aprovação (#${approval.id})${inGroup ? ` feito por ${who.name || "alguém"} no grupo` : ""}: ${describeAction(tool, input)} (${verdict.reason}).\n\nResponda OK para aprovar ou NÃO para recusar.`;
   await recordMessage(db, { channel: "whatsapp", author: "maia", text: notice });
   for (const to of await approverNumbers(db)) void sendOwnerText(to, notice);
   const outcome = await waitApproval(db, approval.id, approval.expiresAt);

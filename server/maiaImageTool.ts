@@ -198,7 +198,20 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             const result = await updateGroupParticipants(group.group.jid, action[args.acao], participants.numbers);
             if (!result.ok) return { content: [{ type: "text", text: `Não consegui ${verb[args.acao]} no grupo "${group.group.subject}": ${result.detail}.` }], isError: true };
             if (taskId) await addTaskEvent(getDb(), taskId, "external_done", "grupo_gerenciar_participantes", `${args.acao}: ${group.group.subject}`).catch(() => {});
-            return { content: [{ type: "text", text: `Pedido aceito pela Evolution para ${verb[args.acao]} ${participants.numbers.length} pessoa(s) no grupo "${group.group.subject}". Não tenho como confirmar aqui o resultado de fato (ex.: entrada pode exigir aprovação da pessoa); confira no WhatsApp.` }] };
+            // A Evolution devolve um status por número: aceitar a chamada não significa que cada pessoa entrou
+            // de fato (ex.: privacidade dela exige convite, vem como status diferente de 200). Bug real de
+            // 10/10/2026 (Gessica aceita pela Evolution, não entrou): agora conferimos cada número, não só o HTTP.
+            if (result.outcomes) {
+              const failed = result.outcomes.filter((o) => !o.accepted);
+              if (taskId && failed.length < result.outcomes.length) await addTaskEvent(getDb(), taskId, "task_verified", "grupo_gerenciar_participantes", `${result.outcomes.length - failed.length}/${result.outcomes.length} confirmado(s)`).catch(() => {});
+              if (failed.length === 0) {
+                return { content: [{ type: "text", text: `Confirmado: ${verb[args.acao]} ${result.outcomes.length} pessoa(s) no grupo "${group.group.subject}".` }] };
+              }
+              const detalhe = failed.map((o) => `+${o.number}${o.statusCode === "403" ? " (privacidade dela bloqueia entrada direta; só funciona com link de convite — posso gerar com grupo_convite_link e mandar com grupo_enviar_convite)" : o.statusCode ? ` (status ${o.statusCode})` : ""}`).join("; ");
+              const ok = result.outcomes.length - failed.length;
+              return { content: [{ type: "text", text: `Parcial: ${ok}/${result.outcomes.length} confirmado(s) no grupo "${group.group.subject}". Não deu para ${verb[args.acao]}: ${detalhe}.` }], isError: failed.length === result.outcomes.length };
+            }
+            return { content: [{ type: "text", text: `Pedido aceito pela Evolution para ${verb[args.acao]} ${participants.numbers.length} pessoa(s) no grupo "${group.group.subject}", mas a Evolution não devolveu o status de cada pessoa nesta chamada. Não confirmo o resultado de fato; confira no WhatsApp.` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }

@@ -115,9 +115,51 @@ async function executeCreateGroup(name: string, participants: string[]): Promise
 
 export type ParticipantAction = "add" | "remove" | "promote" | "demote";
 
+export interface ParticipantOutcome {
+  number: string;
+  accepted: boolean;
+  statusCode: string | null;
+}
+
+export interface UpdateParticipantsResult {
+  ok: boolean;
+  detail: string;
+  // Status por número, quando a Evolution devolve (ela devolve um resultado por participante, não só um
+  // HTTP geral). Sem isto, confiar no HTTP sozinho é falso: a Evolution pode aceitar a chamada e, ainda
+  // assim, não ter adicionado uma pessoa específica (ex.: privacidade dela exige convite). Bug real,
+  // confirmado em 10/10/2026 (Gessica aceita pela Evolution, mas não entrou no grupo).
+  outcomes?: ParticipantOutcome[];
+}
+
+function isSuccessStatus(status: unknown): boolean {
+  const s = String(status ?? "").trim();
+  return s === "200" || /^success$/i.test(s) || s === "ok";
+}
+
+// Extrai o resultado por participante do corpo da resposta, em qualquer um dos formatos conhecidos da
+// Evolution. Se não achar nada reconhecível, devolve undefined (status por pessoa fica desconhecido).
+function parseParticipantOutcomes(body: unknown): ParticipantOutcome[] | undefined {
+  const list = Array.isArray(body)
+    ? body
+    : Array.isArray((body as { participants?: unknown })?.participants)
+      ? (body as { participants: unknown[] }).participants
+      : Array.isArray((body as { updateParticipants?: unknown })?.updateParticipants)
+        ? (body as { updateParticipants: unknown[] }).updateParticipants
+        : null;
+  if (!list) return undefined;
+  const outcomes = (list as Record<string, unknown>[])
+    .map((p) => {
+      const jid = typeof p.jid === "string" ? p.jid : typeof p.id === "string" ? p.id : "";
+      const status = p.status ?? (p.content as Record<string, unknown> | undefined)?.status;
+      return { number: jid.split("@")[0], accepted: isSuccessStatus(status), statusCode: status != null ? String(status) : null };
+    })
+    .filter((o) => o.number);
+  return outcomes.length > 0 ? outcomes : undefined;
+}
+
 // Adiciona, remove, promove (admin) ou rebaixa participantes de um grupo que já existe. Um só endpoint da
 // Evolution, com a ação como parâmetro. Pedido recorrente do owner (3 vezes, 09 e 10/10/2026): faltava "add".
-export async function updateGroupParticipants(jid: string, action: ParticipantAction, participants: string[]): Promise<{ ok: boolean; detail: string }> {
+export async function updateGroupParticipants(jid: string, action: ParticipantAction, participants: string[]): Promise<UpdateParticipantsResult> {
   const config = evoConfig();
   if (!config) return { ok: false, detail: "Evolution não configurada no .env" };
   try {
@@ -128,7 +170,8 @@ export async function updateGroupParticipants(jid: string, action: ParticipantAc
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) return { ok: false, detail: `Evolution respondeu HTTP ${response.status}` };
-    return { ok: true, detail: "pedido aceito" };
+    const body = await response.json().catch(() => null);
+    return { ok: true, detail: "pedido aceito", outcomes: parseParticipantOutcomes(body) };
   } catch (error) {
     return { ok: false, detail: error instanceof Error ? error.message : "falha ao atualizar o grupo" };
   }
