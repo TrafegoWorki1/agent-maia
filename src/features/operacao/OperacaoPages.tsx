@@ -147,41 +147,44 @@ export function IndicadoresPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Indicadores" subtitle="Só indicadores com fonte real. Sem fonte, aparece 'sem dado'." />
+      <PageHeader eyebrow="Desempenho" title="Indicadores" subtitle="Resultados da operação da Maia e investimento em mídia, com período e fonte identificados." />
       <Loading snapshot={snapshot} error={error}>
         {(s) => {
-          const gmail = s.sources.gmail;
           const meta = s.sources.meta;
-          const sheets = s.sources.sheets;
-          const spend = meta?.status === "ok" && meta.data ? meta.data.accounts.reduce((sum, a) => sum + a.spend_7d, 0) : null;
-          const currency = meta?.status === "ok" && meta.data?.accounts[0]?.currency ? meta.data.accounts[0].currency : "BRL";
+          const q = s.quality.current;
+          const counts = q.counts;
+          const completed = counts.terminal - counts.failures - counts.uncertain;
+          const spendByCurrency = new Map<string, number>();
+          if (meta?.status === "ok" && meta.data) {
+            for (const account of meta.data.accounts) spendByCurrency.set(account.currency, (spendByCurrency.get(account.currency) ?? 0) + account.spend_7d);
+          }
           return (
-            <section className="metrics-grid" aria-label="Indicadores">
-              <Kpi
-                label="Investimento em mídia · 7 dias"
-                value={spend !== null ? formatMoney(spend, currency) : "sem dado"}
-                helper={meta?.status === "error" ? meta.error ?? "Erro no Meta Ads" : meta?.fetched_at ? `Atualizado ${formatWhen(meta.fetched_at)}` : "Ainda não consultado"}
-                status={meta?.status === "error" ? "critico" : spend !== null ? "alvo" : "sem_dado"}
-              />
-              <Kpi
-                label="E-mails não lidos"
-                value={gmail?.status === "ok" && gmail.data ? String(gmail.data.unread_count) : "sem dado"}
-                helper={gmail?.status === "ok" && gmail.data ? `${gmail.data.unread_last_24h} nas últimas 24 h` : gmail?.error ?? "Ainda não consultado"}
-                status={gmail?.status === "error" ? "critico" : gmail?.status === "ok" ? "alvo" : "sem_dado"}
-              />
-              <Kpi
-                label="Planilhas recentes"
-                value={sheets?.status === "ok" && sheets.data ? String(sheets.data.sheets.length) : "sem dado"}
-                helper={sheets?.status === "ok" ? "Modificadas recentemente" : sheets?.error ?? "Ainda não consultado"}
-                status={sheets?.status === "error" ? "critico" : sheets?.status === "ok" ? "alvo" : "sem_dado"}
-              />
-              <Kpi label="Pedidos da semana" value={String(s.quality.current.counts.tasks)} helper="Tarefas operacionais" />
-              <Kpi
-                label="Taxa de resposta"
-                value={s.quality.current.counts.tasks ? `${Math.round((s.quality.current.counts.replied / s.quality.current.counts.tasks) * 100)}%` : "sem dado"}
-                helper="Pedidos operacionais respondidos"
-              />
-            </section>
+            <>
+              <Panel title="Entrega operacional" caption={`Semana ${q.week} · tarefas operacionais registradas. Conversas simples não entram nesta amostra.`}>
+                <section className="metrics-grid" aria-label="Desempenho operacional">
+                  <Kpi label="Pedidos operacionais" value={String(counts.tasks)} helper="Total da semana" />
+                  <Kpi label="Taxa de resposta" value={counts.tasks ? `${Math.round(counts.replied / counts.tasks * 100)}%` : "sem dado"} helper={`${counts.replied} de ${counts.tasks} pedidos com resposta registrada`} />
+                  <Kpi label="Taxa de conclusão" value={counts.terminal ? `${Math.round(completed / counts.terminal * 100)}%` : "sem dado"} helper={`${completed} concluídos entre ${counts.terminal} encerrados; exclui pedidos em andamento`} />
+                  <Kpi label="Falhas" value={String(counts.failures)} helper="Tarefas encerradas com erro" status={counts.failures ? "critico" : "sem_dado"} />
+                  <Kpi label="Resultados incertos" value={String(counts.uncertain)} helper="Execuções que precisam de conferência" status={counts.uncertain ? "atencao" : "sem_dado"} />
+                  <Kpi label="Aprovações pendentes agora" value={String(s.approvals.length)} helper="Total atual, independente da semana" status={s.approvals.length ? "atencao" : "sem_dado"} />
+                </section>
+              </Panel>
+              <Panel title="Qualidade da entrega" caption={`Semana ${q.week} · avaliação baseada nos eventos registrados.`}>
+                <section className="metrics-grid" aria-label="Qualidade operacional">
+                  <Kpi label="Nota operacional" value={q.overall === null ? "sem amostra suficiente" : `${q.overall.toFixed(1)} / 10`} helper={`Semana anterior: ${scoreText(s.quality.previous.overall)}`} />
+                  <Kpi label="Ações conferidas" value={String(counts.verified)} helper="Eventos de verificação; uma tarefa pode ter várias ações" />
+                  <Kpi label="Respostas em até 2 minutos" value={q.dimensions.velocidade === null ? "sem dado" : `${Math.round(q.dimensions.velocidade * 10)}%`} helper="Entre pedidos operacionais respondidos; inclui espera por aprovação" />
+                </section>
+              </Panel>
+              <Panel title="Investimento em mídia" caption="Meta Ads · gasto dos 7 dias cobertos pela última coleta disponível. Valores separados por moeda.">
+                {meta?.status === "error" && <p className="empty-note">A última coleta falhou. Confira o diagnóstico em Conexões e dados.</p>}
+                {spendByCurrency.size ? <section className="metrics-grid" aria-label="Investimento em mídia">
+                  {[...spendByCurrency].map(([currency, spend]) => <Kpi key={currency} label={`Investimento · ${currency}`} value={formatMoney(spend, currency)} helper={`Coletado em ${formatWhen(meta?.fetched_at)}`} />)}
+                </section> : <p className="empty-note">Ainda sem investimento disponível para este período.</p>}
+                <p className="empty-note">CTR, CPC, leads, CPA e ROAS dependem de ampliar a coleta e definir a fonte de conversões e receita.</p>
+              </Panel>
+            </>
           );
         }}
       </Loading>

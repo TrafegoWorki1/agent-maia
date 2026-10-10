@@ -2,6 +2,13 @@
 
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
+## Atualização de 10/10/2026: Indicadores e Conexões
+
+- Problema e causa: as duas páginas exibiam cartões derivados das mesmas fontes (gasto, e-mails e planilhas), sem separar resultado operacional de estado da integração.
+- Melhoria: Conexões usa tabelas de serviços e coleta, com diagnóstico, última tentativa e atenção após 60 minutos sem coleta válida. Indicadores mostra resposta, conclusão, falhas, resultados incertos, aprovações, qualidade e investimento por moeda.
+- Escopo das métricas: tarefas operacionais da semana atual; conclusão usa apenas encerradas; aprovações mostram a situação atual. Percentual de respostas em até dois minutos inclui espera por aprovação. Investimento corresponde à janela de sete dias da coleta, não necessariamente aos sete dias anteriores ao acesso.
+- Validação: TypeScript e build passaram; inspeção visual autenticada ainda pendente. Sem alteração de banco ou da coleta. A ampliação dos KPIs de tráfego permanece na etapa 2.
+
 ## Mudanças principais
 
 | Área | O que mudou |

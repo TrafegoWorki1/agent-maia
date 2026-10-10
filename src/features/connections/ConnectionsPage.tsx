@@ -1,172 +1,65 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Panel, StatusPill } from "../../components/ui";
-import { fetchSnapshot, formatMoney, formatWhen, requestRefresh, type Snapshot } from "../../lib/snapshotApi";
+import { fetchSnapshot, formatWhen, requestRefresh, type Snapshot } from "../../lib/snapshotApi";
 
-const POLL_MS = 30_000;
-const REFRESH_POLL_MS = 5_000;
-
-const eventLabels: Record<string, string> = {
-  connection: "Conexão",
-  message: "Mensagens de texto",
-  poll_vote: "Votos de enquete",
-  unknown: "Sem tratamento",
-};
-
-// Mesma estrutura do MetricCard do projeto. A etiqueta de status diz se a conexão está ativa.
-function Card({ label, value, helper, tone = "neutral" }: { label: string; value: string; helper?: string; tone?: "neutral" | "good" | "bad" }) {
-  const status = tone === "good" ? "alvo" : tone === "bad" ? "critico" : "sem_dado";
-  const statusLabel = tone === "good" ? "Ativo" : tone === "bad" ? "Com erro" : "Não verificado";
-  return (
-    <article className={`metric-card metric-${status}`}>
-      <div className="metric-topline">
-        <span className="metric-label">{label}</span>
-        <StatusPill status={status} label={statusLabel} />
-      </div>
-      <div className="metric-value-row">
-        <strong className="metric-value">{value}</strong>
-      </div>
-      {helper && <p className="metric-helper">{helper}</p>}
-    </article>
-  );
-}
+const SOURCE_LABELS = { gmail: "Gmail", meta: "Meta Ads", sheets: "Google Sheets", calendar: "Google Agenda" } as const;
 
 export function ConnectionsPage() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
   const load = useCallback(async () => {
-    try {
-      setSnapshot(await fetchSnapshot());
-      setLoadError(null);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Falha ao carregar o painel");
-    }
+    try { setSnapshot(await fetchSnapshot()); setLoadError(null); }
+    catch (error) { setLoadError(error instanceof Error ? error.message : "Falha ao carregar o painel"); }
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // Atualiza a cada 30 segundos; enquanto uma consulta roda, acompanha a cada 5 segundos.
   const refreshing = snapshot?.refreshing ?? false;
   useEffect(() => {
-    const timer = setInterval(() => void load(), refreshing ? REFRESH_POLL_MS : POLL_MS);
+    void load();
+    const timer = setInterval(() => void load(), refreshing ? 5_000 : 30_000);
     return () => clearInterval(timer);
   }, [load, refreshing]);
 
   async function refreshNow() {
     try {
       const started = await requestRefresh();
-      setNotice(started ? "Consultando Gmail, Meta Ads e Sheets. Pode levar alguns minutos." : "Já existe uma atualização em andamento.");
+      setNotice(started ? "Atualização das fontes solicitada. Acompanhe o resultado abaixo." : "Já existe uma atualização em andamento.");
       await load();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Falha ao atualizar");
-    }
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Falha ao atualizar"); }
   }
-
-  const sources = snapshot?.sources ?? {};
-  const gmail = sources.gmail;
-  const meta = sources.meta;
-  const sheets = sources.sheets;
-  const calendar = sources.calendar;
-  const totalEvents = Object.values(snapshot?.events24h ?? {}).reduce((sum, n) => sum + n, 0);
 
   return (
     <>
-      <PageHeader
-        eyebrow="Operação"
-        title="Conexões e dados"
-        subtitle="Painel local, atualizado a cada 30 segundos. Só o seu computador acessa estes dados."
-        action={
-          <button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>
-            {refreshing ? "Atualizando…" : "Atualizar fontes"}
-          </button>
-        }
-      />
-
-      {loadError && <p role="alert" className="empty-note">Não foi possível ler o painel: {loadError}. Confirme que o `pnpm start` está rodando.</p>}
+      <PageHeader eyebrow="Integrações" title="Conexões e dados" subtitle="Disponibilidade, atualização e erros das fontes. O painel consulta o estado a cada 30 segundos."
+        action={<button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Atualizando…" : "Atualizar fontes"}</button>} />
+      {loadError && <p role="alert" className="empty-note">Não foi possível atualizar o estado: {loadError}{snapshot ? " Exibindo a última leitura disponível." : ""}</p>}
       {notice && <p role="status" className="empty-note">{notice}</p>}
-
-      {snapshot && (
-        <>
-          <section className="metrics-grid" aria-label="Conexões">
-            <Card
-              label="WhatsApp (Evolution)"
-              value={snapshot.whatsapp.state ?? "indisponível"}
-              helper={snapshot.whatsapp.error ?? "Estado consultado agora"}
-              tone={snapshot.whatsapp.state === "open" ? "good" : snapshot.whatsapp.error ? "bad" : "neutral"}
-            />
-            <Card label="Webhook" value={snapshot.webhook.host ? "recebendo" : "sem endereço"} helper={`Último evento: ${formatWhen(snapshot.webhook.lastEventAt)}`} tone={snapshot.webhook.host ? "good" : "neutral"} />
-            <Card
-              label="Agente da Maia"
-              value={snapshot.chat ? (snapshot.chat.status === "ok" ? "respondendo" : "com erro") : "sem uso ainda"}
-              helper={snapshot.chat?.error ?? `Última resposta: ${formatWhen(snapshot.chat?.started_at)}`}
-              tone={snapshot.chat?.status === "error" ? "bad" : "good"}
-            />
-            <Card label="Aprovações pendentes" value={String(snapshot.approvals.length)} helper="Pedidos de escrita aguardando o aprovador" tone="good" />
-          </section>
-
-          <Panel title="Fontes consultadas pela Maia" caption="Leitura somente. Atualização automática a cada 30 minutos.">
-            <section className="metrics-grid" aria-label="Fontes">
-              <Card
-                label="Gmail"
-                value={gmail?.status === "ok" && gmail.data ? `${gmail.data.unread_count} não lidas` : "sem dado"}
-                helper={
-                  gmail?.status === "ok" && gmail.data
-                    ? `${gmail.data.unread_last_24h} nas últimas 24 h · ${formatWhen(gmail.fetched_at)}`
-                    : gmail?.error ?? "Ainda não consultado"
-                }
-                tone={gmail?.status === "error" ? "bad" : gmail?.status === "ok" ? "good" : "neutral"}
-              />
-              <Card
-                label="Meta Ads · 7 dias"
-                value={meta?.status === "ok" && meta.data ? `${meta.data.accounts.length} conta(s)` : "sem dado"}
-                helper={
-                  meta?.status === "ok" && meta.data
-                    ? meta.data.accounts.map((a) => `${a.name}: ${formatMoney(a.spend_7d, a.currency)}`).join(" · ") || "Nenhuma conta encontrada"
-                    : meta?.error ?? "Ainda não consultado"
-                }
-                tone={meta?.status === "error" ? "bad" : meta?.status === "ok" ? "good" : "neutral"}
-              />
-              <Card
-                label="Google Sheets"
-                value={sheets?.status === "ok" && sheets.data ? `${sheets.data.sheets.length} recente(s)` : "sem dado"}
-                helper={
-                  sheets?.status === "ok" && sheets.data
-                    ? sheets.data.sheets.map((s) => s.name).join(" · ") || "Nenhuma planilha encontrada"
-                    : sheets?.error ?? "Ainda não consultado"
-                }
-                tone={sheets?.status === "error" ? "bad" : sheets?.status === "ok" ? "good" : "neutral"}
-              />
-              <Card
-                label="Google Agenda"
-                value={calendar?.status === "ok" && calendar.data ? `${calendar.data.calendars.length} calendário(s)` : "sem dado"}
-                helper={
-                  calendar?.status === "ok" && calendar.data
-                    ? calendar.data.calendars.map((c) => c.name).join(" · ") || "Nenhum calendário encontrado"
-                    : calendar?.error ?? "Ainda não consultado"
-                }
-                tone={calendar?.status === "error" ? "bad" : calendar?.status === "ok" ? "good" : "neutral"}
-              />
-            </section>
-          </Panel>
-
-          <Panel title="Eventos das últimas 24 horas" caption="Contagem de eventos recebidos pelo webhook. O conteúdo das mensagens não é guardado.">
-            {totalEvents === 0 ? (
-              <p className="empty-note">Nenhum evento nas últimas 24 horas.</p>
-            ) : (
-              <ul>
-                {Object.entries(snapshot.events24h).map(([kind, count]) => (
-                  <li key={kind}>
-                    {eventLabels[kind] ?? kind}: {count}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </>
-      )}
+      {!snapshot && !loadError && <p className="empty-note">Carregando conexões…</p>}
+      {snapshot && <>
+        <Panel title="Serviços da Maia" caption={`Estado consultado em ${formatWhen(snapshot.generatedAt)}. Uma execução bem-sucedida não confirma a entrega no WhatsApp.`}>
+          <div className="table-wrap"><table>
+            <thead><tr><th>Serviço</th><th>Estado observado</th><th>Última atividade</th><th>Diagnóstico</th></tr></thead>
+            <tbody>
+              <tr><td>WhatsApp · Evolution</td><td><StatusPill status={snapshot.whatsapp.state === "open" ? "alvo" : snapshot.whatsapp.error ? "critico" : "atencao"} label={snapshot.whatsapp.state === "open" ? "Conectado" : snapshot.whatsapp.state ?? "Não verificado"} /></td><td>{formatWhen(snapshot.generatedAt)}</td><td>{snapshot.whatsapp.error ?? "Estado da instância consultado na Evolution"}</td></tr>
+              <tr><td>Recebimento de eventos</td><td><StatusPill status={snapshot.webhook.lastEventAt ? "alvo" : "sem_dado"} label={snapshot.webhook.lastEventAt ? "Evento registrado" : "Sem registro"} /></td><td>{formatWhen(snapshot.webhook.lastEventAt)}</td><td>{snapshot.webhook.host ?? "Endereço não informado; consulte o horário do último evento"}</td></tr>
+              <tr><td>Agente da Maia</td><td><StatusPill status={snapshot.chat?.status === "ok" ? "alvo" : snapshot.chat?.status === "error" ? "critico" : "sem_dado"} label={snapshot.chat?.status === "ok" ? "Última execução OK" : snapshot.chat?.status === "error" ? "Última execução falhou" : snapshot.chat ? "Em execução" : "Sem execução"} /></td><td>{formatWhen(snapshot.chat?.started_at)}</td><td>{snapshot.chat?.error ?? "Resultado do processamento pelo modelo"}</td></tr>
+            </tbody>
+          </table></div>
+        </Panel>
+        <Panel title="Sincronização das fontes" caption="Coleta prevista a cada 30 minutos. Após 60 minutos sem leitura bem-sucedida, a fonte requer atenção.">
+          <div className="table-wrap"><table>
+            <thead><tr><th>Fonte</th><th>Estado da coleta</th><th>Última tentativa</th><th>Diagnóstico</th></tr></thead>
+            <tbody>{Object.entries(SOURCE_LABELS).map(([key, label]) => {
+              const source = snapshot.sources[key as keyof typeof SOURCE_LABELS];
+              const age = source ? Date.parse(snapshot.generatedAt) - Date.parse(source.fetched_at) : NaN;
+              const stale = !Number.isFinite(age) || age > 60 * 60_000;
+              const usable = source?.status === "ok" && source.data !== null;
+              const status = source?.status === "error" ? "critico" : usable ? stale ? "atencao" : "alvo" : "sem_dado";
+              return <tr key={key}><td>{label}</td><td><StatusPill status={status} label={source?.status === "error" ? "Falha na coleta" : usable ? stale ? "Desatualizada" : "Atualizada" : "Sem coleta válida"} /></td><td>{formatWhen(source?.fetched_at)}</td><td>{source?.error ?? (usable ? stale ? "Solicite uma atualização da fonte" : "Dados disponíveis para consulta" : "Aguardando primeira coleta válida")}</td></tr>;
+            })}</tbody>
+          </table></div>
+          <p className="empty-note">Em caso de falha, o horário indica a tentativa mais recente. A idade do último dado preservado não é informada pelo registro atual.</p>
+        </Panel>
+      </>}
     </>
   );
 }
