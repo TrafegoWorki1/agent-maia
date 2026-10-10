@@ -10,6 +10,10 @@ bug, qual era o sintoma e a causa.
 
 ## 2026-10-10
 
+### Marcar mensagem como lida (markMessageAsRead), de forma honesta
+- **Pedido do owner:** implementar `markMessageAsRead` "de forma profissional". Decisão: não é ferramenta do agente (ele poderia marcar como lido sem ter processado de verdade, o que seria falso para quem mandou). É um efeito automático, no worker, só quando a mensagem realmente entra para processamento: do dono, do aprovador, de membro autorizado, de grupo cadastrado e endereçado, e de contato que respondeu (`server/chats.ts`, `markMessagesRead`; `server/inboxWorker.ts`, `markRead`/`dmJid`). Nunca marca mensagem de grupo que ela não vai responder. Cosmético: falha nunca impede a resposta.
+- Testes novos em `tests/chats.test.ts` (corpo da chamada, sem ids não liga a rede, erro não derruba quem chama). 244 testes no total.
+
 ### Mais endpoints da Evolution: grupo (info, participantes, convite) e conversas/contatos da instância
 - **Pedido do owner:** uma lista de endpoints da Evolution ainda não usados pela Maia (grupos, mensagens, perfil). Implementei os de prioridade alta que são seguros e têm uso claro agora; o resto fica pendente, por decisão explícita (ver abaixo).
 - **Generalizei** a ferramenta de participante criada ontem: `grupo_gerenciar_participantes` substitui `grupo_adicionar_participante` e agora aceita `adicionar`, `remover`, `promover` (admin) e `rebaixar` — um só endpoint da Evolution (`/group/updateParticipant`), um parâmetro de ação.

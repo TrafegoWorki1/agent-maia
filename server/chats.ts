@@ -1,10 +1,28 @@
-// Consultas de conversas e contatos da instância Evolution. Só leitura — não envia nada, não altera nada.
+// Consultas de conversas e contatos da instância Evolution, e marcar mensagem como lida. Nada aqui publica
+// conteúdo nem muda quem participa de nada — é leitura e um efeito colateral de ter lido mesmo.
 
 function evoConfig(): { url: string; instance: string; apikey: string } | null {
   const url = process.env.EVOLUTION_API_URL;
   const instance = process.env.EVOLUTION_INSTANCE;
   const apikey = process.env.EVOLUTION_API_KEY;
   return url && instance && apikey ? { url, instance, apikey } : null;
+}
+
+// Marca mensagens como lidas (o "✓✓ azul" para quem mandou). Não é uma ferramenta do agente: é um efeito
+// automático de quando a Maia pega uma mensagem para processar de verdade (dono, membro autorizado, grupo
+// cadastrado e endereçado). Nunca marca como lida algo que ela não vai processar — seria falso para quem mandou.
+// Decisão do owner (10/10/2026). Cosmético: falha aqui nunca impede a resposta (sempre use .catch(() => {})).
+export async function markMessagesRead(jid: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const config = evoConfig();
+  if (!config) throw new Error("Evolution não configurada no .env");
+  const response = await fetch(`${config.url}/chat/markMessageAsRead/${config.instance}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: config.apikey },
+    body: JSON.stringify({ readMessages: ids.map((id) => ({ remoteJid: jid, fromMe: false, id })) }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`Evolution respondeu HTTP ${response.status}`);
 }
 
 export interface ChatRow {
