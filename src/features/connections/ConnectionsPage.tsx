@@ -4,6 +4,15 @@ import { fetchSnapshot, formatWhen, requestRefresh, type Snapshot } from "../../
 
 const SOURCE_LABELS = { gmail: "Gmail", meta: "Meta Ads", sheets: "Google Sheets", calendar: "Google Agenda" } as const;
 
+function whatsappState(state: string | null, error: string | null): { status: "alvo" | "atencao" | "critico"; label: string } {
+  const normalized = state?.trim().toLowerCase() ?? "";
+  if (["open", "connected", "conectado"].includes(normalized)) return { status: "alvo", label: "Conectado" };
+  if (["close", "closed", "disconnected", "desconectado"].includes(normalized)) return { status: "critico", label: "Desconectado" };
+  if (error) return { status: "critico", label: "Falha ao consultar Evolution" };
+  if (["connecting", "connecting...", "conectando"].includes(normalized)) return { status: "atencao", label: "Conectando" };
+  return { status: "atencao", label: "Sem leitura do estado" };
+}
+
 export function ConnectionsPage() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -27,6 +36,8 @@ export function ConnectionsPage() {
     } catch (error) { setNotice(error instanceof Error ? error.message : "Falha ao atualizar"); }
   }
 
+  const whatsapp = whatsappState(snapshot?.whatsapp.state ?? null, snapshot?.whatsapp.error ?? null);
+
   return (
     <>
       <PageHeader eyebrow="Integrações" title="Conexões e dados" subtitle="Disponibilidade, atualização e erros das fontes. O painel consulta o estado a cada 30 segundos."
@@ -39,7 +50,7 @@ export function ConnectionsPage() {
           <div className="table-wrap"><table>
             <thead><tr><th>Serviço</th><th>Estado observado</th><th>Última atividade</th><th>Diagnóstico</th></tr></thead>
             <tbody>
-              <tr><td>WhatsApp · Evolution</td><td><StatusPill status={snapshot.whatsapp.state === "open" ? "alvo" : snapshot.whatsapp.error ? "critico" : "atencao"} label={snapshot.whatsapp.state === "open" ? "Conectado" : snapshot.whatsapp.state ?? "Não verificado"} /></td><td>{formatWhen(snapshot.generatedAt)}</td><td>{snapshot.whatsapp.error ?? "Estado da instância consultado na Evolution"}</td></tr>
+              <tr><td>WhatsApp · Evolution</td><td><StatusPill status={whatsapp.status} label={whatsapp.label} /></td><td>{formatWhen(snapshot.generatedAt)}</td><td>{snapshot.whatsapp.error ?? (whatsapp.status === "alvo" ? "Estado da instância consultado na Evolution" : snapshot.whatsapp.state ?? "A Evolution não retornou o estado da instância")}</td></tr>
               <tr><td>Recebimento de eventos</td><td><StatusPill status={snapshot.webhook.lastEventAt ? "alvo" : "sem_dado"} label={snapshot.webhook.lastEventAt ? "Evento registrado" : "Sem registro"} /></td><td>{formatWhen(snapshot.webhook.lastEventAt)}</td><td>{snapshot.webhook.host ?? "Endereço não informado; consulte o horário do último evento"}</td></tr>
               <tr><td>Agente da Maia</td><td><StatusPill status={snapshot.chat?.status === "ok" ? "alvo" : snapshot.chat?.status === "error" ? "critico" : "sem_dado"} label={snapshot.chat?.status === "ok" ? "Última execução OK" : snapshot.chat?.status === "error" ? "Última execução falhou" : snapshot.chat ? "Em execução" : "Sem execução"} /></td><td>{formatWhen(snapshot.chat?.started_at)}</td><td>{snapshot.chat?.error ?? "Resultado do processamento pelo modelo"}</td></tr>
             </tbody>

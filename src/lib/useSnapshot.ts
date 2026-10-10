@@ -31,8 +31,9 @@ export function useSnapshot(enabled = true): { snapshot: Snapshot | null; error:
 // Resumo das conexões para a barra superior: quantas estão ativas e se alguma tem erro.
 export function connectionSummary(snapshot: Snapshot | null): { tone: "green" | "gold" | "red" | "gray"; label: string } {
   if (!snapshot) return { tone: "gray", label: "Verificando conexões…" };
+  const whatsappConnected = ["open", "connected", "conectado"].includes(snapshot.whatsapp.state?.trim().toLowerCase() ?? "");
   const checks = [
-    snapshot.whatsapp.state === "open",
+    whatsappConnected,
     Boolean(snapshot.webhook.host),
     ...Object.values(snapshot.sources).map((s) => s?.status === "ok"),
   ];
