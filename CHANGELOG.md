@@ -8,6 +8,14 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-11 — Mais contexto de conversa e simulação de digitação
+
+- **Sintoma (autodiagnóstico da Maia no WhatsApp):** ela perdia contexto — 5 posts longos viraram só o começo do primeiro. **Causa** em `server/context.ts`: cada mensagem cortada em 400 caracteres, só as últimas 8 linhas e só os últimos 30 minutos. Um "Ok" do dono confirmava um rascunho que ela já não via inteiro.
+- **Correção:** 4000 caracteres por linha, 14 linhas, janela de 2 horas; a busca crua no banco subiu de 30 para 60 linhas. Orçamento de `conversa` em `config/ai-routing.json` de US$ 0,25 para US$ 0,50, porque o contexto ficou bem maior.
+- **Simulação de digitação:** `sendTextChecked` agora manda `delay` à Evolution (~45 ms por caractere, piso 1,2 s, teto 6 s), que mostra "digitando..." enquanto espera. Tempo limite do pedido ampliado na mesma medida.
+- **Decisão registrada:** a plataforma bloqueou construir uma ferramenta para a Maia editar o próprio código, mesmo com aprovação ("Create Unsafe Agents"). Não foi implementada; mudanças de código continuam por sessão de desenvolvimento com revisão. Para "não quero mais que você faça X", vale o fluxo de preferências do PR #4 (`CONFIRMAR PREFERENCIA`).
+- **Verificação:** `pnpm typecheck` e `pnpm test` (306) aprovados.
+
 ## 2026-10-10 — Trava de geração de arte e preferências persistentes do owner
 
 - **Incidente de arte:** depois de uma conversa sobre Stories e uma oferta para criar arte, o gerador foi iniciado sem o owner aceitar; consumiu até 240 s antes de expirar. Causa: o modelo podia chamar `gerar_imagem` mesmo quando a mensagem original não pedia criação.
