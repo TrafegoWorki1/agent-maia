@@ -20,10 +20,10 @@ permissions:
 jobs:
   migrar:
     runs-on: ubuntu-latest
-    # Nome exato do ambiente já criado no repositório (Settings > Environments) — "Production", com P
-    # maiúsculo. Antes estava "production" (minúsculo) e não batia com nenhum ambiente existente, então os
-    # secrets configurados em "Production" nunca chegavam ao job (SUPABASE_ACCESS_TOKEN vazio, 10/10/2026).
-    environment: Production
+    # Nome exato do ambiente criado no repositório (Settings > Environments) — "Segredos". Já foi
+    # "production" e "Production" antes (10/10/2026); o nome precisa bater exatamente com o configurado,
+    # senão o GitHub cria um ambiente novo e vazio na hora, e os secrets reais nunca chegam ao job.
+    environment: Segredos
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
