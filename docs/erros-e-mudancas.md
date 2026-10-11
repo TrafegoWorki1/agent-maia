@@ -9,7 +9,7 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Sintoma:** em conversa sobre Stories, a Maia iniciou a geração depois de apenas oferecer criar uma arte; o processo expirou após até 240 s.
 - **Correção de arte:** só a mensagem original, com pedido direto e afirmativo do owner, autoriza a geração. Claude e Codex verificam a intenção no servidor; pergunta, consulta, oferta e recusa não autorizam. Negado por padrão.
 - **Preferências permanentes:** propostas de estilo/sugestões ou restrições mais estritas ficam pendentes até comando literal `CONFIRMAR PREFERENCIA <id>` do owner; expiram em 10 min e podem ser canceladas. A Maia não pode ampliar permissões ou modificar segurança/aprovações; a ativação usa RPC restrita a `service_role`.
-- **Verificação:** typecheck, build, 301 testes Vitest, 32 testes de banco via Node 24, validação das 25 migrações e catálogo aprovado. O guard compara commits; deve ser reexecutado quando as mudanças estiverem commitadas.
+- **Verificação:** typecheck, build, 301 testes Vitest, 32 testes de banco via Node 24, validação das 25 migrações e catálogo aprovado. No PR #4, CI/validate com `db:guard` e o preview Vercel passaram após a reconciliação do version remoto.
 - **Implantação:** migração aplicada ao Supabase por exceção explicitamente autorizada pelo owner e reconciliada como versão `20261011012443`; o código está no PR #4, ainda sem merge/deploy de produção.
 
 ## Eventos de grupo da Evolution + incidente no webhook de produção (10/10/2026)
