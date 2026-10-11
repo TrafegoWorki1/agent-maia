@@ -4,8 +4,8 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 
 ## Validações operacionais
 
-- [ ] Aplicar `20261011005800_maia_owner_preferences_v1.sql` pelo workflow aprovado de produção, validar o schema e só então publicar o código que depende dela.
-- [ ] Após a implantação, testar pelo WhatsApp uma proposta, confirmação literal, expiração e uma preferência restritiva; confirmar que nenhuma preferência altera permissões ou ações externas.
+- [x] Aplicar `20261011012443_maia_owner_preferences_v1.sql` no Supabase (exceção direta explicitamente autorizada pelo owner); reconciliar versão registrada e arquivo do repositório antes do merge.
+- [ ] Após o deploy do PR #4, testar pelo WhatsApp uma proposta, confirmação literal, expiração e uma preferência restritiva; confirmar que nenhuma preferência altera permissões ou ações externas.
 - [ ] Conferir uma conversa real após o alinhamento: consulta, aprovação, áudio e continuidade de contexto. Os testes automatizados não substituem avaliação semântica das respostas.
 - [ ] Validar pelo WhatsApp o fluxo de membro autorizado com texto, áudio e imagem, usando contatos autorizados pelo owner.
 - [ ] Fazer inspeção visual autenticada do painel; na revisão anterior o navegador estava indisponível.

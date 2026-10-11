@@ -23,9 +23,9 @@ As preferências são lidas a cada execução e entram no prompt como instruçõ
 - A proposta persistente só pode ser iniciada pelo owner e quando a mensagem original pedir explicitamente que algo passe a valer no futuro.
 - A IA não recebe SQL nem acesso de escrita genérico ao banco. A ferramenta do servidor só cria uma proposta limitada; a ativação exige o comando literal do owner.
 - As tabelas têm RLS ativado e não concedem acesso a `anon` ou `authenticated`. A RPC de ativação é executável somente por `service_role`.
-- A migração é aditiva e versionada: `supabase/migrations/20261011005800_maia_owner_preferences_v1.sql`.
+- A migração é aditiva e versionada: `supabase/migrations/20261011012443_maia_owner_preferences_v1.sql`.
 - Regras do catálogo oficial, segurança, permissões, aprovações e retenção continuam no processo normal de revisão, migração e ativação.
 
 ## Situação de implantação
 
-Código, testes e migração estão no repositório local. O Supabase de produção não foi alterado. Antes de usar o fluxo na operação, aplique a migração pelo workflow aprovado de migrações de produção, valide o schema e só então publique o código dependente, conforme `docs/database-migrations.md`.
+Em 11/10/2026, a migração foi aplicada no Supabase de produção por exceção direta explicitamente autorizada pelo owner, porque o ambiente GitHub `production` não tinha os segredos necessários ao workflow. O Supabase registrou a versão `20261011012443`; o arquivo versionado foi reconciliado com esse histórico. As duas tabelas novas estavam vazias e com RLS habilitado; `anon` e `authenticated` não receberam privilégios. O código segue no PR #4 e só entra em operação após o merge/deploy. Esta exceção não altera o fluxo padrão documentado em `docs/database-migrations.md`.
