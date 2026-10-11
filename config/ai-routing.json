@@ -1,6 +1,6 @@
 {
   "providers": {
-    "claude": { "enabled": true, "models": { "economico": "haiku", "principal": null } },
+    "claude": { "enabled": true, "executor": "cli", "models": { "economico": "haiku", "principal": null } },
     "codex": { "enabled": true, "model": null }
   },
   "budgetUsd": { "conversa": 0.5, "resumo": 0.25, "consulta": 0.5, "analise": 1, "geral": 1 },

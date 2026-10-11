@@ -4,6 +4,8 @@ export type ProviderId = "claude" | "codex";
 export type Category = "conversa" | "consulta" | "resumo" | "analise" | "imagem" | "carrossel" | "tarefa_tecnica" | "escrita_externa" | "geral";
 export type Complexity = "simples" | "intermediaria" | "complexa";
 export type Risk = "baixo" | "moderado" | "alto";
+// Como o Claude é executado: o Claude Code CLI (`claude -p`, principal) ou o Agent SDK (alternativa/volta).
+export type ClaudeExecutor = "cli" | "sdk";
 export type ModelTier = "economico" | "principal";
 export type ProviderState = "healthy" | "degraded" | "cooldown" | "unavailable" | "recovering";
 export type ErrorKind = "rate_limit" | "quota" | "unavailable" | "timeout" | "auth" | "permission" | "tool_missing" | "budget" | "max_turns" | "unknown";
@@ -46,7 +48,7 @@ export interface HealthRecord {
 }
 
 export interface RoutingConfig {
-  providers: { claude: { enabled: boolean; models: { economico: string | null; principal: string | null } }; codex: { enabled: boolean; model: string | null } };
+  providers: { claude: { enabled: boolean; executor?: ClaudeExecutor; models: { economico: string | null; principal: string | null } }; codex: { enabled: boolean; model: string | null } };
   budgetUsd: Record<string, number>;
   timeoutMs: Record<ProviderId, number>;
   concurrency: Record<ProviderId, number>;
