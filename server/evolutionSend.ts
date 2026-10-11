@@ -95,6 +95,18 @@ export async function sendFile(number: string, path: string, mediaType: "image" 
   return typeof body?.key?.id === "string" ? body.key.id : null;
 }
 
+// Simulação de digitação (decisão do owner, 10/10/2026): a Evolution mostra "digitando..." sozinha
+// enquanto espera o "delay" informado em sendText (confirmado no código-fonte da Evolution API: outros
+// tipos de mensagem passam presence "composing"/"recording" junto do delay para o mesmo efeito). Calculado
+// pela própria mensagem, não fixo: ~45 ms por caractere, com piso de 1,2 s e teto de 6 s (não vale a pena
+// simular por mais tempo que isso, mesmo numa resposta longa).
+const TYPING_MS_PER_CHAR = 45;
+const TYPING_MIN_MS = 1200;
+const TYPING_MAX_MS = 6000;
+export function typingDelayMs(text: string): number {
+  return Math.min(TYPING_MAX_MS, Math.max(TYPING_MIN_MS, Math.round(text.length * TYPING_MS_PER_CHAR)));
+}
+
 // Envia texto e devolve o id da mensagem aceita pelo WhatsApp (conferência da entrega). Sem id, não está conferido.
 export async function sendTextChecked(number: string, text: string): Promise<string> {
   const base = process.env.EVOLUTION_API_URL;
@@ -106,8 +118,8 @@ export async function sendTextChecked(number: string, text: string): Promise<str
   try { response = await fetch(`${base.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: key },
-    body: JSON.stringify({ number, text }),
-    signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({ number, text, delay: typingDelayMs(text) }),
+    signal: AbortSignal.timeout(20_000 + TYPING_MAX_MS),
   }); } catch {
     throw new DeliveryError("Evolution sendText: rede/tempo limite; resultado incerto, não repetir automaticamente", true);
   }

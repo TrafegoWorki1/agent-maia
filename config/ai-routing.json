@@ -3,7 +3,7 @@
     "claude": { "enabled": true, "models": { "economico": "haiku", "principal": null } },
     "codex": { "enabled": true, "model": null }
   },
-  "budgetUsd": { "conversa": 0.25, "resumo": 0.25, "consulta": 0.5, "analise": 1, "geral": 1 },
+  "budgetUsd": { "conversa": 0.5, "resumo": 0.25, "consulta": 0.5, "analise": 1, "geral": 1 },
   "timeoutMs": { "claude": 300000, "codex": 120000 },
   "concurrency": { "claude": 1, "codex": 1 },
   "health": { "cooldownMs": 900000, "degradedAfter": 2, "unavailableAfter": 5 },
