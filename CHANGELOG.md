@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-10 — Trava de geração de arte e preferências persistentes do owner
+
+- **Incidente de arte:** depois de uma conversa sobre Stories e uma oferta para criar arte, o gerador foi iniciado sem o owner aceitar; consumiu até 240 s antes de expirar. Causa: o modelo podia chamar `gerar_imagem` mesmo quando a mensagem original não pedia criação.
+- **Correção de arte:** agora a mensagem original precisa ser um pedido direto e afirmativo; Claude e Codex verificam autorização no servidor, inclusive papel owner. Consultas, ofertas, perguntas de capacidade e recusas não iniciam geração. O bloqueio é negado por padrão.
+- **Preferências permanentes:** o owner pode pedir uma preferência de resposta, sugestões ou uma restrição mais estrita. A IA cria apenas uma proposta pendente, mostra o texto exato e não altera nada até o comando literal `CONFIRMAR PREFERENCIA <id>` em até 10 min. `CANCELAR PREFERENCIA <id>` descarta. Permissões, aprovações e segurança permanecem fora desse mecanismo; a migração cria tabelas RLS privadas e RPC de ativação exclusiva do servidor.
+- **Documentação:** novo guia `docs/owner-preferences.md`; README, CLAUDE.md, contrato de migrações, TODO e resumo de erros atualizados.
+- **Verificação:** typecheck, build, 301 testes Vitest, 32 testes nativos de banco via Node 24, `db:validate` (25 migrações em Postgres temporário) e `rules:check` aprovados localmente. Após alinhar o arquivo ao version Supabase, CI/validate (incluindo `db:guard`) e Vercel Preview passaram no PR #4.
+- **Produção:** por exceção explícita do owner, a migração foi aplicada diretamente via Supabase MCP após o workflow protegido falhar por ausência de segredos no ambiente GitHub `production`. O banco registrou a versão `20261011012443`; o arquivo local foi renomeado para corresponder ao histórico. As tabelas estão vazias, com RLS, sem grants para `anon`/`authenticated`; a RPC está disponível somente ao servidor. O código segue no PR #4 e ainda não está ativo em produção até o merge/deploy.
+
 ## 2026-10-10 — Eventos de grupo da Evolution ativados (e um incidente corrigido na hora)
 
 - **Pedido do owner:** depois da ferramenta de trocar foto de grupo, verificar se os eventos da Evolution necessários para usar os endpoints de forma eficiente estavam ativados.

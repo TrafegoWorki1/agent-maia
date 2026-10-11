@@ -28,6 +28,7 @@ O ambiente do servidor contém as credenciais de Supabase, Evolution, Whisper e 
 ## Documentação e regras
 
 - [Regras vigentes](docs/regras-da-maia.md): comportamento aprovado, gerado do catálogo.
+- [Preferências permanentes do owner](docs/owner-preferences.md): proposta, confirmação explícita e limites do que pode mudar.
 - `config/maia-rules.json`: origem versionada das regras e da reserva do prompt.
 - [Instruções de desenvolvimento](CLAUDE.md): arquitetura, limites e fluxo de alteração.
 - [Pendências atuais](TODO.md): o que ainda falta verificar ou implementar.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, mergeConfig } from "../server/ai/config.ts";
-import { classifyByRules } from "../server/ai/rulesClassifier.ts";
+import { classifyByRules, isImageCreationRequest } from "../server/ai/rulesClassifier.ts";
 import { initialHealth } from "../server/ai/providerHealth.ts";
 import { route } from "../server/ai/router.ts";
 import type { HealthRecord } from "../server/ai/types.ts";
@@ -23,6 +23,15 @@ describe("classificação por regras", () => {
     expect(classifyByRules("quanto gastei hoje?").category).toBe("consulta");
     expect(classifyByRules("bom dia").category).toBe("conversa");
     expect(classifyByRules("oii").category).toBe("conversa");
+  });
+
+  it("só autoriza geração quando a mensagem original pede uma imagem afirmativamente", () => {
+    expect(isImageCreationRequest("Cria uma arte vertical para o Story da campanha")).toBe(true);
+    expect(isImageCreationRequest("Você poderia criar uma arte vertical para mim?")).toBe(true);
+    expect(isImageCreationRequest("Tem algum Story ativo no Instagram?")).toBe(false);
+    expect(isImageCreationRequest("Você pode me dizer se dá para criar um Story?")).toBe(false);
+    expect(isImageCreationRequest("Não crie uma arte agora")).toBe(false);
+    expect(classifyByRules("Tem algum Story ativo no Instagram?").category).not.toBe("imagem");
   });
 
   it("marca como risco alto o que altera algo externo", () => {
