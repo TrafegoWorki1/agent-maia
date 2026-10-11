@@ -1,4 +1,4 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { runClaudeSimple } from "./ai/providers/claudeSimple.ts";
 
 // Entrada já validada pela autorização local. O modelo só redige a resposta:
 // não recebe ferramentas, não executa ações e não acessa o sistema de arquivos.
@@ -27,30 +27,8 @@ export async function answerWithClaude(input: MaiaRequest): Promise<string> {
     `Motivo: ${input.decisionExplanation}`,
   ].join("\n");
 
-  const run = query({
-    prompt,
-    options: {
-      systemPrompt,
-      tools: [],
-      maxTurns: 1,
-      maxBudgetUsd: 0.25,
-      persistSession: false,
-      permissionMode: "default",
-      cwd: process.cwd(),
-      env: { ...process.env },
-    },
-  });
-
-  for await (const message of run) {
-    if (message.type === "result") {
-      // Erros de autenticação e de execução também chegam como resultado; nunca os exiba como resposta da Maia.
-      if (message.is_error || message.subtype !== "success") {
-        throw new Error(`Agent SDK falhou (${message.subtype})`);
-      }
-      const text = message.result.trim();
-      if (!text) throw new Error("Resposta vazia do Agent SDK");
-      return text;
-    }
-  }
-  throw new Error("O Agent SDK encerrou sem resposta");
+  const answer = await runClaudeSimple({ prompt, systemPrompt, maxTurns: 1, maxBudgetUsd: 0.25, noTools: true });
+  const text = answer.text.trim();
+  if (!text) throw new Error("Resposta vazia do Claude");
+  return text;
 }

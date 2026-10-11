@@ -32,7 +32,10 @@ export interface ClaudeCliInput {
   maxTurns: number;
   timeoutMs: number;
   // Servidor MCP em processo com as ferramentas da Maia (createImageServer(...).instance).
-  maia: { connect(transport: never): Promise<void>; close(): Promise<void> };
+  // Sem servidor, só o verificador de permissão fica disponível (consultas simples, só com conectores da conta).
+  maia?: { connect(transport: never): Promise<void>; close(): Promise<void> };
+  // Ferramentas internas oferecidas ao CLI. Padrão: leitura (CLI_TOOLS). [] desliga todas.
+  tools?: string[];
   permission: Permission;
   onToolUse: (tool: string) => Promise<void>;
   spawnImpl?: typeof spawn;
@@ -65,7 +68,7 @@ export function cliAddDirs(env: NodeJS.ProcessEnv = process.env): string[] {
   return (env.MAIA_CLAUDE_ADD_DIRS ?? "").split(delimiter).map((d) => d.trim()).filter(Boolean);
 }
 
-export function buildCliArgs(input: { model?: string; maxBudgetUsd: number; maxTurns: number; systemPromptFile: string; mcpConfigFile: string; settingsFile: string; addDirs: string[] }): string[] {
+export function buildCliArgs(input: { tools?: string[]; model?: string; maxBudgetUsd: number; maxTurns: number; systemPromptFile: string; mcpConfigFile: string; settingsFile: string; addDirs: string[] }): string[] {
   return [
     "-p",
     "--output-format", "stream-json",
@@ -73,7 +76,7 @@ export function buildCliArgs(input: { model?: string; maxBudgetUsd: number; maxT
     "--no-session-persistence",
     // Sem Bash/PowerShell/REPL, sem configurações do usuário/projeto, arquivos confinados às pastas de trabalho.
     "--restricted",
-    "--tools", CLI_TOOLS.join(","),
+    "--tools", (input.tools ?? CLI_TOOLS).join(","),
     "--disallowedTools", ...CLI_DISALLOWED, PERMISSION_TOOL,
     "--settings", input.settingsFile,
     "--mcp-config", input.mcpConfigFile,
@@ -140,7 +143,9 @@ async function startLoopback(maia: ClaudeCliInput["maia"], permission: Permissio
   const token = randomBytes(24).toString("hex");
   const perm = permissionServer(permission);
   const routes = new Map<string, StreamableHTTPServerTransport>();
-  for (const [path, server] of [["/maia", maia], ["/perm", perm]] as const) {
+  const servers: [string, { connect(transport: never): Promise<void> }][] = [["/perm", perm]];
+  if (maia) servers.push(["/maia", maia]);
+  for (const [path, server] of servers) {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
     await server.connect(transport as never);
     routes.set(path, transport);
@@ -189,11 +194,11 @@ export async function runClaudeCli(input: ClaudeCliInput, env: NodeJS.ProcessEnv
     const headers = { Authorization: `Bearer ${loop.token}` };
     writeFileSync(systemPromptFile, input.systemPrompt, "utf8");
     writeFileSync(mcpConfigFile, JSON.stringify({ mcpServers: {
-      maia: { type: "http", url: `http://127.0.0.1:${loop.port}/maia`, headers },
+      ...(input.maia ? { maia: { type: "http", url: `http://127.0.0.1:${loop.port}/maia`, headers } } : {}),
       maiaperm: { type: "http", url: `http://127.0.0.1:${loop.port}/perm`, headers },
     } }), "utf8");
     writeFileSync(settingsFile, JSON.stringify({ permissions: { deny: CLI_DENY_READ } }), "utf8");
-    const args = buildCliArgs({ model: input.model, maxBudgetUsd: input.maxBudgetUsd, maxTurns: input.maxTurns, systemPromptFile, mcpConfigFile, settingsFile, addDirs: cliAddDirs(env) });
+    const args = buildCliArgs({ model: input.model, maxBudgetUsd: input.maxBudgetUsd, maxTurns: input.maxTurns, systemPromptFile, mcpConfigFile, settingsFile, addDirs: cliAddDirs(env), tools: input.tools });
     const spawnFn = input.spawnImpl ?? spawn;
     child = spawnFn(env.MAIA_CLAUDE_BIN || "claude", args, { cwd: env.MAIA_CLAUDE_WORKDIR || process.cwd(), env: cliEnv(env), stdio: ["pipe", "pipe", "pipe"], windowsHide: true }) as ChildProcessWithoutNullStreams;
 

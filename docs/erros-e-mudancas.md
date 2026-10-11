@@ -9,7 +9,8 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Mudança:** o Claude passa a rodar pelo Claude Code CLI (`claude -p`) em vez do Agent SDK. As ferramentas da Maia e a decisão de permissão/aprovação continuam no worker, acessadas pelo CLI por um MCP HTTP local (127.0.0.1, token por execução). Roteamento, fallback para o Codex, Jev, regras e aprovações não mudaram.
 - **Voltar atrás:** `MAIA_CLAUDE_EXECUTOR=sdk` ou `executor: "sdk"` no `config/ai-routing.json`; CLI ausente ou incompatível cai sozinho no SDK antes de agir. Tag `pre-claude-cli-executor`.
 - **Codex:** ganhou 9 ferramentas que só o Claude tinha (grupos, conversas, contatos da instância, reenvio de arquivo). `anuncio_midia_url_temporaria` segue só no Claude (depende do Meta Ads dele).
-- **Limites:** Edit/Write/Bash continuam bloqueados; `refreshJob` segue no SDK; fluxo WhatsApp real não foi exercitado nos testes.
+- **Tudo no CLI:** o refresh do painel (`refreshJob`) e a Maia de demonstração também usam o CLI (ponto único `claudeSimple.ts`; SDK só como alternativa). Medido: a consulta de conectores custa ≈ US$ 0,091 no CLI contra ≈ US$ 0,055 no SDK.
+- **Limites:** Edit/Write/Bash continuam bloqueados. Sem VPS e sem modo dev por WhatsApp (decisão do owner); código da Maia muda por sessão direta do Claude Code. A Maia no WhatsApp respondeu com o CLI em teste do owner (11/10), mas aprovação por OK ponta a ponta ainda não foi exercitada.
 - **Verificação:** typecheck, build, 325 testes Vitest, 32 de banco, `rules:check` e teste real do CLI com ferramenta falsa.
 
 ## Trava de geração de arte e preferências permanentes (10/10/2026)
