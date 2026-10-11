@@ -10,6 +10,7 @@ import { recordReceivedMedia } from "./receivedMedia.ts";
 import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
 import { parseGroupIntent, requestCreateGroup } from "./groups.ts";
 import { getDb, recordMessage } from "./store.ts";
+import { handleOwnerPreferenceCommand } from "./ownerPreferences.ts";
 
 // Roteamento dos comandos do dono: aviso, criar grupo (com aprovação), tarefa e conversa com a Maia.
 // Usado pelo webhook local e pelo worker da fila, para os dois fazerem exatamente a mesma coisa.
@@ -25,6 +26,11 @@ export async function notifyOwner(text: string): Promise<void> {
 export async function routeOwnerText(text: string): Promise<number | null> {
   const db = getDb();
   const deps = { db, notifyOwner };
+  const preferenceReply = await handleOwnerPreferenceCommand(db, text);
+  if (preferenceReply) {
+    await notifyOwner(preferenceReply);
+    return null;
+  }
   // Pedidos de grupo são tratados aqui, sem o agente: a aprovação é criada de verdade.
   const owner = process.env.EVOLUTION_OWNER_NUMBER;
   const groupRequest = parseGroupIntent(text, owner);

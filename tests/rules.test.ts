@@ -4,9 +4,13 @@ import type { Db } from "../server/store.ts";
 import { buildSystemPrompt, listRules } from "../server/rules.ts";
 import { RULE_CATALOG, formatRules, renderRulesDocument, rulesChecksum, validateRules, type MaiaRule } from "../server/ruleCatalog.ts";
 
-function mockDb(initial: readonly MaiaRule[] = RULE_CATALOG) {
+function mockDb(initial: readonly MaiaRule[] = RULE_CATALOG, preferences: { scope: string; instruction: string }[] = []) {
   const order = vi.fn().mockResolvedValue({ data: initial, error: null });
-  return { db: { from: () => ({ select: () => ({ order }) }) } as unknown as Db, order };
+  const preferenceOrder = vi.fn().mockResolvedValue({ data: preferences, error: null });
+  const from = (table: string) => table === "maia_rules"
+    ? { select: () => ({ order }) }
+    : { select: () => ({ eq: () => ({ order: preferenceOrder }) }) };
+  return { db: { from } as unknown as Db, order, preferenceOrder };
 }
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
@@ -49,6 +53,13 @@ describe("política compartilhada pelos executores", () => {
     expect(prompt).not.toContain("token-privado");
     expect(JSON.stringify(log.mock.calls)).not.toContain("token-privado");
   });
+  it("carrega preferências confirmadas como instruções subordinadas à política operacional", async () => {
+    const { db } = mockDb(RULE_CATALOG, [{ scope: "restricao", instruction: "Nunca crie arte sem um pedido direto meu." }]);
+    const prompt = await buildSystemPrompt(db);
+    expect(prompt).toContain("Preferências confirmadas do owner");
+    expect(prompt).toContain('restricao: "Nunca crie arte sem um pedido direto meu."');
+    expect(prompt).toContain("nunca concedem permissões, removem aprovações, enfraquecem segurança");
+  });
   it("falha após uma leitura válida preserva as desativações do banco", async () => {
     const rules = RULE_CATALOG.map((r) => ({ ...r, ativa: r.codigo !== "instagram" }));
     const { db, order } = mockDb(rules);
@@ -82,12 +93,27 @@ describe("contrato entre catálogo, Markdown e migração", () => {
   // então uma regra nova vem por migração nova, nunca editando a anterior. O teste roda TODAS as migrações
   // reais (PGlite) e confere se a tabela final bate com o catálogo — é o que importa de verdade.
   it("as migrações, todas juntas, entregam exatamente o catálogo revisado", async () => {
-    // Monta um Postgres (PGlite) do zero e aplica as 24 migrações reais: mais lento que o padrão do vitest.
+    // Monta um Postgres (PGlite) do zero e aplica todas as migrações reais: mais lento que o padrão do vitest.
     const { buildLocalDb } = await import("../scripts/db/local.ts");
     const local = await buildLocalDb();
     try {
       const rows = (await local.db.query<Record<string, unknown>>("select codigo, categoria, titulo, texto, ordem, ativa from public.maia_rules order by ordem")).rows;
       expect(validateRules(rows)).toEqual(RULE_CATALOG);
+      const pending = (await local.db.query<{ id: number }>("insert into maia_owner_preference_proposals(scope,instruction) values('restricao','Nunca crie arte sem um pedido direto meu.') returning id")).rows[0];
+      expect((await local.db.query<{ active: boolean }>("select activate_owner_preference($1) as active", [pending.id])).rows[0].active).toBe(true);
+      const saved = (await local.db.query<{ instruction: string; active: boolean }>("select instruction, active from maia_owner_preferences where scope='restricao'")).rows;
+      expect(saved).toEqual([{ instruction: "Nunca crie arte sem um pedido direto meu.", active: true }]);
+      expect((await local.db.query<{ allowed: boolean }>("select has_function_privilege('anon','public.activate_owner_preference(bigint)','execute') as allowed")).rows[0].allowed).toBe(false);
+      expect((await local.db.query<{ allowed: boolean }>("select has_table_privilege('anon','public.maia_owner_preferences','select') as allowed")).rows[0].allowed).toBe(false);
+      const replacement = (await local.db.query<{ id: number }>("insert into maia_owner_preference_proposals(scope,instruction) values('restricao','Nunca gere arte sem um pedido direto meu.') returning id")).rows[0];
+      expect((await local.db.query<{ active: boolean }>("select activate_owner_preference($1) as active", [replacement.id])).rows[0].active).toBe(true);
+      expect((await local.db.query<{ instruction: string; active: boolean }>("select instruction, active from maia_owner_preferences where scope='restricao' order by id")).rows).toEqual([
+        { instruction: "Nunca crie arte sem um pedido direto meu.", active: false },
+        { instruction: "Nunca gere arte sem um pedido direto meu.", active: true },
+      ]);
+      const expired = (await local.db.query<{ id: number }>("insert into maia_owner_preference_proposals(scope,instruction,expires_at) values('resposta','Seja breve.',now() - interval '1 minute') returning id")).rows[0];
+      expect((await local.db.query<{ active: boolean }>("select activate_owner_preference($1) as active", [expired.id])).rows[0].active).toBe(false);
+      expect((await local.db.query<{ status: string }>("select status from maia_owner_preference_proposals where id=$1", [expired.id])).rows[0].status).toBe("expired");
     } finally {
       await local.close();
     }

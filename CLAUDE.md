@@ -18,6 +18,7 @@ Leia `README.md`, `TODO.md`, `docs/regras-da-maia.md` e, para mudanças de banco
 ## Regras, permissões e aprovação
 
 - `config/maia-rules.json` é o catálogo versionado aprovado. O banco `maia_rules` contém a versão ativada; não é sobrescrito automaticamente no início da aplicação. A tela de regras é somente leitura.
+- Preferências pessoais do owner têm fluxo separado em `server/ownerPreferences.ts` e `maia_owner_preferences`: somente estilo, sugestões ou limites mais estritos; proposta expira em 10 min e só ativa com comando literal do owner. Nunca alteram permissões, aprovações ou segurança e não substituem migrações do catálogo.
 - `server/rules.ts` monta o prompt comum aos dois executores com títulos, códigos e ordem. Cache de 60 segundos por cliente de banco. Em falha de leitura, usa a última leitura validada ou o catálogo aprovado. Um conjunto sem regras ativas interrompe a execução.
 - `server/access.ts`, `server/approvalPolicy.ts` e os fluxos específicos executam os bloqueios. Prompt e documentos não concedem permissões.
 - No WhatsApp, o owner tem autonomia para ações internas e privadas já aprovadas. Publicação em Instagram/LinkedIn, anúncios e compartilhamento de arquivos exigem aprovação. Grupos não cadastrados, a partir do quarto contato no pedido e criação de grupo têm controles próprios.
