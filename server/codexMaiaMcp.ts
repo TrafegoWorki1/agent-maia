@@ -11,6 +11,7 @@ import { searchKnowledge } from "./knowledge.ts";
 import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
 import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, dmWindowOpen, sendInboxMessage, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, type InstagramPostKind } from "./integrations/zernio.ts";
 import { recordActionEvidence } from "./actionEvidence.ts";
+import { proposeOwnerPreference } from "./ownerPreferences.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
@@ -194,14 +195,27 @@ server.registerTool("artes_recentes", { description: "Lista artes recentes para 
   const arts = recentArts(5); return arts.length ? arts.map((a) => a.path).join("\n") : "Nenhuma arte gerada.";
 }));
 
-server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, story ou quadrado.", inputSchema: { briefing: z.string().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() } }, async ({ briefing, formato, referencias }) => guarded("mcp__maia__gerar_imagem", { briefing, formato, referencias }, async () => {
+server.registerTool("preferencia_propor", { description: "Propõe uma preferência persistente, apenas de estilo, sugestões ou uma restrição mais estrita. Nunca ativa sem confirmação textual posterior do owner e só aceita pedido de persistência explícito.", inputSchema: { escopo: z.enum(["resposta", "sugestoes", "restricao"]), texto: z.string().min(1).max(300) } }, async ({ escopo, texto }) => {
+  if (requester().role !== "owner" || process.env.MAIA_CODEX_PREFERENCE_ALLOWED !== "1") return result("Somente um pedido explícito do owner pode criar uma proposta persistente.", true);
+  try {
+    const id = await proposeOwnerPreference(getDb(), escopo, texto);
+    return result(`Proposta pendente #${id}: ${texto.trim()}. Ela ainda NÃO está ativa. Apresente exatamente essa proposta ao owner e peça que responda CONFIRMAR PREFERENCIA ${id}; para desistir, CANCELAR PREFERENCIA ${id}.`);
+  } catch (error) {
+    return result(error instanceof Error ? error.message : String(error), true);
+  }
+});
+
+server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, story ou quadrado, somente quando a mensagem atual do owner pede explicitamente criação.", inputSchema: { briefing: z.string().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() } }, async ({ briefing, formato, referencias }) => {
+  if (process.env.MAIA_CODEX_IMAGE_ALLOWED !== "1") return result("A mensagem atual não pediu a criação de uma imagem. Não gere a arte; responda ao pedido recebido e, se fizer sentido, pergunte se o owner quer que você crie.", true);
+  return guarded("mcp__maia__gerar_imagem", { briefing, formato, referencias }, async () => {
   const image = await createImage({ briefing, format: formato, refs: referencias ?? [] });
   if (!image.ok) throw new Error(image.error);
   if (channel === "painel") return `Arte criada em: ${image.path}`;
   const id = await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", image.path, `Arte ${FORMATS[formato]}`);
   await recordActionEvidence(getDb(), taskId, "enviar_arte", null, id ? `mensagem ${id}` : null);
   return id ? "Arte criada e envio aceito pelo WhatsApp, com ID da mensagem." : "Arte criada; a Evolution aceitou o envio, mas não devolveu um ID para conferência.";
-}));
+  });
+});
 
 server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional() } }, async ({ grupo, texto, mencionar }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar }, async () => {
   const invalid = validateText(texto); if (invalid) throw new Error(invalid);

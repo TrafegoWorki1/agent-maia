@@ -39,6 +39,8 @@ export interface CodexMcpContext {
   channel: "whatsapp" | "painel";
   requester: Requester;
   inGroup: boolean;
+  imageAllowed?: boolean;
+  preferenceAllowed?: boolean;
   onToolUse?: (tool: string, failed?: boolean) => Promise<void>;
 }
 
@@ -58,6 +60,8 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     MAIA_CODEX_TASK_ID: String(input.mcp.taskId),
     MAIA_CODEX_CHANNEL: input.mcp.channel,
     MAIA_CODEX_GROUP: input.mcp.inGroup ? "1" : "0",
+    MAIA_CODEX_IMAGE_ALLOWED: input.mcp.imageAllowed === true ? "1" : "0",
+    MAIA_CODEX_PREFERENCE_ALLOWED: input.mcp.preferenceAllowed === true ? "1" : "0",
     MAIA_CODEX_REQUESTER: JSON.stringify({ ...input.mcp.requester, permissions: [...input.mcp.requester.permissions] }),
   };
   try {

@@ -15,7 +15,7 @@ import { accessContext } from "./accessContext.ts";
 import { convMessages, formatConv, recentConversations, recordConvMessage } from "./conversations.ts";
 import { conversationContext } from "./context.ts";
 import { loadRoutingConfig } from "./ai/config.ts";
-import { classifyByRules } from "./ai/rulesClassifier.ts";
+import { classifyByRules, isImageCreationRequest } from "./ai/rulesClassifier.ts";
 import { route } from "./ai/router.ts";
 import { isRoutable, loadHealth, recordProviderEvent } from "./ai/providerHealth.ts";
 import { classifyError } from "./ai/errorClassifier.ts";
@@ -23,6 +23,7 @@ import { decideFallback, effectFromTools } from "./ai/fallback.ts";
 import { annotateRun } from "./ai/usageTracker.ts";
 import { budgetFor, claudeModelFor } from "./ai/providers/claude.ts";
 import { buildCodexPrompt, runCodexText } from "./ai/providers/codex.ts";
+import { handleOwnerPreferenceCommand, isPersistentPreferenceRequest } from "./ownerPreferences.ts";
 import type { RoutingConfig } from "./ai/types.ts";
 import {
   addTaskEvent,
@@ -122,6 +123,7 @@ async function runClaudeOnce(
   taskId: number,
   permission: CanUseTool,
   channel: "whatsapp" | "painel",
+  isOwner: boolean,
   opts: { model: string | undefined; maxBudgetUsd: number; timeoutMs: number },
 ): Promise<ClaudeRun> {
   const db = getDb();
@@ -148,7 +150,7 @@ async function runClaudeOnce(
         persistSession: false,
         canUseTool: permission,
         // Ferramenta de arte (Codex, em processo separado). Só o dono chega aqui.
-        mcpServers: { maia: createImageServer(channel, taskId) },
+        mcpServers: { maia: createImageServer(channel, taskId, isOwner && isImageCreationRequest(text), isOwner, isOwner && isPersistentPreferenceRequest(text)) },
         // Só os conectores do claude.ai: sem configurações locais, sem servidores MCP do computador.
         settingSources: [],
         disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"],
@@ -199,7 +201,7 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: n
     prompt,
     timeoutMs: cfg.timeoutMs.codex,
     model: cfg.providers.codex.model,
-    mcp: { taskId, channel, requester: who, inGroup, onToolUse: async (tool, failed) => {
+    mcp: { taskId, channel, requester: who, inGroup, imageAllowed: who.role === "owner" && isImageCreationRequest(text), preferenceAllowed: who.role === "owner" && isPersistentPreferenceRequest(text), onToolUse: async (tool, failed) => {
       await markTaskKind(db, taskId, "operacional");
       await addTaskEvent(db, taskId, "tool_use", tool, null);
       if (failed) await addTaskEvent(db, taskId, "tool_failed", tool, "A chamada da ferramenta falhou no transporte/política do SDK; não presume efeito externo");
@@ -251,7 +253,7 @@ async function runAgent(text: string, taskId: number, permission: CanUseTool, ch
   }
 
   try {
-    const out = await runClaudeOnce(text, taskId, permission, channel, { model: claudeModelFor(target), maxBudgetUsd: budgetFor(target.category, cfg), timeoutMs: cfg.timeoutMs.claude });
+    const out = await runClaudeOnce(text, taskId, permission, channel, who.role === "owner", { model: claudeModelFor(target), maxBudgetUsd: budgetFor(target.category, cfg), timeoutMs: cfg.timeoutMs.claude });
     await recordProviderEvent(db, "claude", { type: "success" }, cfg.health);
     await finishRun(db, runId, "ok", out.costUsd, null);
     await annotateRun(db, runId, { ...base, provider: "claude", model: target.model, motivo: target.motivo, durationMs: Date.now() - t0, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
@@ -437,6 +439,11 @@ ${roleNote} Responda direto a ${requester}, sem precisar começar com o nome del
 export async function answerFromPanel(text: string): Promise<string> {
   const db: Db = getDb();
   await recordMessage(db, { channel: "painel", author: "owner", text });
+  const preferenceReply = await handleOwnerPreferenceCommand(db, text);
+  if (preferenceReply) {
+    await recordMessage(db, { channel: "painel", author: "maia", text: preferenceReply });
+    return preferenceReply;
+  }
   const taskId = await createTask(db, { channel: "painel", summary: text });
   const jevPending = startJevShadow(text);
   await setTaskStatus(db, taskId, "em_andamento");

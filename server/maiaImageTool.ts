@@ -10,6 +10,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
 import { createImage, FORMATS } from "./imagegen.ts";
+import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPreferences.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
@@ -25,7 +26,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar"]);
 export function isLocalSafeTool(name: string): boolean {
   return LOCAL_SAFE_TOOLS.has(name);
 }
@@ -43,7 +44,7 @@ function zernioErrorText(error: unknown): string {
   return error instanceof ZernioError ? error.message : error instanceof Error ? error.message : String(error);
 }
 
-export function createImageServer(channel: "whatsapp" | "painel", taskId?: number) {
+export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false) {
   return createSdkMcpServer({
     name: "maia",
     version: "1.0.0",
@@ -77,6 +78,9 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           referencias: z.array(z.string()).max(4).optional().describe("Nomes de arquivos que já estão em data/arte/fotos ou data/arte/referencias. Opcional."),
         },
         async (args) => {
+          if (!allowImageGeneration) {
+            return { content: [{ type: "text", text: "A mensagem atual não pediu a criação de uma imagem. Não gere a arte; responda ao pedido recebido e, se fizer sentido, pergunte se o owner quer que você crie." }], isError: true };
+          }
           const result = await createImage({ briefing: args.briefing, format: args.formato, refs: args.referencias ?? [] });
           if (!result.ok) {
             const note = result.uncertain ? " Não repita automaticamente: confira a pasta de pedidos antes." : "";
@@ -120,6 +124,23 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         },
       ),
 
+      tool(
+        "preferencia_propor",
+        "Propõe uma preferência persistente do owner, mas NUNCA a ativa. Use apenas se o pedido original explicitamente disser que quer salvar/aplicar algo daqui para frente. Aceita estilo de resposta, frequência de sugestões ou restrições mais estritas. A proposta fica pendente; mostre o texto exato e peça CONFIRMAR PREFERENCIA <id>. Não altere permissões, aprovações ou segurança.",
+        {
+          escopo: z.enum(["resposta", "sugestoes", "restricao"]).describe("resposta para estilo/formato; sugestoes para próximos passos; restricao apenas para impor um limite mais estrito"),
+          texto: z.string().min(1).max(300).describe("Preferência exata, apenas de estilo ou de sugestões, em português."),
+        },
+        async (args) => {
+          if (!isOwner || !allowPreferenceProposal) return { content: [{ type: "text", text: "Esta mensagem não autorizou a criação de uma proposta persistente. Somente o owner pode pedir isso explicitamente." }], isError: true };
+          try {
+            const id = await proposeOwnerPreference(getDb(), args.escopo, args.texto);
+            return { content: [{ type: "text", text: `Proposta pendente #${id}: ${args.texto.trim()}. Ela ainda NÃO está ativa. Apresente exatamente essa proposta ao owner e peça que responda CONFIRMAR PREFERENCIA ${id}; para desistir, CANCELAR PREFERENCIA ${id}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true };
+          }
+        },
+      ),
       tool(
         "avisar_dono",
         "Envia um aviso ao Herickson, no privado dele, quando alguém pedir algo que você não faz ou que precisa de decisão dele. Informe o pedido e quem pediu.",

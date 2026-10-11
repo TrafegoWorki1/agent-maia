@@ -26,6 +26,8 @@ Para o comportamento da Maia, `config/maia-rules.json` versiona o catálogo apro
 
 A atualização do conhecimento usa `replace_knowledge_document`, RPC exclusiva do servidor, que troca trechos e checksum na mesma transação com comparação da versão anterior. Fontes históricas são desativadas somente após indexação bem-sucedida das regras vigentes; seus trechos são mantidos para reversão. `pnpm knowledge:sync` faz essa sincronização e deve ser executado apenas dentro de uma atualização autorizada.
 
+Preferências persistentes do owner são um mecanismo separado, não um editor de `maia_rules`. A migração `20261011005800_maia_owner_preferences_v1.sql` cria propostas e preferências com RLS, bloqueia `anon`/`authenticated` e concede execução da RPC de ativação somente a `service_role`. O owner confirma uma proposta pendente em até 10 minutos; a função ativa o texto atomicamente e substitui o valor anterior do mesmo escopo. A Maia não recebe acesso a SQL livre. Aplicar essa migração em produção segue o mesmo workflow aprovado abaixo, antes de publicar código que a consulte.
+
 | Comando | O que faz |
 |---|---|
 | `pnpm db:new nome_em_snake_case` | Cria `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com o cabeçalho padrão |
