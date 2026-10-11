@@ -1,8 +1,8 @@
-import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
+import { runClaudeSimple } from "./ai/providers/claudeSimple.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { finishRun, readSnapshots, saveSnapshot, startRun, type Db, type SourceId } from "./store.ts";
 
-// Atualização periódica das fontes (Gmail, Meta Ads, Sheets) pelo Agent SDK, com as conexões
+// Atualização periódica das fontes (Gmail, Meta Ads, Sheets) pelo Claude Code CLI (SDK como alternativa), com as conexões
 // MCP desta conta. Só ferramentas de leitura. Cada fonte exige um JSON com formato fixo: se a
 // resposta não bater com o formato, o painel mostra erro, nunca um número inventado.
 
@@ -74,11 +74,8 @@ const SOURCES: Record<SourceId, { prompt: string; tools: string[]; validate: Val
 };
 
 // Cada fonte só usa as próprias ferramentas de leitura listadas em SOURCES.
-function permissionFor(source: SourceId): CanUseTool {
-  return async (toolName, input) =>
-    isReadTool(toolName) && SOURCES[source].tools.includes(toolName)
-      ? { behavior: "allow", updatedInput: input }
-      : { behavior: "deny", message: "Atualização somente leitura, com ferramentas desta fonte." };
+function allowedFor(source: SourceId): (toolName: string) => boolean {
+  return (toolName) => isReadTool(toolName) && SOURCES[source].tools.includes(toolName);
 }
 
 // Pega o primeiro objeto JSON do texto da resposta.
@@ -95,31 +92,16 @@ async function runSource(db: Db, source: SourceId): Promise<void> {
   const runId = await startRun(db, `refresh:${source}`);
   let costUsd: number | null = null;
   try {
-    const run = query({
+    const answer = await runClaudeSimple({
       prompt: SOURCES[source].prompt,
-      options: {
-        systemPrompt: "Você atualiza o painel da Maia com dados de leitura. Nunca execute ações.",
-        model: MODEL,
-        maxTurns: MAX_TURNS,
-        maxBudgetUsd: MAX_BUDGET_USD,
-        persistSession: false,
-        canUseTool: permissionFor(source),
-        // Só os conectores do claude.ai: sem configurações locais, sem servidores MCP do computador.
-        settingSources: [],
-        disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"],
-        cwd: process.cwd(),
-        env: { ...process.env },
-      },
+      systemPrompt: "Você atualiza o painel da Maia com dados de leitura. Nunca execute ações.",
+      model: MODEL,
+      maxTurns: MAX_TURNS,
+      maxBudgetUsd: MAX_BUDGET_USD,
+      allowTool: allowedFor(source),
     });
-    let text = "";
-    for await (const message of run) {
-      if (message.type === "result") {
-        costUsd = (message as { total_cost_usd?: number }).total_cost_usd ?? null;
-        if (message.is_error || message.subtype !== "success") throw new Error(`Agent SDK falhou (${message.subtype})`);
-        text = message.result;
-        break;
-      }
-    }
+    costUsd = answer.costUsd;
+    const text = answer.text;
     const parsed = parseJsonObject(text);
     if (typeof parsed.error === "string") throw new Error(parsed.error);
     await saveSnapshot(db, source, { status: "ok", data: SOURCES[source].validate(parsed) });

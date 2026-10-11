@@ -25,7 +25,7 @@ Para desenvolver o painel local: `pnpm dev`, em `http://127.0.0.1:3000`. Para ex
 
 ### Executor do Claude (Claude Code CLI)
 
-O Claude roda pelo `claude -p` (Claude Code), com as ferramentas da Maia e as aprovações do servidor acessadas por um MCP local só em 127.0.0.1. Requisitos: `claude` instalado e logado na conta (ou `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` no ambiente do worker). Conferir com `pnpm smoke:claude-cli` (gasta centavos) e `pnpm smoke:maia-tools` (offline).
+O Claude roda pelo `claude -p` (Claude Code), com as ferramentas da Maia e as aprovações do servidor acessadas por um MCP local só em 127.0.0.1. Requisitos: `claude` instalado e logado na conta (ou `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` no ambiente do worker). Conferir com `pnpm smoke:claude-cli` e `pnpm smoke:claude-simple` (gastam centavos) e `pnpm smoke:maia-tools` (offline). A atualização do painel (Gmail, Meta, Sheets, Agenda) usa o mesmo executor.
 
 | Variável (opcional) | Uso |
 | --- | --- |
