@@ -1,0 +1,58 @@
+name: Aplicar migrações (produção)
+
+# MANUAL e protegido. Nunca roda sozinho e o merge de código NÃO aplica migração.
+# Passos: (1) simulação (--dry-run) sempre; (2) aplicação só se "aplicar" = true, e o job usa o ambiente "production",
+# que deve exigir a aprovação do owner (Settings > Environments > production > Required reviewers).
+# Ordem obrigatória: aplicar a migração ANTES de fazer merge do código que depende dela. Migrações devem ser
+# compatíveis com o código antigo (adicionar primeiro, remover depois), porque o deploy do código vem depois.
+# Segredos do ambiente production: SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_REF.
+on:
+  workflow_dispatch:
+    inputs:
+      aplicar:
+        description: "Aplicar de verdade? (false = só simulação)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validar migrações antes de tocar na produção
+        run: pnpm db:validate
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Ligar ao projeto
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+      - name: Simulação (lista o que seria aplicado)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --dry-run
+      - name: Aplicar
+        if: ${{ inputs.aplicar }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+      - name: Conferir que não sobrou divergência
+        if: ${{ inputs.aplicar }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: pnpm db:drift

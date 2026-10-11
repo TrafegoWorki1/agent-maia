@@ -1,0 +1,36 @@
+name: CI
+
+# Roda em todo PR e em push para main. Valida código e banco. Não usa segredos e não toca em nenhum banco remoto:
+# as migrações são aplicadas do zero em um Postgres temporário (PGlite).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tipos
+        run: pnpm typecheck
+      - name: Migrações aplicam do zero e o código só usa o que elas criam
+        run: pnpm db:validate
+      - name: Guarda de migrações (imutabilidade, destrutivo, CHANGELOG)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: pnpm db:guard
+      - name: Testes (inclui testes de banco e de integração)
+        run: pnpm test
