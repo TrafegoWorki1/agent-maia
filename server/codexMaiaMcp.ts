@@ -15,15 +15,19 @@ import { proposeOwnerPreference } from "./ownerPreferences.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
-import { sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { findReceivedMedia } from "./receivedMedia.ts";
+import { findChats, findInstanceContacts } from "./chats.ts";
+import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { registerGroup, requestCreateGroup } from "./groups.ts";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { isLocalSafeTool } from "./maiaImageTool.ts";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -337,6 +341,86 @@ server.registerTool("linkedin_post_editar", { description: "Edita texto ou horá
   await updateScheduledPost(args.post_id, { caption: args.conteudo, scheduledFor: args.agendar_para });
   await addTaskEvent(getDb(), taskId, "external_done", "linkedin_post_editar", args.post_id).catch(() => {});
   return "Post atualizado.";
+}));
+
+// Ferramentas de grupo/conversa/arquivo que o servidor do Claude já tinha e a contingência não: mesmas mensagens e
+// mesmas verificações (guarded → access.ts). O anúncio com URL temporária depende do conector Meta Ads do Claude e fica de fora.
+const GROUP_NAME = z.string().min(2).max(100);
+
+server.registerTool("grupo_gerenciar_participantes", { description: "Adiciona, remove, promove a admin ou rebaixa participantes de um grupo do WhatsApp que já existe (diferente de criar grupo). Informe o nome exato do grupo.", inputSchema: { grupo: GROUP_NAME, acao: z.enum(["adicionar", "remover", "promover", "rebaixar"]), participantes: z.array(z.string().max(60)).min(1).max(20) } }, async (args) => guarded("mcp__maia__grupo_gerenciar_participantes", args, async () => {
+  const group = await resolveGroup(args.grupo); if (!group.ok) throw new Error(`Não fiz: ${group.error}.`);
+  const participants = await resolveMentions(getDb(), args.participantes); if (!participants.ok) throw new Error(`Não fiz: ${participants.error}.`);
+  const action: Record<typeof args.acao, ParticipantAction> = { adicionar: "add", remover: "remove", promover: "promote", rebaixar: "demote" };
+  const verb: Record<typeof args.acao, string> = { adicionar: "adicionar", remover: "remover", promover: "promover a admin", rebaixar: "rebaixar" };
+  const result = await updateGroupParticipants(group.group.jid, action[args.acao], participants.numbers);
+  if (!result.ok) throw new Error(`Não consegui ${verb[args.acao]} no grupo "${group.group.subject}": ${result.detail}.`);
+  await addTaskEvent(getDb(), taskId, "external_done", "grupo_gerenciar_participantes", `${args.acao}: ${group.group.subject}`).catch(() => {});
+  // A Evolution devolve um status por número: aceitar a chamada não significa que cada pessoa entrou. Confere cada número.
+  if (!result.outcomes) return `Pedido aceito pela Evolution para ${verb[args.acao]} ${participants.numbers.length} pessoa(s) no grupo "${group.group.subject}", mas a Evolution não devolveu o status de cada pessoa nesta chamada. Não confirmo o resultado de fato; confira no WhatsApp.`;
+  const failed = result.outcomes.filter((o) => !o.accepted);
+  if (failed.length < result.outcomes.length) await addTaskEvent(getDb(), taskId, "task_verified", "grupo_gerenciar_participantes", `${result.outcomes.length - failed.length}/${result.outcomes.length} confirmado(s)`).catch(() => {});
+  if (failed.length === 0) return `Confirmado: ${verb[args.acao]} ${result.outcomes.length} pessoa(s) no grupo "${group.group.subject}".`;
+  const detalhe = failed.map((o) => `+${o.number}${o.statusCode === "403" ? " (privacidade dela bloqueia entrada direta; só funciona com link de convite — posso gerar com grupo_convite_link e mandar com grupo_enviar_convite)" : o.statusCode ? ` (status ${o.statusCode})` : ""}`).join("; ");
+  const text = `Parcial: ${result.outcomes.length - failed.length}/${result.outcomes.length} confirmado(s) no grupo "${group.group.subject}". Não deu para ${verb[args.acao]}: ${detalhe}.`;
+  if (failed.length === result.outcomes.length) throw new Error(text);
+  return text;
+}));
+
+server.registerTool("grupo_info", { description: "Consulta informações de um grupo específico (descrição, dono, tamanho, criação). Só leitura.", inputSchema: { grupo: GROUP_NAME } }, async ({ grupo }) => guarded("mcp__maia__grupo_info", { grupo }, async () => {
+  const group = await resolveGroup(grupo); if (!group.ok) throw new Error(`Não consegui: ${group.error}.`);
+  const info = await fetchGroupInfo(group.group.jid); if (!info.ok) throw new Error(`Não consegui consultar o grupo: ${info.error}.`);
+  return `"${info.info.subject}" · ${info.info.size ?? "—"} participante(s) · dono: ${info.info.owner ? `+${info.info.owner}` : "—"} · criado em: ${info.info.createdAt ?? "—"}\nDescrição: ${info.info.description ?? "(sem descrição)"}`;
+}));
+
+server.registerTool("grupo_participantes", { description: "Lista os participantes e administradores de um grupo. Só leitura.", inputSchema: { grupo: GROUP_NAME } }, async ({ grupo }) => guarded("mcp__maia__grupo_participantes", { grupo }, async () => {
+  const group = await resolveGroup(grupo); if (!group.ok) throw new Error(`Não consegui: ${group.error}.`);
+  const result = await fetchGroupParticipants(group.group.jid); if (!result.ok) throw new Error(`Não consegui consultar os participantes: ${result.error}.`);
+  return result.participants.length ? result.participants.map((p) => `+${p.number}${p.isAdmin ? " (admin)" : ""}`).join("\n") : "Nenhum participante encontrado.";
+}));
+
+server.registerTool("grupo_convite_link", { description: "Consulta o link de convite de um grupo. Sensível: quem tiver o link entra no grupo direto; só o owner usa esta ferramenta.", inputSchema: { grupo: GROUP_NAME } }, async ({ grupo }) => guarded("mcp__maia__grupo_convite_link", { grupo }, async () => {
+  const group = await resolveGroup(grupo); if (!group.ok) throw new Error(`Não consegui: ${group.error}.`);
+  const result = await fetchGroupInviteCode(group.group.jid); if (!result.ok) throw new Error(`Não consegui consultar o convite: ${result.error}.`);
+  return `Link do grupo "${group.group.subject}": ${result.link}`;
+}));
+
+server.registerTool("grupo_enviar_convite", { description: "Manda o convite de um grupo (link e descrição) a um ou mais contatos pelo WhatsApp. Ação que sai para fora: só roda depois do OK do owner ou do aprovador.", inputSchema: { grupo: GROUP_NAME, contatos: z.array(z.string().max(60)).min(1).max(20), descricao: z.string().max(500).optional() } }, async (args) => guarded("mcp__maia__grupo_enviar_convite", args, async () => {
+  const group = await resolveGroup(args.grupo); if (!group.ok) throw new Error(`Não enviei: ${group.error}.`);
+  const contacts = await resolveMentions(getDb(), args.contatos); if (!contacts.ok) throw new Error(`Não enviei: ${contacts.error}.`);
+  const result = await sendGroupInvite(group.group.jid, group.group.subject, contacts.numbers, args.descricao ?? "");
+  if (!result.ok) throw new Error(`Não consegui enviar o convite: ${result.detail}.`);
+  await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_convite", group.group.subject).catch(() => {});
+  return `Convite do grupo "${group.group.subject}" enviado para ${contacts.numbers.length} contato(s).`;
+}));
+
+server.registerTool("grupo_alterar_foto", { description: "Troca a foto de um grupo do WhatsApp, usando uma imagem que o dono mandou (data/midia) ou uma arte gerada (data/arte). Ação que sai para fora, visível a todos do grupo: em grupo cadastrado, o owner não precisa de OK; em grupo não cadastrado, exige aprovação, igual às outras ações de grupo.", inputSchema: { grupo: GROUP_NAME, arquivo: z.string().min(3).max(300) } }, async (args) => guarded("mcp__maia__grupo_alterar_foto", args, async () => {
+  const group = await resolveGroup(args.grupo); if (!group.ok) throw new Error(`Não troquei a foto: ${group.error}.`);
+  const owned = resolveOwnerMediaPath(args.arquivo);
+  const resolved = owned.ok ? owned : resolveArtPath(args.arquivo);
+  if (!resolved.ok) throw new Error(`Não troquei a foto: ${resolved.error}.`);
+  const result = await updateGroupPicture(group.group.jid, readFileSync(resolved.path).toString("base64"));
+  if (!result.ok) throw new Error(`Não consegui trocar a foto: ${result.detail}.`);
+  await addTaskEvent(getDb(), taskId, "external_done", "grupo_alterar_foto", group.group.subject).catch(() => {});
+  return `Foto do grupo "${group.group.subject}" trocada.`;
+}));
+
+server.registerTool("conversas_listar", { description: "Lista as conversas (privadas e de grupo) conhecidas pela instância do WhatsApp, com a mais recente primeiro. Só leitura.", inputSchema: { limite: z.number().int().min(1).max(50).optional() } }, async ({ limite }) => guarded("mcp__maia__conversas_listar", { limite }, async () => {
+  const result = await findChats(limite ?? 20); if (!result.ok) throw new Error(`Não consegui consultar as conversas: ${result.error}.`);
+  return result.chats.length ? result.chats.map((c) => `${c.isGroup ? "[grupo] " : ""}${c.name}`).join("\n") : "Nenhuma conversa encontrada.";
+}));
+
+server.registerTool("contato_instancia_buscar", { description: "Procura, nos contatos salvos na instância do WhatsApp (diferente da agenda da Maia), alguém por nome ou número. Use quando contato_buscar não achar. Só leitura.", inputSchema: { busca: z.string().min(1).max(80) } }, async ({ busca }) => guarded("mcp__maia__contato_instancia_buscar", { busca }, async () => {
+  const result = await findInstanceContacts(busca); if (!result.ok) throw new Error(`Não consegui consultar: ${result.error}.`);
+  return result.contacts.length ? result.contacts.map((c) => `${c.name || "(sem nome)"} +${c.number}`).join("\n") : `Nenhum contato da instância para "${busca}".`;
+}));
+
+server.registerTool("arquivo_reenviar", { description: "Reenvia ao owner, no WhatsApp dele, um arquivo (imagem, vídeo ou documento) que um membro ou contato mandou à Maia. Útil quando o owner pede o arquivo original, não só o resumo. Só o owner usa esta ferramenta.", inputSchema: { de: z.string().max(80).optional() } }, async ({ de }) => guarded("mcp__maia__arquivo_reenviar", { de }, async () => {
+  const found = await findReceivedMedia(getDb(), de);
+  if (!found) throw new Error(`Não achei nenhum arquivo${de ? ` de "${de}"` : ""} recebido recentemente (retenção de 7 dias).`);
+  const id = await sendFile(process.env.EVOLUTION_OWNER_NUMBER ?? "", found.path, found.mediaType, found.mimetype, found.caption, found.fileName);
+  await addTaskEvent(getDb(), taskId, "external_done", "arquivo_reenviar", found.fromName || found.fromNumber).catch(() => {});
+  if (id) await addTaskEvent(getDb(), taskId, "task_verified", "arquivo_reenviar", `mensagem ${id}`).catch(() => {});
+  return `Reenviei${id ? ` (mensagem ${id})` : ""} o arquivo de ${found.fromName || `+${found.fromNumber}`} (${found.receivedAt.slice(0, 16).replace("T", " ")} UTC).`;
 }));
 
 await server.connect(new StdioServerTransport());

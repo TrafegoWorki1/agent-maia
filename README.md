@@ -6,7 +6,7 @@ Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo Wha
 
 Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel publicado usa autenticação do proprietário e RLS.
 
-Claude é o executor principal; Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
+Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
 ## Execução
 
@@ -22,6 +22,19 @@ pnpm start
 Para desenvolver o painel local: `pnpm dev`, em `http://127.0.0.1:3000`. Para executar somente o worker, sem launcher: `pnpm worker`. Não iniciar duas cópias da operação para conferir uma mudança.
 
 `pnpm start:legacy` mantém o fluxo antigo com webhook local e túnel; ele não oferece a mesma cobertura do caminho Vercel/fila para grupos. Não usá-lo como substituto automático da operação atual.
+
+### Executor do Claude (Claude Code CLI)
+
+O Claude roda pelo `claude -p` (Claude Code), com as ferramentas da Maia e as aprovações do servidor acessadas por um MCP local só em 127.0.0.1. Requisitos: `claude` instalado e logado na conta (ou `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` no ambiente do worker). Conferir com `pnpm smoke:claude-cli` (gasta centavos) e `pnpm smoke:maia-tools` (offline).
+
+| Variável (opcional) | Uso |
+| --- | --- |
+| `MAIA_CLAUDE_EXECUTOR` | `cli` (padrão) ou `sdk` para voltar ao Agent SDK sem mudar código; vale mais que a config |
+| `MAIA_CLAUDE_BIN` | caminho do `claude` quando não está no PATH (VPS) |
+| `MAIA_CLAUDE_WORKDIR` | pasta de trabalho do CLI (padrão: a do worker) |
+| `MAIA_CLAUDE_ADD_DIRS` | repositórios extras de leitura, só para o owner (`:` no Linux, `;` no Windows) |
+
+O CLI nasce restrito: sem Bash/PowerShell, Edit, Write, web nem servidores MCP do computador; segredos (`.env`, `.git`, `.ssh`) não são lidos. Se o CLI não existir, a chamada cai no SDK antes de qualquer ação. O padrão também está em `providers.claude.executor` de `config/ai-routing.json`.
 
 O ambiente do servidor contém as credenciais de Supabase, Evolution, Whisper e Zernio quando configurados. Mantenha-as no ambiente privado; não cole segredos no repositório, painel ou chat. A autenticação local dos executores de IA é independente da autenticação do painel.
 

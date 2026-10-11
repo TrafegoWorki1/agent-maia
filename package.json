@@ -14,6 +14,8 @@
     "start": "node scripts/start-worker.ts",
     "start:legacy": "node scripts/start.ts",
     "worker": "node server/inboxWorker.ts",
+    "smoke:claude-cli": "node scripts/smoke-claude-cli.ts",
+    "smoke:maia-tools": "node scripts/smoke-maia-tools-http.ts",
     "rules:check": "node scripts/rules-artifacts.ts",
     "rules:generate": "node scripts/rules-artifacts.ts --write",
     "rules:verify": "node scripts/verify-maia-rules.ts",

@@ -95,6 +95,8 @@ export interface BuiltinRoots {
   projectRoot: string;
   mediaDir: string;
   memberMediaDir?: string;
+  // Repositórios extras de leitura (ex.: na VPS), definidos no servidor. Só o dono os lê.
+  extraRoots?: string[];
 }
 
 function inside(path: string, root: string): boolean {
@@ -108,7 +110,7 @@ export function decideBuiltin(toolName: string, input: Record<string, unknown>, 
     const raw = typeof input.file_path === "string" ? input.file_path : typeof input.path === "string" ? input.path : "";
     const target = raw ? resolvePath(raw) : roots.projectRoot;
     if (SECRET_PATH.test(target)) return { decision: "deny", reason: "arquivo de segredos ou configuração" };
-    if (who.role === "owner") return inside(target, roots.projectRoot) ? { decision: "allow", reason: "dono lê o projeto" } : { decision: "deny", reason: "fora do projeto" };
+    if (who.role === "owner") return [roots.projectRoot, ...(roots.extraRoots ?? [])].some((root) => inside(target, root)) ? { decision: "allow", reason: "dono lê o projeto" } : { decision: "deny", reason: "fora do projeto" };
     if (toolName === "Read" && (inside(target, roots.mediaDir) || (roots.memberMediaDir && inside(target, roots.memberMediaDir)))) return { decision: "allow", reason: "mídia enviada" };
     return { decision: "deny", reason: "só o dono lê arquivos do projeto" };
   }

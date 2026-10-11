@@ -6,7 +6,7 @@ import type { RoutingConfig } from "./types.ts";
 // Configuração do roteador: config/ai-routing.json por cima dos valores padrão abaixo.
 // Se o arquivo faltar ou estiver quebrado, a Maia segue com os padrões e registra o aviso.
 export const DEFAULT_CONFIG: RoutingConfig = {
-  providers: { claude: { enabled: true, models: { economico: "haiku", principal: null } }, codex: { enabled: true, model: null } },
+  providers: { claude: { enabled: true, executor: "cli", models: { economico: "haiku", principal: null } }, codex: { enabled: true, model: null } },
   budgetUsd: { conversa: 0.25, resumo: 0.25, consulta: 0.5, analise: 1, geral: 1 },
   timeoutMs: { claude: 300_000, codex: 120_000 },
   concurrency: { claude: 1, codex: 1 },
