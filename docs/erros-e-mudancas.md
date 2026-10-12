@@ -4,6 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Aba de conversa desativada (12/10/2026)
+
+- Removida a aba Conversa do Agente Maia. A seção abre em Regras ativas e links antigos do chat redirecionam para essa tela. O chat deixa de ser carregado pelo painel.
+
 ## Fechamento dos formulários do painel (12/10/2026)
 
 - **Causa:** atualizar cadastros após conflito não atualizava os valores/revisões dos formulários.
