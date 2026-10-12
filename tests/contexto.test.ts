@@ -15,8 +15,8 @@ describe("contexto da conversa", () => {
     expect(pickContext(rows, "tarefa revisar campanha", NOW)).toBe("");
   });
 
-  it("ignora mensagens fora da janela de 2 horas e de terceiros", () => {
-    const rows = [row(150, "owner", "antiga"), row(2, "terceiro", "não entra"), row(3, "maia", "recente")];
+  it("ignora mensagens fora da janela de 12 horas e de terceiros", () => {
+    const rows = [row(13 * 60, "owner", "antiga"), row(2, "terceiro", "não entra"), row(3, "maia", "recente")];
     expect(pickContext(rows, "agora", NOW)).toBe("Maia: recente");
   });
 

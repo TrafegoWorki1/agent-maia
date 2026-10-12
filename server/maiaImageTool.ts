@@ -4,7 +4,7 @@ import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
-import { loadContacts, matchContacts, registerMember, resolveContact } from "./contacts.ts";
+import { loadContacts, matchContacts, registerMember, resolveContact, saveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
@@ -588,8 +588,21 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         },
       ),
       tool(
+        "contato_salvar",
+        "Salva um contato avulso na agenda (nome e número), sem torná-lo membro nem dar permissão. Use para poder enviar mensagem a alguém e receber o repasse da resposta. É a ferramenta padrão quando o owner pede para salvar/cadastrar um contato.",
+        {
+          nome: z.string().min(2).max(60),
+          numero: z.string().min(10).max(20).describe("Número com DDI e DDD."),
+        },
+        async (args) => {
+          const result = await saveContact(getDb(), { name: args.nome, number: args.numero });
+          if (!result.ok) return { content: [{ type: "text", text: `Não salvei: ${result.error}.` }], isError: true };
+          return { content: [{ type: "text", text: result.created ? `${args.nome} salvo(a) na agenda como contato avulso.` : `${args.nome} já estava na agenda.` }] };
+        },
+      ),
+      tool(
         "membro_cadastrar",
-        "Cadastra uma pessoa como membro (com número e permissões) para ela poder falar com a Maia. Só o owner cadastra. Começa com conversa e resumo; as demais permissões só se o owner pedir.",
+        "Adiciona uma pessoa como MEMBRO DA EQUIPE (com número e permissões) para ela poder falar com a Maia. Use SOMENTE quando o owner disser explicitamente para adicionar a pessoa como membro da equipe; para contato avulso, use contato_salvar. Começa com conversa e resumo; as demais permissões só se o owner pedir.",
         {
           nome: z.string().min(2).max(60),
           numero: z.string().min(10).max(20).describe("Número com DDI e DDD."),

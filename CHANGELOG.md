@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Contato avulso e repasse da resposta a quem a Maia procurou
+
+- **Sintoma:** o dono pediu para a Maia mandar mensagem ao João (contato avulso). A Maia prometeu avisar quando ele respondesse e não avisou; só contou quando o dono perguntou.
+- **Causa:** `contato_enviar_mensagem` exige o número na agenda e a única ferramenta para salvar era `membro_cadastrar`, que sempre cria Pessoa com role `equipe` e as permissões `conversa.maia` e `resumo.ver`. A resposta do João entrou na fila como `member`, e o caminho de membro não repassa ao dono (o repasse "fulano respondeu: ..." só existia para quem não é cadastrado). A promessa "Se ele responder, eu repasso ao owner" é texto fixo da ferramenta de envio. Além disso, a resposta chegou sem o nono dígito (`558597292636`) e o `outreach` tinha o número com ele (`5585997292636`).
+- **Correção:** nova ferramenta `contato_salvar` (Claude e Codex), só dono, que grava só em `contacts`, sem Pessoa, papel ou permissão. `membro_cadastrar` passa a ser só para quando o dono pedir expressamente para adicionar alguém como membro da equipe. Novo `hasRecentOutreach` (compara número canônico, com ou sem nono dígito) e `relayIfContacted` no worker: texto, áudio e mídia de um membro que a Maia procurou nas últimas 48 h agora também são repassados ao dono. A mensagem de erro de `resolveContact` aponta para `contato_salvar`.
+- **Arquivos:** `server/contacts.ts`, `server/inboxWorker.ts`, `server/maiaImageTool.ts`, `server/codexMaiaMcp.ts`, `server/access.ts`, `server/actionDescriptions.ts`, `tests/contatoAvulso.test.ts`; `tests/contexto.test.ts` ajustado para a janela de 12 h.
+- **Verificação:** `pnpm typecheck` e `vitest` (450 testes) passando.
+- **Pendências:** remover o cadastro de equipe do João em produção (Pessoas, números e as permissões `conversa.maia`/`resumo.ver`), mantendo só o contato na agenda; áudio e mídia de quem não é membro (contato avulso) ainda não são repassados; reiniciar o worker; teste ao vivo.
+
 ## 2026-10-12 — Subir criativo do WhatsApp direto nos anúncios
 
 - **O que é:** o dono manda uma imagem ou vídeo no WhatsApp com a legenda do que quer anunciar; a Maia usa `anuncio_midia_url_temporaria` para gerar um link temporário (2h) no Supabase Storage e então passa esse link para `ads_creative_upload_media` (Meta Ads MCP) com `upload_source: URL`.
