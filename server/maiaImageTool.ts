@@ -18,7 +18,7 @@ import { addTaskEvent, getDb } from "./store.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
-import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
+import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers, withMentionTags } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -196,6 +196,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
           texto: z.string().min(1).max(3000).describe("Texto final da mensagem."),
           mencionar: z.array(z.string().max(60)).max(20).optional().describe("Quem mencionar: números com DDI+DDD ou nomes cadastrados em Pessoas."),
+          mencionar_todos: z.boolean().optional().describe("true marca todos os participantes do grupo (avisa a todos). Só quando o dono pedir de forma explícita."),
         },
         async (args) => {
           const invalid = validateText(args.texto);
@@ -204,8 +205,15 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           if (!group.ok) return { content: [{ type: "text", text: `Não enviei: ${group.error}.` }], isError: true };
           const mentions = await resolveMentions(getDb(), args.mencionar ?? []);
           if (!mentions.ok) return { content: [{ type: "text", text: `Não enviei: ${mentions.error}.` }], isError: true };
+          let numbers = mentions.numbers;
+          if (args.mencionar_todos) {
+            const everyone = await everyMemberNumbers(group.group.jid, mentions.numbers);
+            if (!everyone.ok) return { content: [{ type: "text", text: `Não enviei: ${everyone.error}.` }], isError: true };
+            numbers = [...new Set([...mentions.numbers, ...everyone.numbers])];
+            if (withMentionTags(args.texto, numbers).length > 3000) return { content: [{ type: "text", text: `Não enviei: com as menções de ${numbers.length} participantes a mensagem passa do limite de 3000 caracteres. Envie um texto mais curto.` }], isError: true };
+          }
           try {
-            const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers);
+            const id = await sendGroupText(group.group.jid, args.texto, numbers);
             await recordConvMessage(getDb(), { conv: group.group.jid, name: "Maia", text: args.texto, fromMaia: true }).catch(() => {});
             if (taskId) {
               await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});

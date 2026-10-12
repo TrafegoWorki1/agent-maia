@@ -1,4 +1,4 @@
-import { fetchLiveGroups, type LiveGroup } from "./groups.ts";
+import { fetchGroupParticipants, fetchLiveGroups, type LiveGroup } from "./groups.ts";
 import { addTaskEvent, getDb, type Db } from "./store.ts";
 
 // Ações da Maia em grupos do WhatsApp (decisão do owner, 2026-10-09): mandar texto com menção, enquete, ler enquetes
@@ -65,6 +65,16 @@ export async function resolveMentions(db: Db, items: string[]): Promise<{ ok: tr
 export function withMentionTags(text: string, numbers: string[]): string {
   const missing = numbers.filter((n) => !text.includes(`@${n}`));
   return missing.length ? `${text.trim()} ${missing.map((n) => `@${n}`).join(" ")}` : text;
+}
+
+// Mencionar todos: a Evolution não tem um "@todos" próprio, então a mensagem marca cada participante do grupo (o WhatsApp
+// avisa a todos). Só números com DDI+DDD+número; o próprio número da Maia não entra.
+export async function everyMemberNumbers(jid: string, skip: string[] = []): Promise<{ ok: true; numbers: string[] } | { ok: false; error: string }> {
+  const list = await fetchGroupParticipants(jid);
+  if (!list.ok) return { ok: false, error: `não consegui listar os participantes do grupo: ${list.error}` };
+  const numbers = [...new Set(list.participants.map((p) => p.number.replace(/\D/g, "")).filter((n) => n.length >= 12 && n.length <= 13 && !skip.includes(n)))];
+  if (!numbers.length) return { ok: false, error: "não encontrei participantes com número válido neste grupo" };
+  return { ok: true, numbers };
 }
 
 export function validateText(text: string): string | null {

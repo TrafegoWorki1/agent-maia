@@ -21,7 +21,7 @@ import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
-import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
+import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers, withMentionTags } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
@@ -222,11 +222,17 @@ server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, sto
   });
 });
 
-server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional() } }, async ({ grupo, texto, mencionar }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar }, async () => {
+server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional(), mencionar_todos: z.boolean().optional() } }, async ({ grupo, texto, mencionar, mencionar_todos }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar, mencionar_todos }, async () => {
   const invalid = validateText(texto); if (invalid) throw new Error(invalid);
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   const mentions = await resolveMentions(getDb(), mencionar ?? []); if (!mentions.ok) throw new Error(mentions.error);
-  const id = await sendGroupText(found.group.jid, texto, mentions.numbers);
+  let numbers = mentions.numbers;
+  if (mencionar_todos) {
+    const everyone = await everyMemberNumbers(found.group.jid, mentions.numbers); if (!everyone.ok) throw new Error(everyone.error);
+    numbers = [...new Set([...mentions.numbers, ...everyone.numbers])];
+    if (withMentionTags(texto, numbers).length > 3000) throw new Error(`com as menções de ${numbers.length} participantes a mensagem passa do limite de 3000 caracteres`);
+  }
+  const id = await sendGroupText(found.group.jid, texto, numbers);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
   await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;
