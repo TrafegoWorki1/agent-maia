@@ -8,6 +8,35 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Subir criativo do WhatsApp direto nos anúncios
+
+- **O que é:** o dono manda uma imagem ou vídeo no WhatsApp com a legenda do que quer anunciar; a Maia usa `anuncio_midia_url_temporaria` para gerar um link temporário (2h) no Supabase Storage e então passa esse link para `ads_creative_upload_media` (Meta Ads MCP) com `upload_source: URL`.
+- **Já existia:** `server/integrations/adsMedia.ts` (bucket `ads_media_temp`, limpeza a cada ciclo do worker), a ferramenta no servidor da Maia e a menção no prompt de vídeo.
+- **O que faltava:** o prompt de imagem não mencionava a ferramenta; adicionado agora.
+- **Fluxo:** imagem/vídeo recebido → `anuncio_midia_url_temporaria` → URL Supabase Storage → `ads_creative_upload_media` → criativo no Meta Ads.
+
+## 2026-10-12 — Texto citado (reply) passa para o agente
+
+- **Causa:** ao responder uma mensagem no grupo (ou no privado), o agente recebia só o texto novo, sem o conteúdo citado. Isso o fez perder o contexto do pedido e responder de forma incorreta.
+- **Correção:** `quotedTextFrom` extrai o texto da mensagem citada (`contextInfo.quotedMessage`); `withQuoted` prefixa o texto com `[Citando: "..."]` antes de guardar no payload. Vale para grupos, dono e membros.
+- **Verificação:** TypeScript e 445 testes.
+
+## 2026-10-12 — maxTurns elevado para 30 e aviso de parcial
+
+- **Causa:** tarefas de planilha com muitas células chegavam a 25+ chamadas e estourravam o limite de 12 passos do CLI/SDK, sem resposta ao dono.
+- **Correção:** `maxTurns` elevado de 12 para 30 nos dois executores (CLI e SDK) no handler do dono. Quando ainda bater o limite, a mensagem é "Completei parte do pedido, mas atingi o limite de passos antes de terminar. Confira o que já foi alterado e me reenvie o que ainda faltar."
+- **Verificação:** TypeScript e 445 testes.
+
+## 2026-10-12 — Jev: régua corrigida e métricas por intenção
+
+- **Causa da nota baixa (51%):** a concordância comparava a categoria do Jev com `toolCategory`, que só devolve arte/consulta/escrita e contava ToolSearch como escrita. Categorias como grupo, tarefa e conversa nunca podiam bater.
+- **Correção:** `toolLabels` traduz cada ferramenta para as categorias do Jev (ignora ToolSearch/TodoWrite/Read/Grep/Glob/WebSearch); `agreement` trata conversa com ferramenta como divergência e sem ferramenta como acerto só para conversa/fora do escopo; `intentAgreement` compara pela intenção. `toolCategory` e a decisão de efeito do fallback não mudaram.
+- **Métricas:** `jevMetrics` recalcula na visualização, a partir de categoria/intenção/ferramentas gravadas, a concordância total, por categoria e por intenção, a calibração por faixa de confiança, a latência (p50/p90/p99/max) e o % de pedidos simples. Mantém triadas, comparaveis, concordancia, meta, alertasManipulacao, falhas e ultimas.
+- **Medição prévia (288 triagens, 09–12/10):** 51% gravado; 62% com a régua corrigida. Modo sombra mantido (`activeRouting` falso).
+- **Verificação:** TypeScript e 445 testes (novo tests/jevMetrics.test.ts). Sem migração. Pendente: reiniciar o worker para a nova régua valer nas triagens novas; conjunto rotulado (~100 mensagens) antes de qualquer roteamento ativo.
+
+- **Estado (12/10/2026):** PR #9 mesclado na `main` (commit `91dadd0`). Worker reiniciado sem tarefas em andamento; um único worker ativo. Pendentes: PRs #7 e #8 sem merge; testes ao vivo de cofre, prospecção, citação/áudio em grupo e menção fantasma.
+
 ## 2026-10-12 — Aba de conversa desativada
 
 - **Pedido:** desativar a aba de conversa com a Maia no painel.
@@ -45,8 +74,28 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Correção: Maia não respondia à menção em grupo (identificador @lid)
+
+- **Sintoma:** uma pessoa marcou a Maia no grupo Operacional e ela não respondeu; só respondeu depois que o dono pediu no privado.
+- **Causa:** o WhatsApp passou a citar a Maia pelo identificador interno (`@lid`, 15 dígitos) nos grupos. `addressedToMaia` (`server/inbox.ts`) comparava o `mentionedJid` só com o **telefone** da instância, então a mensagem era guardada como contexto e ignorada. Nenhuma tarefa de grupo foi criada.
+- **Correção:** variável `MAIA_LID` no ambiente. O webhook (`inbox.ts`) passa a comparar menção e citação também com ela. No worker, `server/groupMention.ts` reconhece o `@MAIA_LID` no texto como rede de segurança, sem depender de o webhook na Vercel já conhecer a variável.
+- **Verificação:** testes em `tests/groupMention.test.ts` (reproduzem o incidente: com `MAIA_LID` a menção conta; sem ele, não).
+- **Pendência:** acrescentar `MAIA_LID` no ambiente da Vercel; sem isso a correção vale só pelo worker. Se a instância mudar de número, o valor muda.
+
+---
+
+## 2026-10-12 — Áudio do dono: sem repetir a transcrição no WhatsApp
+
+- **Pedido do owner:** a Maia não deve responder com o texto transcrito do áudio ("Entendi: ..."). A transcrição acontece no backend e vira o pedido; o dono só vê a resposta ao pedido.
+- **Correção:** removida a mensagem de eco em `handleOwnerAudio` (`server/ownerRouter.ts`). Continua transcrevendo, guardando o texto e tratando-o como pedido; os avisos de falha ("Não consegui entender o áudio" e "Não consegui processar o áudio agora") ficam.
+- **Verificação:** `tests/audioSemEco.test.ts` protege a decisão; 438 testes e typecheck passam.
+
+---
+
 ## Atualização 12/10/2026 (estado atual)
 
+- **Menção em grupo:** PR #6 mesclado (`1692a42`); `MAIA_LID` cadastrada na Vercel como variável plain em Production. Falta testar ao vivo citação e áudio.
+- **Whisper:** serviço fora do ar (container em loop no boot). Compose corrigido salvo no EasyPanel, ainda não implantado.
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
 - **Chave do cofre:** `INTEGRACAO_VAULT_KEY` criada no `.env` da pasta `agent-maia` (sem registro no repositório). Backup é responsabilidade do owner.
 - **Worker:** reiniciado depois da chave; há um só worker na pasta original.

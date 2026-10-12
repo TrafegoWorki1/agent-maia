@@ -15,6 +15,7 @@ import { upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { handleVaultItem } from "./vault.ts";
+import { mentionsMaiaByTag } from "./groupMention.ts";
 import { runProactive } from "./proactive.ts";
 import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
@@ -124,11 +125,12 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "handled" }, now);
     const request = JSON.parse(item.payload) as GroupRequest & { register?: boolean; addressed?: boolean };
     request.receivedAt = item.received_at ?? now.toISOString();
+    if (item.key_id) request.keyId = item.key_id;
     if (!request.register) {
       // Memória do grupo (7 dias, com autoria) e agenda de contatos. Falha aqui não impede a resposta.
       await recordConvMessage(db, { conv: request.jid, participant: request.participant, name: request.name, text: request.text, keyId: item.key_id, at: new Date(request.receivedAt) }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
       await upsertContact(db, { number: request.participant, name: request.name, conv: request.jid, source: "grupo" }).catch(() => {});
-      if (request.addressed === false) return;
+      if (request.addressed === false && !mentionsMaiaByTag(request.text)) return;
     }
     markRead(request.jid, item.key_id);
     if (request.register) {

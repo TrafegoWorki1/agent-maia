@@ -1,6 +1,6 @@
 # Pendências atuais da Maia
 
-Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+Atualizado em 12/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
 ## Atualizado em 12/10/2026 — a fazer
 
@@ -20,15 +20,20 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Reconciliar `20261011185724_maia_client_groups_access` com o histórico aplicado; `response_deliveries.requester` permanece somente na migração nova `20261012014613`.
 - [x] Migração `20261012030526_maia_secrets_vault` aplicada; chave `INTEGRACAO_VAULT_KEY` criada no `.env`; worker reiniciado.
 - [ ] Testar o cofre pelo privado do dono: `cofre teste | abc12345678`, depois `cofre listar` e `cofre apagar teste`.
+- [x] `MAIA_LID` cadastrada na Vercel (tipo plain, Production) e PR #6 mesclado em 12/10/2026.
+- [ ] Testar ao vivo, em grupo cadastrado: menção por texto, resposta por citação a uma mensagem da Maia e áudio marcando a Maia.
+- [ ] Whisper (EasyPanel, projeto n8n, serviço whisper-api): fora do ar, com o container reiniciando em loop no boot; o compose corrigido está salvo no EasyPanel mas ainda NÃO foi implantado. Implantar e ler o /boot.log para achar o erro de instalação (suspeita: pkg_resources/setuptools).
 - [x] Migração `20261012104713_maia_rules_contatos_prospeccao` aplicada (regra de contatos com prospecção pedida pelo dono).
 - [ ] Testar prospecção pelo WhatsApp com números seus: preparar lote, enviar um contato com OK, conferir teto e SAIR.
 - [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).
-- [ ] Revisar e publicar a reorganização do painel: sete áreas, clientes e grupos de acesso; conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
-- [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
+- [x] Publicar a reorganização do painel: sete áreas, clientes e grupos de acesso; commit `d4d2180`, Vercel Production em `Ready`.
+- [x] Integrar o PR #5 à `main`; GitHub confirmou `MERGED`.
+- [x] Desativar a aba Conversa com Maia, redirecionar links antigos para Regras ativas e publicar `80095aa` em produção.
+- [ ] Conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
 - [ ] Reiniciar o worker sempre que o código mudar.
 
 **Limpeza**
-- [ ] Conferir o `db:drift` depois das migrações desta semana.
+- [x] Conferir o `db:drift`: 34 migrações e 788 objetos, sem divergência em 12/10/2026 antes da publicação do painel.
 
 
 ## Validações operacionais
@@ -56,3 +61,6 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 Permissões por pessoa, áudio pelo Whisper, grupos cadastrados, cota de imagens, tarefas/lembretes e integração Zernio já existem. Não tratá-los como funcionalidades futuras por causa dos planos históricos.
 
 As ferramentas Instagram agora estão disponíveis nos executores Claude e Codex. Validação autenticada da interface e dos fluxos externos segue pendente; áudio pode exigir reconexão Facebook Login. Não testar envio real sem um cenário de teste autorizado.
+
+- [ ] Jev: rotular ~100 mensagens reais; só considerar roteamento ativo com 200 rotuladas e 85% na faixa de alta confiança. Usar complexidade=simples para modelo mais barato em modo sombra.
+- [ ] PRs #7 (docs) e #8 (áudio sem eco) aguardam merge; depois, testes ao vivo de cofre, prospecção, citação/áudio em grupo e menção fantasma.
