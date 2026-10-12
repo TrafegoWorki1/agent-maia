@@ -75,7 +75,8 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
       return;
     }
     await recordMessage(getDb(), { channel: "whatsapp", author: "owner", text });
-    await notifyOwner(`Entendi: "${text}"`);
+    // Decisão do owner (12/10/2026): a transcrição acontece no backend e vira o pedido, mas o texto transcrito não é
+    // repetido de volta no WhatsApp. O dono só vê a resposta ao pedido.
     await routeOwnerText(text);
   } catch (error) {
     console.error("[audio]", error instanceof Error ? error.message : error);

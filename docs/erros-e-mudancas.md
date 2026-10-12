@@ -64,6 +64,10 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 
 - **Causa:** a menção veio com o identificador interno do WhatsApp (`@lid`), e o sistema só comparava com o telefone. **Correção:** `MAIA_LID` no ambiente, conferido no webhook e no worker. **Pendência:** `MAIA_LID` no ambiente da Vercel.
 
+## Áudio do dono sem eco da transcrição (12/10/2026)
+
+- **Mudança:** a Maia deixou de responder `Entendi: "<transcrição>"` ao áudio do dono. A transcrição segue no backend e vira o pedido. **Verificação:** `tests/audioSemEco.test.ts`, 438 testes.
+
 ## Atualização 12/10/2026 (estado atual)
 
 - **Menção em grupo:** PR #6 mesclado (`1692a42`); `MAIA_LID` cadastrada na Vercel como variável plain em Production. Falta testar ao vivo citação e áudio.
