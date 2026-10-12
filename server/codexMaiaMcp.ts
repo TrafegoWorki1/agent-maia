@@ -8,7 +8,7 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import { describeAction } from "./actionDescriptions.ts";
 import { getDb, addTaskEvent, setTaskStatus, recordMessage } from "./store.ts";
 import { searchKnowledge } from "./knowledge.ts";
-import { loadContacts, matchContacts, resolveContact, registerMember } from "./contacts.ts";
+import { loadContacts, matchContacts, resolveContact, registerMember, saveContact } from "./contacts.ts";
 import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts, publishInstagramPost, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, dmWindowOpen, sendInboxMessage, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, type InstagramPostKind } from "./integrations/zernio.ts";
 import { recordActionEvidence } from "./actionEvidence.ts";
 import { proposeOwnerPreference } from "./ownerPreferences.ts";
@@ -314,7 +314,12 @@ server.registerTool("prospeccao_descadastrar", { description: "Coloca um número
   return result.mensagem;
 }));
 
-server.registerTool("membro_cadastrar", { description: "Cadastra um membro e suas permissões.", inputSchema: { nome: z.string().min(2).max(60), numero: z.string().min(10).max(20), permissoes: z.array(z.string().max(40)).max(12).optional() } }, async ({ nome, numero, permissoes }) => guarded("mcp__maia__membro_cadastrar", { nome, numero, permissoes }, async () => {
+server.registerTool("contato_salvar", { description: "Salva um contato avulso na agenda (nome e número), sem torná-lo membro nem dar permissão. Ferramenta padrão quando o owner pede para salvar/cadastrar um contato.", inputSchema: { nome: z.string().min(2).max(60), numero: z.string().min(10).max(20) } }, async ({ nome, numero }) => guarded("mcp__maia__contato_salvar", { nome, numero }, async () => {
+  const saved = await saveContact(getDb(), { name: nome, number: numero }); if (!saved.ok) throw new Error(saved.error);
+  return saved.created ? `${nome} salvo(a) na agenda como contato avulso.` : `${nome} já estava na agenda.`;
+}));
+
+server.registerTool("membro_cadastrar", { description: "Adiciona um MEMBRO DA EQUIPE e suas permissões. Somente quando o owner disser explicitamente para adicionar como membro da equipe; para contato avulso use contato_salvar.", inputSchema: { nome: z.string().min(2).max(60), numero: z.string().min(10).max(20), permissoes: z.array(z.string().max(40)).max(12).optional() } }, async ({ nome, numero, permissoes }) => guarded("mcp__maia__membro_cadastrar", { nome, numero, permissoes }, async () => {
   const registered = await registerMember(getDb(), { name: nome, number: numero, permissions: permissoes }); if (!registered.ok) throw new Error(registered.error);
   return `${nome} cadastrado(a) como membro.`;
 }));

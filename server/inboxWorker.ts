@@ -11,7 +11,7 @@ import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { handleGroupMessage, handleMemberMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { upsertContact } from "./contacts.ts";
+import { hasRecentOutreach, upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { sendOwnerText } from "./evolutionSend.ts";
 import { handleVaultItem } from "./vault.ts";
@@ -45,6 +45,13 @@ function markRead(jid: string, keyId: string | null): void {
   void markMessagesRead(jid, [keyId]).catch((error) => console.error("[worker] marcar como lida:", error instanceof Error ? error.message : error));
 }
 const dmJid = (digits: string) => `${digits}@s.whatsapp.net`;
+
+// Quem a Maia procurou (últimas 48 h) e responde: o dono é avisado mesmo que a pessoa esteja cadastrada como membro.
+async function relayIfContacted(db: Db, number: string, name: string, what: string): Promise<void> {
+  const digits = number.replace(/\D/g, "");
+  if (!(await hasRecentOutreach(db, digits).catch(() => false))) return;
+  await notifyOwner(`${name || `+${digits}`} respondeu: ${what}`).catch((error) => console.error("[worker] repasse:", error instanceof Error ? error.message : error));
+}
 
 // Processa um item. Retorna o resultado registrado em events (sem o texto de terceiros).
 export async function processItem(db: Db, item: InboxItem, now = new Date()): Promise<void> {
@@ -89,6 +96,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "handled" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: req.name, text: req.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
     await upsertContact(db, { number: digits, name: req.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
+    await relayIfContacted(db, digits, req.name, req.text.slice(0, 500));
     void handleMemberMessage(req).catch((error) => console.error("[worker] privado de membro:", error instanceof Error ? error.message : error));
     return;
   }
@@ -96,6 +104,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "member" && item.kind === "audio" && item.payload) {
     const ref = JSON.parse(item.payload) as MemberAudioRef;
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "audio" }, now);
+    await relayIfContacted(db, ref.from, ref.name, "mandou um áudio");
     void handleMemberAudio(ref).catch((error) => console.error("[worker] áudio de membro:", error instanceof Error ? error.message : error));
     return;
   }
@@ -103,6 +112,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "member" && item.kind === "media" && item.payload) {
     const ref = JSON.parse(item.payload) as MemberMediaRef;
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "media" }, now);
+    await relayIfContacted(db, ref.from, ref.name, `enviou um arquivo (${ref.fileName || ref.mediaType})`);
     void handleMemberMedia(ref).catch((error) => console.error("[worker] mídia de membro:", error instanceof Error ? error.message : error));
     return;
   }
