@@ -10,7 +10,8 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - Correção: espera máxima de ~2 min, aviso imediato, áudio guardado por 24 h e nova tentativa a cada 10 min, mostrando o texto ao dono quando o servidor voltar.
 - Vale para dono e membro: o áudio do membro volta como mensagem dele quando o servidor voltar, com as permissões dele; o dono vê o texto e decide.
 - Vale também em grupo: avisa no grupo só quem estava falando com a Maia; ao voltar, entra na memória do grupo e só responde se a Maia foi chamada.
-- Pendente: reiniciar/verificar o Whisper no EasyPanel; teste ao vivo da retomada.
+- Whisper reiniciado no EasyPanel e testado: responde, mas é lento (5 s de áudio levam ~40 s; servidor com CPU alta). A retomada em segundo plano usa 360 s por tentativa.
+- Pendente: decidir entre modelo `base`, mais CPU ou serviço externo de transcrição; teste ao vivo da retomada.
 
 ## Contato avulso e repasse da resposta (12/10/2026)
 
