@@ -44,6 +44,10 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Limites:** a mensagem segue no celular e na base da Evolution; o registro da fila existe por segundos na Vercel.
 - **Pendências:** aplicar a migração `20261012030526`; criar `INTEGRACAO_VAULT_KEY`; reiniciar o worker.
 
+## Correção: Maia não respondia à menção em grupo (12/10/2026)
+
+- **Causa:** a menção veio com o identificador interno do WhatsApp (`@lid`), e o sistema só comparava com o telefone. **Correção:** `MAIA_LID` no ambiente, conferido no webhook e no worker. **Pendência:** `MAIA_LID` no ambiente da Vercel.
+
 ## Atualização 12/10/2026 (estado atual)
 
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
