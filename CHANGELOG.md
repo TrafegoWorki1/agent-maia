@@ -18,6 +18,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Mencionar todos no grupo
+
+- **Pedido do owner:** a Maia poder mencionar todos os participantes de um grupo. Não existia: não havia endpoint no catálogo nem opção na ferramenta de texto de grupo (só mencionava nomes citados).
+- **O que entrou:** `grupo_enviar_texto` ganhou `mencionar_todos` (nos dois executores). Lista os participantes do grupo e marca cada número válido, pelo mesmo campo `mentioned` que as menções já usavam. Recusa se o texto com todas as menções passar de 3000 caracteres.
+- **Limite:** a Evolution não tem um "@todos" próprio, então cada participante aparece com o número no texto (o WhatsApp avisa a todos). Em grupos grandes a mensagem fica longa e pode ser recusada.
+- **Verificação:** typecheck, testes (`tests/mencionarTodos.test.ts`) e árvore do índice com 370 testes.
+
+---
+
 ## 2026-10-12 — Fase 2: busca na web para o dono, trava depois da busca e regra "Limites"
 
 - **Pedido do owner:** o dono pede pesquisa na web direto, sem OK; quando a Maia não tem a ferramenta, ela pergunta se a demanda deve ser passada ao Herickson.
