@@ -17,13 +17,13 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [ ] Conexão de conta da Zernio por OAuth: exige login no navegador.
 
 **Ações do owner**
-- [ ] Reverter a linha editada depois da aplicação na migração `20261011185724_maia_client_groups_access` (quem reverte é a outra sessão).
+- [x] Reconciliar `20261011185724_maia_client_groups_access` com o histórico aplicado; `response_deliveries.requester` permanece somente na migração nova `20261012014613`.
 - [x] Migração `20261012030526_maia_secrets_vault` aplicada; chave `INTEGRACAO_VAULT_KEY` criada no `.env`; worker reiniciado.
 - [ ] Testar o cofre pelo privado do dono: `cofre teste | abc12345678`, depois `cofre listar` e `cofre apagar teste`.
 - [x] Migração `20261012104713_maia_rules_contatos_prospeccao` aplicada (regra de contatos com prospecção pedida pelo dono).
 - [ ] Testar prospecção pelo WhatsApp com números seus: preparar lote, enviar um contato com OK, conferir teto e SAIR.
 - [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).
-- [ ] Decidir sobre o trabalho de grupos e organização que ainda não está commitado (fora do PR #5).
+- [ ] Revisar e publicar a reorganização do painel: sete áreas, clientes e grupos de acesso; conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
 - [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
 - [ ] Reiniciar o worker sempre que o código mudar.
 
@@ -45,7 +45,7 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [ ] Vincular a aprovação persistida à impressão digital de parâmetros e revisar a revalidação de permissões durante a espera.
 - [ ] Definir escopo de memória por cliente antes de incluir documentos de clientes. A busca atual é só documental do projeto.
 - [ ] Decidir eventual prazo de retenção de `messages`; hoje não há exclusão automática por idade.
-- [ ] Investigar o bundle do painel acima de 500 kB, mantendo a verificação funcional.
+- [x] Carregar páginas sob demanda e retirar o fluxo de demonstração da navegação: entrada JavaScript de 458,90 kB no build da reorganização, abaixo do aviso de 500 kB.
 
 ## Fora do escopo aprovado
 

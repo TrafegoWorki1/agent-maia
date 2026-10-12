@@ -30,6 +30,7 @@ export interface InboxItem {
   sender: "owner" | "approver" | "other" | "group" | "none" | "member";
   payload: string | null;
   key_id: string | null;
+  received_at?: string;
 }
 
 const BATCH = 10;
@@ -122,9 +123,10 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     // Grupo operacional: alguém chamou a Maia. Responde no grupo, começando pelo nome de quem pediu.
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "handled" }, now);
     const request = JSON.parse(item.payload) as GroupRequest & { register?: boolean; addressed?: boolean };
+    request.receivedAt = item.received_at ?? now.toISOString();
     if (!request.register) {
       // Memória do grupo (7 dias, com autoria) e agenda de contatos. Falha aqui não impede a resposta.
-      await recordConvMessage(db, { conv: request.jid, participant: request.participant, name: request.name, text: request.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
+      await recordConvMessage(db, { conv: request.jid, participant: request.participant, name: request.name, text: request.text, keyId: item.key_id, at: new Date(request.receivedAt) }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
       await upsertContact(db, { number: request.participant, name: request.name, conv: request.jid, source: "grupo" }).catch(() => {});
       if (request.addressed === false) return;
     }
@@ -141,6 +143,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     // Áudio num grupo cadastrado: mesma regra do texto (memória de 7 dias, só responde quando chamada),
     // mas a transcrição decide "chamou pelo nome" (server/ownerRouter.ts, handleGroupAudio).
     const ref = JSON.parse(item.payload) as GroupAudioRef;
+    ref.receivedAt = item.received_at ?? now.toISOString();
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "audio" }, now);
     markRead(ref.jid, item.key_id);
     void handleGroupAudio(ref).catch((error) => console.error("[worker] áudio de grupo:", error instanceof Error ? error.message : error));

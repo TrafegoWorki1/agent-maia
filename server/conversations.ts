@@ -29,9 +29,12 @@ export async function recordConvMessage(
   if (error && error.code !== "23505") throw new Error(`conversa: ${error.message}`);
 }
 
-export async function convMessages(db: Db, conv: string, limit = 12, sinceMs = 6 * 3600_000): Promise<ConvMessage[]> {
-  const since = new Date(Date.now() - sinceMs).toISOString();
-  const { data, error } = await db.from("group_messages").select("participant, name, text, from_maia, at").eq("conv", conv).gte("at", since).order("at", { ascending: false }).limit(limit);
+export async function convMessages(db: Db, conv: string, limit = 12, sinceMs = 6 * 3600_000, clientId: string | null = null, notBefore?: string): Promise<ConvMessage[]> {
+  const boundary = notBefore ? Date.parse(notBefore) : NaN;
+  const since = new Date(Math.max(Date.now() - sinceMs, Number.isFinite(boundary) ? boundary : 0)).toISOString();
+  let query = db.from("group_messages").select("participant, name, text, from_maia, at").eq("conv", conv);
+  if (conv.endsWith("@g.us")) query = clientId ? query.eq("client_id", clientId) : query.is("client_id", null);
+  const { data, error } = await query.gte("at", since).order("at", { ascending: false }).limit(limit);
   if (error) throw new Error(`conversa: ${error.message}`);
   return (data ?? []).reverse().map((r) => ({ participant: String(r.participant), name: String(r.name), text: String(r.text), fromMaia: Boolean(r.from_maia), at: String(r.at) }));
 }

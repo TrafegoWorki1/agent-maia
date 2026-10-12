@@ -6,7 +6,7 @@ export function RegrasPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Regras da Maia" subtitle="O que a Maia segue, na ordem em que aparece no prompt. Leitura: a edição fica para a próxima etapa." />
+      <PageHeader eyebrow="Agente Maia" title="Regras ativas" subtitle="Comportamento aprovado da Maia. As regras são apresentadas para consulta, com categoria e situação." />
       {!snapshot ? (
         <p className="empty-note">{error ? "Ainda sem dados para esta tela. As informações da Maia chegam só pelo computador dela." : "Carregando…"}</p>
       ) : (

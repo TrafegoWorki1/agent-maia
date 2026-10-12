@@ -1,4 +1,4 @@
-// Manual do operador da Maia. Fonte única: o painel exibe este conteúdo na página Operação.
+// Manual do operador da Maia. O painel exibe em Agente Maia > Continuidade.
 
 export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
   {
@@ -32,7 +32,7 @@ export const MANUAL_SECTIONS: { title: string; items: string[] }[] = [
     title: "Se a Maia parar",
     items: [
       "Feche a janela da Maia, se ainda estiver aberta, e clique em Iniciar Maia.bat.",
-      "Confira em Conexões e dados: WhatsApp em 'Ativo', webhook 'recebendo' e as fontes sem 'Com erro'.",
+      "Confira em Sistema e integrações > Conexões e fontes: WhatsApp conectado, recebimento de eventos e atualização das fontes.",
       "Se alguma fonte estiver com erro, reconecte o conector no claude.ai e clique em Atualizar fontes.",
       "Tarefas marcadas como 'incerta' foram interrompidas por um reinício. Revise antes de pedir de novo: nada é reexecutado automaticamente.",
       "Se uma conexão pedir confirmação no celular, a Maia avisa e aguarda.",

@@ -1,7 +1,7 @@
 import { Codex } from "@openai/codex-sdk";
-import { existsSync, mkdirSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { minimalEnv } from "../../imagegen.ts";
 import type { Requester } from "../../access.ts";
@@ -50,10 +50,30 @@ export interface CodexMcpContext {
 // local "maia" recebe essa configuração; sandbox/rede do modelo não mudam.
 export const MAIA_MCP_POLICY = { default_tools_approval_mode: "approve", required: true } as const;
 
+// No grupo de cliente, todo acesso passa pelo MCP que valida o cliente.
+// A referência oficial documenta estes controles: https://developers.openai.com/codex/config-reference
+export const CLIENT_CODEX_POLICY = {
+  features: { shell_tool: false, multi_agent: false, apps: false, remote_plugin: false, memories: false, hooks: false, goals: false },
+  tools: { view_image: false },
+} as const;
+
+export function clientCodexEnvironment(folder: string, base = minimalEnv()): Record<string, string> {
+  const home = join(folder, "codex-home");
+  mkdirSync(home, { mode: 0o700 });
+  const auth = join(base.CODEX_HOME ?? "", "auth.json");
+  // Somente o login: não herda config.toml, MCPs, plugins ou memória global.
+  if (base.CODEX_HOME && existsSync(auth)) {
+    const target = join(home, "auth.json");
+    copyFileSync(auth, target); chmodSync(target, 0o600);
+  }
+  return { ...base, CODEX_HOME: home } as Record<string, string>;
+}
+
 export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext }): Promise<CodexTextResult> {
   const t0 = Date.now();
-  const folder = join(TEMP, randomBytes(4).toString("hex"));
-  mkdirSync(folder, { recursive: true });
+  const folder = join(TEMP, randomBytes(16).toString("hex"));
+  mkdirSync(TEMP, { recursive: true });
+  mkdirSync(folder, { mode: 0o700 });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
   const context = {
@@ -69,8 +89,8 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
       // Usa o Codex já autenticado nesta máquina. O ambiente mínimo não contém
       // segredo do projeto; o processo MCP lê o .env somente do lado servidor.
       codexPathOverride: codexExecutable(),
-      env: minimalEnv() as Record<string, string>,
-      config: { mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context, ...MAIA_MCP_POLICY } } },
+      env: input.mcp.requester.groupScope?.clientId ? clientCodexEnvironment(folder) : minimalEnv() as Record<string, string>,
+      config: { ...(input.mcp.requester.groupScope?.clientId ? CLIENT_CODEX_POLICY : {}), mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context, ...MAIA_MCP_POLICY } } },
     });
     const thread = codex.startThread({
       ...(input.model ? { model: input.model } : {}),
@@ -94,5 +114,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     return { ok: false, error: message, durationMs: Date.now() - t0 };
   } finally {
     clearTimeout(timer);
+    const home = resolve(folder, "codex-home");
+    if (home.startsWith(resolve(folder) + sep)) rmSync(home, { recursive: true, force: true });
   }
 }

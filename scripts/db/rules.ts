@@ -47,6 +47,7 @@ export const ESSENTIAL_TABLES = [
   "people", "person_numbers", "person_permissions", "permission_catalog", "maia_rules", "maia_groups", "group_messages",
   "contacts", "outreach", "scheduled_actions", "knowledge_sources", "knowledge_chunks", "provider_health", "image_quota",
   "jev_triage", "group_activity", "snapshots", "seen_messages", "kv",
+  "maia_clients", "maia_access_groups", "maia_access_group_members", "maia_access_group_permissions",
 ];
 
 // Funções chamadas pelo código e quem pode executá-las. "service" = só o servidor; "authenticated" = também o painel logado.
@@ -63,6 +64,7 @@ export const ESSENTIAL_FUNCTIONS: Record<string, "service" | "authenticated"> = 
   "claim_due_actions(p_limit integer)": "service",
   "purge_group_messages()": "service",
   "is_owner()": "authenticated",
+  "save_maia_access_group(p_id uuid, p_revision integer, p_name text, p_client_id uuid, p_active boolean, p_members uuid[], p_permissions text[])": "service",
 };
 
 export const ESSENTIAL_CONSTRAINTS = ["people.people_role_check", "inbox.inbox_sender_check", "inbox.inbox_kind_check", "inbox.inbox_status_check"];

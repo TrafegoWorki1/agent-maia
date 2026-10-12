@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseBrowser";
-// Contrato do painel com o servidor local (/api/snapshot e /api/refresh). Só existe no `pnpm dev`.
+// Snapshot autenticado também na Vercel; atualização manual das fontes no painel local.
 
 export interface SourceResult<T> {
   status: "ok" | "error";
@@ -53,6 +53,7 @@ export interface JevData {
 }
 
 export interface Snapshot {
+  routing?: { claudeEnabled: boolean; claudeExecutor: "cli" | "sdk"; codexEnabled: boolean; fallbackEnabled: boolean; jevActiveRouting: boolean };
   generatedAt: string;
   refreshing: boolean;
   whatsapp: { state: string | null; error: string | null };

@@ -4,6 +4,8 @@ import { fetchLiveGroups } from "./groups.ts";
 import { jevView } from "./jev.ts";
 import { listRules } from "./rules.ts";
 import { modelsView } from "./ai/usageTracker.ts";
+import { loadRoutingConfig } from "./ai/config.ts";
+import { claudeExecutor } from "./ai/providers/claudeCli.ts";
 import { buildScorecard, isoWeek, isoWeekBounds, previousWeek, type Scorecard } from "./quality.ts";
 import {
   approvalsBetween,
@@ -122,6 +124,7 @@ export async function buildSnapshot(db: Db, now = new Date()): Promise<Record<st
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return {
+    routing: routingSummary(),
     generatedAt: now.toISOString(),
     refreshing: isRefreshing(),
     whatsapp: await whatsappStatus(),
@@ -145,6 +148,13 @@ export async function buildSnapshot(db: Db, now = new Date()): Promise<Record<st
     regras: await listRules(db),
     modelos: await modelsView(db, now),
   };
+}
+
+export function routingSummary() {
+  const config = loadRoutingConfig();
+  return { claudeEnabled: config.providers.claude.enabled, claudeExecutor: claudeExecutor(config),
+    codexEnabled: config.providers.codex.enabled, fallbackEnabled: config.fallback.enabled,
+    jevActiveRouting: config.jev.activeRouting };
 }
 
 // Grupos: lista ao vivo da Evolution (com cache) e atividade dos últimos 7 dias. Sem o texto das mensagens.

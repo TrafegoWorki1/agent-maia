@@ -8,6 +8,16 @@ Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o e
 
 Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
+## Organização do painel
+
+O menu reúne as telas em sete áreas: Visão geral; Marketing; Execução; Grupos e clientes; Equipe e acessos; Agente Maia; Sistema e integrações. As páginas de cada área aparecem em abas. Links antigos continuam funcionando. O cabeçalho usa a identidade do login e o proprietário tem acesso ao painel operacional também na versão publicada.
+
+Em Grupos e clientes, cadastre o cliente e associe os grupos reais do WhatsApp. Em Equipe e acessos, crie equipes com membros e permissões compartilhadas. Grupos de acesso vinculados a clientes concedem permissões somente nos grupos desse cliente; equipes internas somam permissões em toda a operação. Aprovação de ações continua individual. Novos grupos são cadastrados com atendimento pausado, salvo ativação explícita.
+
+O contexto dos grupos de clientes não recebe o histórico privado do proprietário nem conversas de outros grupos. Ferramentas que consultam dados gerais da operação ficam bloqueadas nesse contexto. As permissões são conferidas novamente antes de executar ferramentas, após aprovação e antes de cada parte da resposta, inclusive na retomada da fila. Ao mudar o cliente ou os acessos de um grupo, pedidos anteriores precisam ser refeitos. Documentos de clientes continuam fora da busca do projeto.
+
+As estruturas estão nas migrações `20261011185724_maia_client_groups_access.sql` e `20261012014613_maia_response_deliveries_requester.sql`. O histórico remoto foi consultado para reconciliar a primeira; a coluna de entrega pertence somente à segunda. O painel informa quando falta estrutura e impede salvar nesses casos.
+
 ## Execução
 
 Requisitos: Node.js compatível com execução dos arquivos TypeScript do projeto e pnpm 11.25.0. As dependências e o launcher devem usar as versões instaladas e testadas no ambiente.

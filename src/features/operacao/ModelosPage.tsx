@@ -20,11 +20,18 @@ export function ModelosPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Modelos e Roteamento" subtitle="Quem executou cada tarefa nos últimos 7 dias, a saúde de cada provedor e as trocas de modelo." />
+      <PageHeader eyebrow="Sistema e integrações" title="Executor e roteamento" subtitle="Quem executou cada tarefa, a saúde dos provedores e as trocas automáticas de modelo nos últimos 7 dias." />
       {!snapshot ? (
         <p className="empty-note">{error ? "Ainda sem dados para esta tela. As informações da Maia chegam só pelo computador dela." : "Carregando…"}</p>
       ) : (
         <>
+          <Panel title="Configuração de execução" caption="Configuração do servidor que atende o painel. A execução observada aparece nas métricas abaixo.">
+            {snapshot.routing ? <div className="table-wrap"><table><thead><tr><th>Função</th><th>Executor</th><th>Configuração</th></tr></thead><tbody>
+              <tr><td>Principal</td><td>Claude</td><td>{snapshot.routing.claudeEnabled ? `Habilitado · ${snapshot.routing.claudeExecutor === "cli" ? "Claude Code CLI; SDK se o CLI não estiver disponível" : "Agent SDK"}` : "Desabilitado"}</td></tr>
+              <tr><td>Contingência</td><td>Codex</td><td>{snapshot.routing.codexEnabled && snapshot.routing.fallbackEnabled ? "Habilitada para pedidos compatíveis e sem efeito externo iniciado" : "Desabilitada"}</td></tr>
+              <tr><td>Triagem</td><td>Jev</td><td>{snapshot.routing.jevActiveRouting ? "Participa do roteamento" : "Modo sombra"}</td></tr>
+            </tbody></table></div> : <p className="empty-note">Configuração ainda não informada pelo servidor.</p>}
+          </Panel>
           {snapshot.modelos.error && <p role="alert" className="empty-note">Não consegui ler as métricas agora ({snapshot.modelos.error}).</p>}
           <Panel title="Saúde dos provedores" caption="Um provedor em pausa não recebe tarefas até o fim do cooldown.">
             {snapshot.modelos.saude.length === 0 ? (

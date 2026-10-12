@@ -3,10 +3,12 @@ import { runResponseDeliveries } from "../server/responseDelivery.ts";
 import { DeliveryError,sendTextChecked } from "../server/evolutionSend.ts";
 import { recordMessage,markTaskReplied,type Db } from "../server/store.ts";
 import { recordConvMessage } from "../server/conversations.ts";
+import { refreshGroupRequester } from "../server/groupAuthorization.ts";
+vi.mock("../server/groupAuthorization.ts",()=>({ refreshGroupRequester:vi.fn() }));
 vi.mock("../server/store.ts",()=>({ addTaskEvent:vi.fn().mockResolvedValue(undefined),markTaskReplied:vi.fn().mockResolvedValue(undefined),recordMessage:vi.fn().mockResolvedValue(undefined),setTaskStatus:vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../server/conversations.ts",()=>({ recordConvMessage:vi.fn() }));
 vi.mock("../server/evolutionSend.ts",async(importOriginal)=>({ ...await importOriginal<typeof import("../server/evolutionSend.ts")>(),sendTextChecked:vi.fn() }));
-interface Part { id:number;task_id:number;part:number;recipient:string;text:string;status:string;message_id?:string }
+interface Part { id:number;task_id:number;part:number;recipient:string;text:string;status:string;message_id?:string;requester?:unknown }
 function database(rows: Part[]): Db {
   return {
     rpc:async()=>{
@@ -35,6 +37,21 @@ function database(rows: Part[]): Db {
 }
 function parts():Part[]{return [0,1].map(i=>({id:i+1,task_id:8,part:i,recipient:"5511999999999",text:i?"mundo":"Olá ",status:"pending"}));}
 describe("outbox preserva entrega e contexto sem repetir trabalho",()=>{
+  it("cada parte de grupo revalida a autorização persistida; revogação bloqueia retomada",async()=>{
+    const rows=parts();
+    for (const row of rows) { row.recipient="50@g.us";row.requester={ role:"member",number:"1",name:"Pessoa",permissions:[],groupScope:{ jid:"50@g.us",clientId:"a",name:"Cliente",clientName:"A",accessGroupId:null } }; }
+    vi.mocked(refreshGroupRequester).mockResolvedValueOnce({} as never).mockRejectedValueOnce(new Error("Acesso revogado"));
+    await runResponseDeliveries(database(rows));
+    expect(sendTextChecked).toHaveBeenCalledTimes(1);
+    expect(rows.map((r)=>r.status)).toEqual(["sent","failed"]);
+    expect(markTaskReplied).not.toHaveBeenCalled();
+  });
+  it("resposta de grupo sem escopo salvo não é enviada após reinício",async()=>{
+    const rows=parts();rows.forEach((r)=>{ r.recipient="50@g.us"; });
+    await runResponseDeliveries(database(rows));
+    expect(sendTextChecked).not.toHaveBeenCalled();
+    expect(rows[0].status).toBe("failed");
+  });
   // Os testes abaixo tratam o destinatário fixo (5511999999999) como o dono: é o caso histórico e majoritário
   // (recordMessage no histórico comum). O caso de membro/contato (dm:<número>) tem teste próprio mais abaixo.
   beforeEach(()=>{vi.mocked(sendTextChecked).mockResolvedValue("id-confirmado");process.env.EVOLUTION_OWNER_NUMBER="5511999999999";});

@@ -67,7 +67,12 @@ async function membersWithConversa(): Promise<Set<string>> {
   try {
     const db = supabaseFromEnv();
     const perms = await db.from("person_permissions").select("person_id").eq("permission_code", "conversa.maia");
-    const personIds = [...new Set((perms.data ?? []).map((r) => r.person_id))];
+    const teams = await db.from("maia_access_groups").select("id").is("client_id", null).eq("active", true);
+    if (perms.error || teams.error) throw new Error("Permissões indisponíveis");
+    const grants = teams.data?.length ? await db.from("maia_access_group_permissions").select("access_group_id").in("access_group_id", teams.data.map((g) => g.id)).eq("permission_code", "conversa.maia") : { data: [], error: null };
+    const inherited = grants.data?.length ? await db.from("maia_access_group_members").select("person_id").in("access_group_id", grants.data.map((g) => g.access_group_id)) : { data: [], error: null };
+    if (grants.error || inherited.error) throw new Error("Permissões herdadas indisponíveis");
+    const personIds = [...new Set([...(perms.data ?? []).map((r) => r.person_id), ...(inherited.data ?? []).map((r) => r.person_id)])];
     let numbers = new Set<string>();
     if (personIds.length > 0) {
       const people = await db.from("people").select("id").in("id", personIds).eq("active", true).neq("role", "proprietario");

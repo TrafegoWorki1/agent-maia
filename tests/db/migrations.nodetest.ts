@@ -23,6 +23,55 @@ after(async () => {
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
 
+describe("clientes e grupos de acesso", () => {
+  after(async () => { await q("delete from group_messages where conv='8800@g.us'"); });
+  let clientA: unknown; let clientB: unknown; let person: unknown; let access: unknown;
+  const save = (revision: unknown, permissions = ["conversa.maia"]) => q("select save_maia_access_group($1,$2,'Equipe teste organização',$3,true,$4::uuid[],$5::text[]) as id",[access ?? null,revision,clientA,[person],permissions]);
+  it("salva grupo, membros e permissões em uma transação; preserva edição concorrente", async () => {
+    clientA = (await q("insert into maia_clients(name) values('Cliente teste A') returning id"))[0].id;
+    clientB = (await q("insert into maia_clients(name) values('Cliente teste B') returning id"))[0].id;
+    person = (await q("insert into people(name,role) values('Membro teste organização','equipe') returning id"))[0].id;
+    await local.db.exec("set role service_role");
+    try { access = (await save(null))[0].id; } finally { await local.db.exec("reset role"); }
+    await save(1);
+    await rejects(save(1),/outra sessão/i);
+    await rejects(save(null),/outra sessão/i);
+    await rejects(save(2,["permissao.inexistente"]),/foreign key/i);
+    assert.equal((await q("select revision from maia_access_groups where id=$1",[access]))[0].revision,2);
+    assert.deepEqual((await q("select permission_code from maia_access_group_permissions where access_group_id=$1",[access])).map((r)=>r.permission_code),["conversa.maia"]);
+    await rejects(save(2,["escrita.aprovar"]),/check/i);
+  });
+  it("anon é bloqueado; membro não lê cadastro global e owner lê sem poder escrever pelo cliente", async () => {
+    const authId = (await q("insert into auth.users(email) values('owner-organization@example.test') returning id"))[0].id;
+    await q("insert into people(name,role,auth_user_id) values('Owner teste organização','proprietario',$1)",[authId]);
+    const tables = ["maia_clients","maia_access_groups","maia_access_group_members","maia_access_group_permissions","maia_groups"];
+    await local.db.exec("set role anon");
+    try { await rejects(q("select * from maia_clients"),/permission denied/i); } finally { await local.db.exec("reset role"); }
+    await local.db.exec("set role authenticated");
+    try {
+      for (const table of tables) assert.equal((await q(`select * from ${table}`)).length,0);
+      await q("select set_config('request.jwt.claim.sub',$1,false)",[authId]);
+      assert.equal((await q("select * from maia_clients where id=$1",[clientA])).length,1);
+      await rejects(q("insert into maia_clients(name) values('Não autorizado')"),/permission denied/i);
+      await rejects(save(2),/permission denied/i);
+    } finally { await local.db.exec("reset role"); await q("select set_config('request.jwt.claim.sub','',false)"); }
+  });
+  it("grupos WhatsApp e acessos pertencem ao mesmo cliente; revisão e histórico preservam separação", async () => {
+    await q("insert into maia_groups(jid,name,source,kind,client_id,access_group_id) values('8800@g.us','Grupo teste cliente','cadastrado','cliente',$1,$2)",[clientA,access]);
+    await rejects(q("insert into maia_groups(jid,name,kind,client_id,access_group_id) values('8801@g.us','Outro cliente','cliente',$1,$2)",[clientB,access]),/mesmo cliente/i);
+    await rejects(q("select save_maia_access_group($1,2,'Equipe teste organização',$2,true,'{}','{}')",[access,clientB]),/corresponder/i);
+    await rejects(q("insert into maia_groups(jid,name,kind) values('8802@g.us','Sem cliente','cliente')"),/check/i);
+    await q("insert into group_messages(conv,participant,name,text) values('8800@g.us','test','Teste','Histórico A')");
+    await q("update maia_groups set client_id=$1,access_group_id=null,revision=revision+1 where jid='8800@g.us'",[clientB]);
+    await q("insert into group_messages(conv,participant,name,text) values('8800@g.us','test','Teste','Histórico B')");
+    const rows = await q("select client_id,text from group_messages where conv='8800@g.us' order by id");
+    assert.deepEqual(rows.map((r)=>r.client_id),[clientA,clientB]);
+    assert.equal((await q("select text from group_messages where conv='8800@g.us' and client_id=$1",[clientB]))[0].text,"Histórico B");
+    await q("insert into group_messages(conv,participant,name,text,at) values('8800@g.us','test','Teste','Texto antigo na fila','2000-01-01')");
+    assert.equal((await q("select client_id from group_messages where text='Texto antigo na fila'"))[0].client_id,null);
+  });
+});
+
 describe("regras alinhadas e conhecimento atômico", () => {
   const firstHash = "a".repeat(64);
   const secondHash = "b".repeat(64);

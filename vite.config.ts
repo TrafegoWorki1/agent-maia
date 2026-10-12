@@ -6,6 +6,7 @@ import { getDb, recentMessages, recoverStaleTasks } from "./server/store.ts";
 import { answerFromPanel } from "./server/maiaOwnerAgent.ts";
 import { buildSnapshot } from "./server/snapshot.ts";
 import { handleWorkspace, json } from "./server/workspaceApi.ts";
+import { handleOrganization } from "./server/organizationApi.ts";
 import { isRefreshing, refreshAll, scheduleRefresh } from "./server/refreshJob.ts";
 
 // Só o próprio computador lê o painel: o painel mostra dados pessoais de contas reais.
@@ -42,6 +43,10 @@ function maiaAgentApi(): Plugin {
       server.middlewares.use("/api/workspace", (req, res) => {
         if (!isLocalRequest(req.headers.host)) return json(res,403,{ error: "local_only" });
         void handleWorkspace(req,res,db,"owner-local");
+      });
+      server.middlewares.use("/api/organization", (req, res) => {
+        if (!isLocalRequest(req.headers.host)) return json(res, 403, { error: "local_only" });
+        void handleOrganization(req, res, db);
       });
 
       server.middlewares.use("/api/snapshot", async (req, res) => {

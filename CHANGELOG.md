@@ -8,6 +8,27 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Fechamento dos formulários do painel
+
+- **Causa:** após conflito de edição, atualizar cadastros mantinha o formulário com a revisão antiga; clientes também guardavam uma cópia desatualizada do cadastro selecionado.
+- **Correção:** seleção de cliente por ID e formulários de cliente, grupo de acesso e grupo WhatsApp reiniciados quando muda a revisão. A atualização carrega os valores atuais antes de uma nova tentativa, preservando a proteção contra edição concorrente.
+- **Salvamento:** resposta de escrita tipada separadamente da leitura. Se a gravação é aceita e a releitura falha, o painel informa que o cadastro foi salvo e permite atualizar a lista sem repetir a escrita.
+- **Verificação:** 426 testes de aplicação e 35 de banco aprovados, incluindo cinco regressões de conflito/releitura; TypeScript e build aprovados. O build principal ficou em 458,90 kB, sem aviso de chunk acima de 500 kB. Revisão React realizada. Browser sem navegadores disponíveis; inspeção visual autenticada e publicação desta correção continuam pendentes.
+
+## 2026-10-12 — Painel organizado por áreas, clientes e grupos de acesso
+
+- **Pedido:** reduzir opções repetidas na coluna, agrupar as telas relacionadas e separar grupos de clientes. A antiga Operação exibia mapa de grupos e permissões com dados de demonstração, ao lado das telas reais.
+- **Navegação:** sete áreas — Visão geral, Marketing, Execução, Grupos e clientes, Equipe e acessos, Agente Maia, Sistema e integrações — com abas de contexto. Pessoas passa a Acessos; Regras ativas e Continuidade ficam no Agente Maia; Executor e roteamento fica com Conexões e fontes. Links antigos continuam funcionando. Mapa/permissões de demonstração saem do fluxo e o cabeçalho usa a identidade autenticada. O proprietário também recebe as telas operacionais na versão publicada.
+- **Conteúdo:** investimento em mídia fica em Campanhas; Indicadores apresenta entrega e qualidade. Conexões mostra disponibilidade das fontes; Executor e roteamento mostra configuração e execução observada. Estado da Zernio não é mais apresentado como confirmado sem consulta. Atualização manual e conversa local não são oferecidas como rotas disponíveis na Vercel.
+- **Cadastros reais:** clientes e grupos de acesso (membros/permissões) associados ao cadastro existente `maia_groups`. Filtros por cliente, tipo e cadastro; novos grupos ficam pausados por padrão. API publicada exclusiva do proprietário, RLS e RPC transacional para alterar membros e permissões. Revisões impedem sobrescrever edições concorrentes. A permissão de aprovar ações continua individual.
+- **Contexto e permissões:** grupos de clientes não recebem histórico privado do owner nem de outros grupos. Histórico filtrado por cliente e início do escopo; mensagens antigas na fila não são tratadas como pedidos do cliente novo. Permissões herdadas de clientes valem somente nos grupos deles; equipes internas também permitem conversa privada quando configuradas. Ferramentas globais e outros grupos são bloqueados no contexto de cliente. Revalidação na fila, nas ferramentas, depois de aprovação e em cada parte da resposta persistida. Codex de cliente usa ambiente de autenticação temporário, sem configuração/MCPs/memória globais, com shell, imagens locais, delegação e apps desativados.
+- **Banco reconciliado:** a migração `20261011185724` foi conferida contra `supabase_migrations.schema_migrations` por consulta somente leitura. Removida a inclusão posterior de `response_deliveries.requester`; a coluna pertence à migração nova `20261012014613`, aplicada em outra sessão. Nenhum DDL remoto foi executado nesta entrega.
+- **Desempenho:** páginas carregadas sob demanda e uma consulta de snapshot compartilhada entre cabeçalho e telas. Preservadas as mudanças concorrentes já commitadas no projeto.
+- **Verificação:** 421 testes Vitest em 56 arquivos e 35 testes de banco aprovados; `pnpm typecheck`, `pnpm build`, `pnpm db:validate` (34 migrações) e `pnpm rules:check` aprovados. Entrada JavaScript de 458,90 kB, abaixo do aviso de 500 kB. A guarda de migrações é conferida após o commit.
+- **Pendências:** inspeção visual autenticada (navegador indisponível nesta sessão), publicação da interface e exercício real de grupo de cliente autorizado. Não houve envio de WhatsApp nem chamada paga a modelos como teste. Documentos de clientes continuam fora do RAG do projeto.
+
+---
+
 ## 2026-10-12 — Correção: coluna response_deliveries.requester ausente (respostas da Maia falhando)
 
 - **Sintoma:** a Maia não conseguia gravar respostas: `Persistência da resposta: Could not find the 'requester' column of 'response_deliveries' in the schema cache`. Tarefas terminavam como `falhou`.
