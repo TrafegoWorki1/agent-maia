@@ -5,7 +5,7 @@ import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOl
 import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
 import { retryPendingAudio } from "./audioRetry.ts";
 import { handleApproverText } from "./groups.ts";
-import { handleGroupAudio, handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
+import { handleGroupAudio, handleMemberAudio, handleMemberMedia, resumeMemberAudio, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { markMessagesRead } from "./chats.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
@@ -269,7 +269,7 @@ async function main(): Promise<void> {
   setInterval(() => {
     if (retryingAudio) return;
     retryingAudio = true;
-    void retryPendingAudio(notifyOwner)
+    void retryPendingAudio({ notifyOwner, resumeMember: resumeMemberAudio })
       .catch((error) => console.error("[audio] nova tentativa:", error instanceof Error ? error.message : error))
       .finally(() => { retryingAudio = false; });
   }, 10 * 60 * 1000);

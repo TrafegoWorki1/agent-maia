@@ -161,7 +161,18 @@ export async function handleMemberAudio(ref: MemberAudioRef): Promise<void> {
   }
   try {
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
-    const text = (await transcribe(data, mimetype)).trim();
+    let text: string;
+    try {
+      text = (await transcribe(data, mimetype)).trim();
+    } catch (error) {
+      // Servidor Whisper fora do ar ou lento: guarda o áudio por 24 h e responde quando o servidor voltar (server/audioRetry.ts).
+      console.error("[audio-membro] transcrição:", error instanceof Error ? error.message : error);
+      const saved = savePendingAudio(data, mimetype, { kind: "member", from: digits, name: ref.name });
+      await sendOwnerText(digits, saved
+        ? "Não consegui ouvir seu áudio agora. Guardei por 24 h e te respondo assim que eu conseguir ouvir. Se for urgente, mande em texto."
+        : "Não consegui ouvir seu áudio agora. Mande em texto ou tente de novo em instantes.").catch(() => {});
+      return;
+    }
     if (!text) {
       await sendOwnerText(digits, "Não consegui entender o áudio. Pode mandar de novo ou em texto?");
       return;
@@ -172,6 +183,16 @@ export async function handleMemberAudio(ref: MemberAudioRef): Promise<void> {
     console.error("[audio-membro]", error instanceof Error ? error.message : error);
     await sendOwnerText(digits, "Não consegui processar o áudio agora. Tente de novo ou mande em texto.").catch(() => {});
   }
+}
+
+// Áudio de membro que não pôde ser transcrito na hora e foi retomado depois: vira a mensagem dele, com as mesmas
+// permissões. A permissão pode ter sido retirada nesse meio tempo, então confere de novo.
+export async function resumeMemberAudio(member: { from: string; name: string }, text: string): Promise<void> {
+  const digits = member.from.replace(/\D/g, "");
+  const who = await resolveRequester(getDb(), digits, member.name);
+  if (!canConverse(who)) return;
+  await recordConvMessage(getDb(), { conv: `dm:${digits}`, participant: digits, name: member.name, text }).catch(() => {});
+  await handleMemberMessage({ from: member.from, name: member.name, text });
 }
 
 export interface GroupAudioRef extends AudioRef {
