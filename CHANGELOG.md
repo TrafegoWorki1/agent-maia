@@ -18,6 +18,18 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Cofre de segredos: token enviado no privado, sem passar pela IA nem pelo histórico
+
+- **Pedido do owner:** mandar token de uma API nova só no privado da Maia, ela guardar e depois apagar do histórico do banco; nenhuma credencial pode aparecer em grupo.
+- **Como funciona:** o dono manda `cofre NOME | valor` no privado. O worker intercepta no início de `processItem` (`server/vault.ts`, `handleVaultItem`), **antes** da IA, do lote da conversa e de qualquer gravação em `messages`/`group_messages`. Guarda o valor criptografado (AES-256-GCM) na tabela `maia_secrets` (migração `20261012030526`, **ainda não aplicada**), com chave `INTEGRACAO_VAULT_KEY` que existe só no `.env`. Apaga o texto do registro da fila (`inbox.payload`) na hora. A resposta ao dono não repete o valor. Também aceita `cofre listar` (só nomes) e `cofre apagar NOME`.
+- **Grupos e outros números:** o mesmo comando é recusado, nada é guardado nem registrado, o registro da fila é apagado e o dono é avisado no privado para apagar a mensagem e trocar o token.
+- **Catálogo:** `callIntegration`, `activateIntegration` e `listIntegrations` procuram o segredo primeiro no `.env` e depois no cofre. Só nomes `INTEGRACAO_*` entram no cofre; as chaves da Evolution e da Zernio seguem só no `.env`.
+- **Limites:** a mensagem continua no celular do dono e na base da Evolution, que não temos como apagar; o registro da fila na Vercel existe por alguns segundos antes de o worker rodar (zerar isso exigiria mudar o webhook da Vercel, um deploy). Sem `INTEGRACAO_VAULT_KEY` o cofre recusa guardar e explica como criar a chave.
+- **Verificação:** typecheck, build, `db:validate` e testes (`tests/vault.test.ts`: criptografia, comando, privado, grupo, sem chave e catálogo lendo do cofre).
+- **Pendências:** aplicar a migração; criar `INTEGRACAO_VAULT_KEY` no `.env` e reiniciar o worker; decidir se o webhook da Vercel deve apagar o texto antes de gravar.
+
+---
+
 ## 2026-10-12 — Fase 4: prospecção pedida pelo dono, com OK a cada envio
 
 - **Pedido do owner:** prospectar uma lista de contatos quando ele pedir, com aprovação a cada envio, teto diário e descadastro.

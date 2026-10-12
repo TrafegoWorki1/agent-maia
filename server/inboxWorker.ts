@@ -14,6 +14,7 @@ import { recordConvMessage } from "./conversations.ts";
 import { upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { sendOwnerText } from "./evolutionSend.ts";
+import { handleVaultItem } from "./vault.ts";
 import { runProactive } from "./proactive.ts";
 import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
@@ -46,6 +47,12 @@ const dmJid = (digits: string) => `${digits}@s.whatsapp.net`;
 // Processa um item. Retorna o resultado registrado em events (sem o texto de terceiros).
 export async function processItem(db: Db, item: InboxItem, now = new Date()): Promise<void> {
   const owner = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+
+  // Cofre de segredos: `cofre NOME | valor` nunca chega à IA nem ao histórico (server/vault.ts).
+  if (item.kind === "text" && item.payload && (await handleVaultItem(db, item, notifyOwner))) {
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: item.sender as Sender, outcome: "vault" }, now);
+    return;
+  }
 
   if (item.sender === "owner" && item.kind === "text" && item.payload) {
     markRead(dmJid(owner), item.key_id);

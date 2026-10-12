@@ -1,4 +1,5 @@
 import type { Db } from "./store.ts";
+import { secretAvailable } from "./vault.ts";
 
 // Catálogo de integrações por endpoint (tabela maia_integrations). A Maia lista, propõe (sempre pendente) e chama só o
 // que está ativo; ativar é decisão do owner, com aprovação. Segredos nunca passam por aqui: o catálogo guarda só o NOME
@@ -150,15 +151,15 @@ function redact(text: string, secret: string | undefined): string {
 export async function listIntegrations(db: Db, env: Env = process.env): Promise<Array<{ slug: string; titulo: string; descricao: string; status: string; metodo: string; destino: string; segredo_configurado: boolean | null; permissao: string | null }>> {
   const { data, error } = await db.from("maia_integrations").select("*").order("slug");
   if (error) throw new Error(`Não consegui ler o catálogo: ${error.message}`);
-  return ((data ?? []) as Integration[]).map((row) => {
+  return Promise.all(((data ?? []) as Integration[]).map(async (row) => {
     const resolved = resolveUrl(row.url_template, env);
     return {
       slug: row.slug, titulo: row.title, descricao: row.description, status: row.status, metodo: row.method,
       destino: resolved.ok ? resolved.url.hostname : "(a URL não resolve neste servidor)",
-      segredo_configurado: row.secret_ref ? Boolean(env[row.secret_ref]) : null,
+      segredo_configurado: row.secret_ref ? Boolean(await secretAvailable(db, row.secret_ref, env)) : null,
       permissao: row.required_permission,
     };
-  });
+  }));
 }
 
 export async function callIntegration(
@@ -189,8 +190,8 @@ export async function callIntegration(
     if (boundHost !== undefined && target.url.hostname !== boundHost) {
       return { ok: false, error: `a chave ${row.secret_ref.startsWith("ZERNIO") ? "da Zernio só pode ser usada no endereço da Zernio" : "da Evolution só pode ser usada no endereço da Evolution"}` };
     }
-    secret = env[row.secret_ref];
-    if (!secret) return { ok: false, error: `o segredo ${row.secret_ref} não está configurado no servidor` };
+    secret = await secretAvailable(db, row.secret_ref, env);
+    if (!secret) return { ok: false, error: `o segredo ${row.secret_ref} não está no cofre nem no .env do servidor` };
     if (row.auth_style === "bearer") headers.authorization = `Bearer ${secret}`;
     else headers[(row.auth_header ?? "apikey").toLowerCase()] = secret;
   }
@@ -273,7 +274,7 @@ export async function proposeIntegration(db: Db, p: Proposal): Promise<{ ok: tru
     risk: p.risco, status: "pending", required_permission: "integracao.usar", created_by: "maia",
   });
   if (insert.error) return { ok: false, error: `não consegui registrar: ${insert.error.message}` };
-  return { ok: true, mensagem: `Integração "${p.slug}" registrada como PENDENTE (destino ${url.hostname}).${p.segredo ? ` O owner precisa colocar a variável ${p.segredo} no ambiente do servidor; o token não deve ser enviado pelo chat.` : ""} Só o owner a ativa.` };
+  return { ok: true, mensagem: `Integração "${p.slug}" registrada como PENDENTE (destino ${url.hostname}).${p.segredo ? ` Para guardar o token, o owner manda no PRIVADO da Maia só este comando: cofre ${p.segredo} | <token> (nunca em grupo; o token não passa pela IA nem fica no histórico).` : ""} Só o owner a ativa.` };
 }
 
 export async function activateIntegration(db: Db, slug: string, env: Env = process.env): Promise<{ ok: true; mensagem: string } | { ok: false; error: string }> {
@@ -284,7 +285,7 @@ export async function activateIntegration(db: Db, slug: string, env: Env = proce
   if (row.status === "active") return { ok: true, mensagem: `"${slug}" já estava ativa.` };
   const target = resolveUrl(row.url_template, env);
   if (!target.ok) return { ok: false, error: target.error };
-  if (row.secret_ref && !env[row.secret_ref]) return { ok: false, error: `falta a variável ${row.secret_ref} no ambiente do servidor; configure e reinicie o worker antes de ativar` };
+  if (row.secret_ref && !(await secretAvailable(db, row.secret_ref, env))) return { ok: false, error: `falta o segredo ${row.secret_ref}: mande no privado da Maia o comando cofre ${row.secret_ref} | <token> (ou coloque no .env) antes de ativar` };
   const update = await db.from("maia_integrations").update({ status: "active", activated_at: new Date().toISOString() }).eq("slug", slug);
   if (update.error) return { ok: false, error: `não consegui ativar: ${update.error.message}` };
   return { ok: true, mensagem: `Integração "${slug}" ativada (destino ${target.url.hostname}).` };
