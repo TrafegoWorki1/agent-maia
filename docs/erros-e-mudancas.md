@@ -4,6 +4,22 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Criativo do WhatsApp para Meta Ads (12/10/2026)
+
+- Prompt de imagem agora menciona `anuncio_midia_url_temporaria`, igual ao vídeo. Toda a infraestrutura já existia (`adsMedia.ts`, bucket `ads_media_temp`, limpeza automática).
+
+## Texto citado (reply) passa para o agente (12/10/2026)
+
+- **Causa:** reply em grupo/privado chegava ao agente sem o texto original citado; ele perdia o contexto e interpretava errado. **Correção:** `quotedTextFrom` + `withQuoted` prefixam `[Citando: "..."]` ao texto antes de guardar.
+
+## maxTurns elevado e aviso de parcial (12/10/2026)
+
+- **Causa:** planilhas com muitas células estouravam o limite de 12 passos, sem resposta ao dono. **Correção:** limite elevado para 30 nos dois executores; quando ainda bater, mensagem informa que foi parcial.
+
+## Jev: régua corrigida (12/10/2026)
+
+- **Causa:** a concordância de 51% vinha de uma régua que só conhecia arte/consulta/escrita. **Correção:** categorias das ferramentas mapeadas para as do Jev, métricas por intenção, categoria e confiança recalculadas na visualização (62% com a régua corrigida). Modo sombra mantido.
+
 ## Aba de conversa desativada (12/10/2026)
 
 - Removida a aba Conversa do Agente Maia. A seção abre em Regras ativas e links antigos do chat redirecionam para essa tela. O chat deixa de ser carregado pelo painel.
@@ -44,8 +60,18 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Limites:** a mensagem segue no celular e na base da Evolution; o registro da fila existe por segundos na Vercel.
 - **Pendências:** aplicar a migração `20261012030526`; criar `INTEGRACAO_VAULT_KEY`; reiniciar o worker.
 
+## Correção: Maia não respondia à menção em grupo (12/10/2026)
+
+- **Causa:** a menção veio com o identificador interno do WhatsApp (`@lid`), e o sistema só comparava com o telefone. **Correção:** `MAIA_LID` no ambiente, conferido no webhook e no worker. **Pendência:** `MAIA_LID` no ambiente da Vercel.
+
+## Áudio do dono sem eco da transcrição (12/10/2026)
+
+- **Mudança:** a Maia deixou de responder `Entendi: "<transcrição>"` ao áudio do dono. A transcrição segue no backend e vira o pedido. **Verificação:** `tests/audioSemEco.test.ts`, 438 testes.
+
 ## Atualização 12/10/2026 (estado atual)
 
+- **Menção em grupo:** PR #6 mesclado (`1692a42`); `MAIA_LID` cadastrada na Vercel como variável plain em Production. Falta testar ao vivo citação e áudio.
+- **Whisper:** serviço fora do ar (container em loop no boot). Compose corrigido salvo no EasyPanel, ainda não implantado.
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
 - **Chave do cofre:** `INTEGRACAO_VAULT_KEY` criada no `.env` da pasta `agent-maia` (sem registro no repositório). Backup é responsabilidade do owner.
 - **Worker:** reiniciado depois da chave; há um só worker na pasta original.

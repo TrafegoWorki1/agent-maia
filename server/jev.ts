@@ -101,12 +101,132 @@ export async function triageText(text: string, fetchFn: typeof fetch = fetch, ti
   };
 }
 
-// Compara o que o Jev achou com o que a Maia fez. toolCategories: categoria de cada ferramenta usada.
+// Ferramentas internas do agente que não dizem nada sobre a intenção do pedido.
+const NEUTRAL_TOOLS = /^(ToolSearch|TodoWrite|Read|Grep|Glob|WebSearch)$/;
+// Verbos que indicam que a ferramenta altera ou envia algo.
+const WRITE_VERBS = /(criar|atualizar|editar|enviar|publicar|cancelar|excluir|ativar|gerenciar|agendar|cadastrar|alterar|responder|reenviar|propor|externa|update|append|send|delete|create|insert|share|copy|clear|forward|reply)/;
+
+// Categorias do Jev que uma ferramenta representa. Uma ferramenta pode valer mais de uma: enviar texto em um grupo é
+// "grupo" e também "escrita". Ferramenta neutra (ToolSearch etc.) não representa nada. Só para medir o Jev: a decisão de
+// efeito externo do fallback usa toolCategory em maiaOwnerAgent.ts, que não muda.
+export function toolLabels(name: string): string[] {
+  if (NEUTRAL_TOOLS.test(name)) return [];
+  const tool = name.split("__").pop() ?? name;
+  if (tool === "gerar_imagem" || tool === "artes_recentes") return ["arte"];
+  const labels = new Set<string>();
+  if (/tarefa|lembrete|operacao_resumo/.test(tool)) labels.add("tarefa");
+  else if (/^grupo|conversas_listar/.test(tool)) labels.add("grupo");
+  else if (tool === "avisar_dono") labels.add("fora_do_escopo");
+  labels.add(WRITE_VERBS.test(tool) ? "escrita" : "consulta");
+  return [...labels];
+}
+
+// Compara o que o Jev achou (categoria) com o que a Maia fez. labels: categorias das ferramentas usadas (toolLabels).
 // null = não dá para comparar.
-export function agreement(jev: JevResult | null, toolCategories: string[]): boolean | null {
+export function agreement(jev: { categoria: string } | null, labels: string[]): boolean | null {
   if (!jev) return null;
-  if (toolCategories.length === 0) return jev.categoria === "conversa" ? true : null;
-  return toolCategories.includes(jev.categoria);
+  if (labels.length === 0) return jev.categoria === "conversa" || jev.categoria === "fora_do_escopo" ? true : null;
+  if (jev.categoria === "conversa") return false;
+  return labels.includes(jev.categoria);
+}
+
+// Categorias de ferramenta que cada intenção do Jev espera. [] = nenhuma ferramenta; null = não dá para checar.
+const INTENT_EXPECTS: Record<string, string[] | null> = {
+  conversa: [],
+  consulta: ["consulta"],
+  resumo: ["consulta", "tarefa"],
+  analise: ["consulta"],
+  imagem: ["arte"],
+  carrossel: ["arte"],
+  escrita_externa: ["escrita"],
+  acao_sensivel: ["escrita"],
+  fora_do_escopo: ["fora_do_escopo"],
+  criacao_conteudo: null,
+  tarefa_tecnica: null,
+};
+
+// Mesma comparação, pela intenção (mais específica que a categoria).
+export function intentAgreement(jev: { intencao: string | null } | null, labels: string[]): boolean | null {
+  if (!jev?.intencao) return null;
+  const expected = INTENT_EXPECTS[jev.intencao];
+  if (expected === undefined || expected === null) return null;
+  if (expected.length === 0) return labels.length === 0;
+  if (jev.intencao === "fora_do_escopo") return labels.length === 0 || labels.includes("fora_do_escopo");
+  return labels.some((l) => expected.includes(l));
+}
+
+export interface JevMetricRow {
+  categoria: string | null;
+  confianca: number | null;
+  manipulacao: number | null;
+  intencao: string | null;
+  complexidade: string | null;
+  ms: number | null;
+  erro: string | null;
+  ferramentas: string[];
+}
+
+export interface JevMetrics {
+  triadas: number;
+  falhas: number;
+  latenciaMs: { p50: number | null; p90: number | null; p99: number | null; max: number | null };
+  comparaveis: number;
+  concordancia: number | null;
+  porCategoria: Record<string, { n: number; concordancia: number | null }>;
+  comparaveisIntencao: number;
+  concordanciaIntencao: number | null;
+  calibracao: Array<{ faixa: string; n: number; concordancia: number | null }>;
+  pedidosSimples: number | null;
+  alertasManipulacao: number;
+}
+
+const pct = (a: number, b: number): number | null => (b ? Math.round((a / b) * 100) : null);
+const quantile = (xs: number[], p: number): number | null => {
+  if (!xs.length) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+};
+
+// Métricas do Jev recalculadas a partir do que a tabela guarda (ferramentas, categoria e intenção), com a régua atual.
+// Assim a nota não fica presa ao critério antigo que ficou gravado em `concordou`.
+export function jevMetrics(rows: JevMetricRow[]): JevMetrics {
+  const failed = rows.filter((r) => r.erro !== null);
+  const triaged = rows.filter((r) => r.erro === null && r.categoria);
+  const ms = triaged.map((r) => r.ms).filter((v): v is number => typeof v === "number");
+
+  let comparable = 0, agreed = 0, intentComparable = 0, intentAgreed = 0;
+  const byCategory: Record<string, { n: number; ok: number }> = {};
+  const bands = [[0, 0.5], [0.5, 0.7], [0.7, 0.8], [0.8, 1.01]];
+  const calibration = bands.map(() => ({ n: 0, ok: 0 }));
+  for (const r of triaged) {
+    const labels = (r.ferramentas ?? []).flatMap(toolLabels);
+    const byCat = agreement({ categoria: r.categoria! }, labels);
+    if (byCat !== null) {
+      comparable++;
+      if (byCat) agreed++;
+      const bucket = (byCategory[r.categoria!] ??= { n: 0, ok: 0 });
+      bucket.n++;
+      if (byCat) bucket.ok++;
+      bands.forEach(([from, to], i) => {
+        if (r.confianca !== null && r.confianca >= from && r.confianca < to) { calibration[i].n++; if (byCat) calibration[i].ok++; }
+      });
+    }
+    const byIntent = intentAgreement({ intencao: r.intencao }, labels);
+    if (byIntent !== null) { intentComparable++; if (byIntent) intentAgreed++; }
+  }
+  return {
+    triadas: rows.length,
+    falhas: failed.length,
+    latenciaMs: { p50: quantile(ms, 0.5), p90: quantile(ms, 0.9), p99: quantile(ms, 0.99), max: ms.length ? Math.max(...ms) : null },
+    comparaveis: comparable,
+    concordancia: pct(agreed, comparable),
+    porCategoria: Object.fromEntries(Object.entries(byCategory).map(([k, v]) => [k, { n: v.n, concordancia: pct(v.ok, v.n) }])),
+    comparaveisIntencao: intentComparable,
+    concordanciaIntencao: pct(intentAgreed, intentComparable),
+    calibracao: bands.map(([from, to], i) => ({ faixa: `${from}-${Math.min(to, 1)}`, n: calibration[i].n, concordancia: pct(calibration[i].ok, calibration[i].n) })),
+    pedidosSimples: pct(triaged.filter((r) => r.complexidade === "simples").length, triaged.length),
+    alertasManipulacao: triaged.filter((r) => (r.manipulacao ?? 0) >= 0.5).length,
+  };
 }
 
 export interface JevRow {
@@ -149,22 +269,29 @@ export async function jevView(db: Db, now = new Date()): Promise<Record<string, 
   const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await db
     .from("jev_triage")
-    .select("at, channel, categoria, confianca, manipulacao, urgencia, ms, erro, ferramentas, concordou")
+    .select("at, channel, categoria, confianca, manipulacao, urgencia, intencao, complexidade, ms, erro, ferramentas, concordou")
     .gte("at", since)
     .order("at", { ascending: false })
     .limit(200);
   if (error) return { error: error.message, rows: [] };
-  const rows = (data ?? []) as JevRow[];
-  const comparable = rows.filter((r) => r.concordou !== null);
-  const agreed = comparable.filter((r) => r.concordou === true).length;
-  const pct = comparable.length ? Math.round((agreed / comparable.length) * 100) : null;
+  const rows = (data ?? []) as Array<JevRow & { intencao?: string | null; complexidade?: string | null; ms?: number | null }>;
+  // Recalcula com a régua atual a partir de categoria/intenção/ferramentas; `concordou` gravado vem de critérios antigos.
+  const metrics = jevMetrics(
+    rows.map((r) => ({
+      categoria: r.categoria,
+      confianca: r.confianca,
+      manipulacao: r.manipulacao,
+      intencao: r.intencao ?? null,
+      complexidade: r.complexidade ?? null,
+      ms: r.ms ?? null,
+      erro: r.erro,
+      ferramentas: r.ferramentas ?? [],
+    })),
+  );
   return {
-    triadas: rows.length,
-    comparaveis: comparable.length,
-    concordancia: pct,
+    ...metrics,
     meta: 80,
-    alertasManipulacao: rows.filter((r) => (r.manipulacao ?? 0) >= 0.5).length,
-    falhas: rows.filter((r) => r.erro !== null).length,
+    janela: "7 dias, até 200 triagens",
     ultimas: rows.slice(0, 12).map((r) => ({
       at: r.at,
       canal: r.channel,

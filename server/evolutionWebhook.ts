@@ -125,6 +125,31 @@ export function incomingText(body: unknown): IncomingText | null {
   return typeof text === "string" && text.trim() ? { from, text: text.trim() } : null;
 }
 
+// Texto da mensagem citada num reply (contextInfo.quotedMessage). Retorna null se não houver citação.
+// Só o conteúdo textual — o remetente da citação não é necessário para o agente entender o pedido.
+export function quotedTextFrom(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const data = ((body as Record<string, unknown>).data ?? {}) as Record<string, unknown>;
+  const message = (data.message ?? {}) as Record<string, unknown>;
+  const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
+  const context = (extended.contextInfo ?? data.contextInfo ?? {}) as Record<string, unknown>;
+  const quoted = (context.quotedMessage ?? {}) as Record<string, unknown>;
+  const extQuoted = (quoted.extendedTextMessage ?? {}) as Record<string, unknown>;
+  const text =
+    typeof quoted.conversation === "string"
+      ? quoted.conversation
+      : typeof extQuoted.text === "string"
+        ? extQuoted.text
+        : null;
+  return text && text.trim() ? text.trim() : null;
+}
+
+// Prefixa o texto com a citação, se existir: "[Citando: "..."] texto". Limita a citação a 300 chars.
+export function withQuoted(text: string, quoted: string | null): string {
+  if (!quoted) return text;
+  return `[Citando: "${quoted.slice(0, 300)}"] ${text}`;
+}
+
 export type MediaType = "image" | "video" | "document";
 
 export interface MediaRef {
