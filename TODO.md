@@ -20,7 +20,9 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Reconciliar `20261011185724_maia_client_groups_access` com o histórico aplicado; `response_deliveries.requester` permanece somente na migração nova `20261012014613`.
 - [x] Migração `20261012030526_maia_secrets_vault` aplicada; chave `INTEGRACAO_VAULT_KEY` criada no `.env`; worker reiniciado.
 - [ ] Testar o cofre pelo privado do dono: `cofre teste | abc12345678`, depois `cofre listar` e `cofre apagar teste`.
-- [ ] Acrescentar `MAIA_LID` no ambiente da Vercel e testar uma menção à Maia no grupo (hoje a correção vale pelo worker).
+- [x] `MAIA_LID` cadastrada na Vercel (tipo plain, Production) e PR #6 mesclado em 12/10/2026.
+- [ ] Testar ao vivo, em grupo cadastrado: menção por texto, resposta por citação a uma mensagem da Maia e áudio marcando a Maia.
+- [ ] Whisper (EasyPanel, projeto n8n, serviço whisper-api): fora do ar, com o container reiniciando em loop no boot; o compose corrigido está salvo no EasyPanel mas ainda NÃO foi implantado. Implantar e ler o /boot.log para achar o erro de instalação (suspeita: pkg_resources/setuptools).
 - [x] Migração `20261012104713_maia_rules_contatos_prospeccao` aplicada (regra de contatos com prospecção pedida pelo dono).
 - [ ] Testar prospecção pelo WhatsApp com números seus: preparar lote, enviar um contato com OK, conferir teto e SAIR.
 - [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).

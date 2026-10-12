@@ -66,6 +66,8 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 
 ## Atualização 12/10/2026 (estado atual)
 
+- **Menção em grupo:** PR #6 mesclado (`1692a42`); `MAIA_LID` cadastrada na Vercel como variável plain em Production. Falta testar ao vivo citação e áudio.
+- **Whisper:** serviço fora do ar (container em loop no boot). Compose corrigido salvo no EasyPanel, ainda não implantado.
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
 - **Chave do cofre:** `INTEGRACAO_VAULT_KEY` criada no `.env` da pasta `agent-maia` (sem registro no repositório). Backup é responsabilidade do owner.
 - **Worker:** reiniciado depois da chave; há um só worker na pasta original.
