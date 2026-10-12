@@ -6,7 +6,7 @@ describe("organização do painel", () => {
     const pages = sections.flatMap((s) => s.pages.map((p) => p.id));
     expect(new Set(pages).size).toBe(pages.length);
     expect(sections.find((s) => s.id === "sistema")!.pages.map((p) => p.id)).toEqual(["conexoes", "modelos"]);
-    expect(sections.find((s) => s.id === "agente-maia")!.pages.map((p) => p.id)).toEqual(["agente", "regras", "manual"]);
+    expect(sections.find((s) => s.id === "agente-maia")!.pages.map((p) => p.id)).toEqual(["regras", "manual"]);
   });
   it("preserva endereços antigos e produz rotas canônicas", () => {
     for (const s of sections) for (const p of s.pages) {
@@ -15,6 +15,8 @@ describe("organização do painel", () => {
       expect(parseRoute(routeHash(route))).toEqual(route);
     }
     expect(parseRoute("#operacao")).toEqual({ section:"agente-maia",screen:"manual" });
+    expect(parseRoute("#agente")).toEqual({ section:"agente-maia",screen:"regras" });
+    expect(parseRoute("#agente-maia/agente")).toEqual({ section:"agente-maia",screen:"regras" });
     expect(parseRoute("#desconhecido")).toEqual({ section:"visao-geral",screen:"resumo" });
   });
   it("membro abre somente os próprios acessos", () => {

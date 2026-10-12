@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Aba de conversa desativada
+
+- **Pedido:** desativar a aba de conversa com a Maia no painel.
+- **Mudança:** removida a aba Conversa e o carregamento do chat na interface local/publicada. Agente Maia abre em Regras ativas; links antigos do chat redirecionam para essa tela.
+- **Verificação:** navegação, TypeScript, testes de aplicação/banco e build conferidos antes da publicação.
+
 ## 2026-10-12 — Fechamento dos formulários do painel
 
 - **Causa:** após conflito de edição, atualizar cadastros mantinha o formulário com a revisão antiga; clientes também guardavam uma cópia desatualizada do cadastro selecionado.

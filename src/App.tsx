@@ -8,7 +8,6 @@ const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) =>
 const GruposPage = lazy(() => import("./features/operacao/GruposPage").then((m) => ({ default: m.GruposPage })));
 const ClientsPage = lazy(() => import("./features/organization/ClientsPage").then((m) => ({ default: m.ClientsPage })));
 const AccessGroupsPage = lazy(() => import("./features/organization/AccessGroupsPage").then((m) => ({ default: m.AccessGroupsPage })));
-const LiveChatPage = lazy(() => import("./features/chat/LiveChatPage").then((m) => ({ default: m.LiveChatPage })));
 const RegrasPage = lazy(() => import("./features/operacao/RegrasPage").then((m) => ({ default: m.RegrasPage })));
 const ModelosPage = lazy(() => import("./features/operacao/ModelosPage").then((m) => ({ default: m.ModelosPage })));
 const ConnectionsPage = lazy(() => import("./features/connections/ConnectionsPage").then((m) => ({ default: m.ConnectionsPage })));
@@ -100,7 +99,6 @@ function Screen({ id }: { id: ScreenId }) {
     case "clientes": return <ClientsPage />;
     case "pessoas": return <PeoplePage />;
     case "grupos-acesso": return <AccessGroupsPage />;
-    case "agente": return HOSTED ? <p className="empty-note">Converse com a Maia pelo WhatsApp. A conversa pelo painel está disponível no computador da operação.</p> : <LiveChatPage />;
     case "regras": return <RegrasPage />;
     case "manual": return <ManualOperadorPanel />;
     case "conexoes": return <ConnectionsPage />;
