@@ -4,6 +4,33 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Correção: coluna requester ausente em response_deliveries (12/10/2026)
+
+- **Causa:** a coluna foi incluída numa migração já aplicada, então o banco nunca a recebeu e as respostas da Maia falhavam ao gravar.
+- **Correção:** migração nova que acrescenta a coluna (`if not exists`). **Pendência:** reverter a linha editada na migração `20261011185724`.
+
+## Catálogo: Instagram pela Zernio (12/10/2026)
+
+- **Mudança:** 18 rotas do Instagram da Zernio no catálogo (10 de leitura, 8 externas com OK por uso), parâmetros no caminho e opcionais, chave `ZERNIO_API_KEY` presa a zernio.com. **Pendências:** migração não aplicada; escrita não exercitada ao vivo; Fases 2 e 4 não começaram. **Verificação:** 384 testes, 60 ferramentas no MCP, `db:validate` com 29 migrações.
+
+## Correção: Maia sem as ferramentas mcp__maia__ (12/10/2026)
+
+- **Causa:** `z.record` nas três ferramentas novas do catálogo derrubava a listagem MCP inteira, para o Claude e para o Codex. **Correção:** parâmetros como texto JSON validado no servidor, com teste que lista as ferramentas pelo MCP. **Verificação:** 60 ferramentas listadas, 380 testes. **Pendência:** reiniciar o worker.
+
+## Catálogo: endpoints da Evolution e nível externa (12/10/2026)
+
+- **Mudança:** 34 endpoints da Evolution v2 no catálogo (25 ativos, 9 pausados de maior dano). Integração `externa` pede OK a cada uso pela ferramenta `integracao_chamar_externa`; parâmetros só na consulta da URL.
+- **Fora do catálogo:** o que já tem ferramenta própria com limites e as rotas que vazam segredo ou desviam mensagens.
+- **Pendências:** migração não aplicada; escrita não exercitada ao vivo; regra "Limites", busca na web, Instagram e prospecção em fases seguintes.
+- **Verificação:** typecheck, build, `db:validate` (28 migrações) e 375 testes Vitest.
+
+## Catálogo de integrações por endpoint (12/10/2026)
+
+- **Mudança:** novo catálogo (`maia_integrations`) para a Maia chamar APIs por configuração, sem editar código: listar, propor (sempre pendente), chamar (só ativas) e ativar (aprovação do owner). Primeira integração: reação no WhatsApp pela Evolution.
+- **Segurança:** só o nome do segredo fica no catálogo (prefixo `INTEGRACAO_`); token não passa pelo chat; https público, sem redirecionamento, com limite de tempo e tamanho; o segredo é apagado de qualquer retorno.
+- **Pendências:** migração ainda não aplicada em produção; sem cofre de segredos; regra "Limites" e busca na web inalteradas.
+- **Verificação:** typecheck, build, 340 testes Vitest, 32 de banco e `rules:check`.
+
 ## Claude Code CLI como executor principal (11/10/2026)
 
 - **Mudança:** o Claude passa a rodar pelo Claude Code CLI (`claude -p`) em vez do Agent SDK. As ferramentas da Maia e a decisão de permissão/aprovação continuam no worker, acessadas pelo CLI por um MCP HTTP local (127.0.0.1, token por execução). Roteamento, fallback para o Codex, Jev, regras e aprovações não mudaram.

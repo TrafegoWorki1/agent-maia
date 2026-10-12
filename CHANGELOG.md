@@ -8,6 +8,60 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Correção: coluna response_deliveries.requester ausente (respostas da Maia falhando)
+
+- **Sintoma:** a Maia não conseguia gravar respostas: `Persistência da resposta: Could not find the 'requester' column of 'response_deliveries' in the schema cache`. Tarefas terminavam como `falhou`.
+- **Causa:** a linha `alter table response_deliveries add column requester` foi editada dentro da migração `20261011185724_maia_client_groups_access.sql` depois dela já estar aplicada em produção. O banco nunca recebeu a coluna, mas o código novo grava nela.
+- **Correção:** migração nova `20261012014613_maia_response_deliveries_requester.sql` com `add column if not exists requester jsonb` (idempotente, só adiciona). Aplicada pelo owner com `supabase db push --linked`.
+- **Pendência:** a migração `20261011185724` (da outra sessão) ainda contém a linha editada e precisa voltar ao que foi aplicado; o `db:guard` acusa a alteração quando a migração é comparada com a base.
+- **Verificação:** coluna confirmada no banco, migração no histórico remoto, `db:validate` com 30 migrações. Worker reiniciado às 22:48.
+
+---
+
+## 2026-10-12 — Catálogo: Instagram pela Zernio (Fase 3), parâmetros no caminho e opcionais
+
+- **Pedido do owner:** disponibilizar à Maia os endpoints do Instagram que ainda não tinham ferramenta.
+- **O que entrou:** seção `zernio` em `config/integrations-catalog.json` (18 rotas, tiradas da documentação oficial docs.zernio.com) e migração `20261012013924_maia_integrations_zernio_v1.sql` (ainda **não aplicada em produção**). 10 de leitura: contas, limite de publicação, insights da conta, histórico de seguidores, demografia, comentários, detalhe de conversa, solicitações de mensagem, ice breakers. 8 externas (OK a cada uso): responder, ocultar, reexibir e apagar comentário, resposta privada, reagir e tirar reação no Direct, aceitar solicitação.
+- **Código:** `server/integrationCatalog.ts` aceita parâmetro `{{nome}}` no caminho (valor simples, sem barra, nunca `.`/`..`, sempre codificado), parâmetro opcional `{{nome?}}` (some da URL ou do corpo quando não vem) e a chave `ZERNIO_API_KEY` presa ao endereço `zernio.com` (como a da Evolution). O gerador `scripts/db/catalog-sql.ts zernio` produz as linhas.
+- **Fora de propósito:** o que já tem ferramenta própria com travas (publicar/editar/cancelar post, Direct com janela de 24 h, automações, Stories, áudio, seguidor), conectar conta (OAuth) e gravar ice breakers (formato dos itens não documentado).
+- **Verificação:** typecheck, build, `db:validate` (29 migrações), `smoke:maia-tools` (60 ferramentas) e 384 testes Vitest. Rotas de escrita da Zernio não foram exercitadas ao vivo.
+- **Pendência:** aplicar a migração (`supabase db push`); Fase 2 (busca na web, trava contra injeção, pergunta "passo para o Herickson?") e Fase 4 (prospecção, teto de 30/dia) ainda não começaram.
+
+---
+
+## 2026-10-12 — Correção: a Maia ficou sem as ferramentas mcp__maia__ (grupos, contatos, etc.)
+
+- **Sintoma:** no WhatsApp a Maia dizia que não tinha ferramenta de grupo ("só aparecem carrossel e Meta Ads") e não listava os grupos salvos.
+- **Causa:** as ferramentas novas do catálogo (`integracao_chamar`, `integracao_chamar_externa` e `integracao_propor`) declaravam parâmetros com `z.record(...)`. Esse esquema faz a resposta `tools/list` do servidor MCP falhar inteira (`Cannot read properties of undefined (reading 'push')`), então **nenhuma** ferramenta `mcp__maia__` chegava ao Claude. O mesmo valia para a ponte do Codex. Não era o executor CLI, a instância nem a migração de grupos. Os testes unitários não listavam as ferramentas pelo protocolo, por isso não pegaram.
+- **Correção:** `parametros` e `corpo` passaram a ser texto JSON, lido e validado no servidor (`parseParams` e `parseJsonObject` em `server/integrationCatalog.ts`: objeto plano, até 20 chaves, valores texto até 500 caracteres, número ou booleano). Teste novo `tests/mcpToolsList.test.ts` lista as ferramentas pelo MCP de verdade e proíbe `z.record(` nos dois arquivos de ferramentas.
+- **Verificação:** `pnpm smoke:maia-tools` volta a listar 60 ferramentas; typecheck, build e 380 testes Vitest.
+- **Pendência:** reiniciar o worker para carregar a correção.
+
+---
+
+## 2026-10-12 — Catálogo de integrações: endpoints da Evolution, nível externa e parâmetros na URL
+
+- **Pedido do owner:** deixar disponíveis à Maia os endpoints da Evolution API que ainda não tinham ferramenta, para ela usar quando ele pedir.
+- **O que entrou:** nível de risco `externa` (a ferramenta `integracao_chamar_externa` pede OK do owner a cada uso, até para ele); parâmetros `{{nome}}` na parte de consulta da URL, sempre codificados (nunca no host nem no caminho); `config/integrations-catalog.json` (34 endpoints da Evolution v2) com o gerador `scripts/db/catalog-sql.ts` e a migração `20261012012214_maia_integrations_evolution_v2.sql` (ainda **não aplicada em produção**).
+- **Ativos (25):** consultas (números, perfil, etiquetas, privacidade, convite), ações internas (digitando, arquivar, não lida, etiqueta) e envios/alterações com OK por uso (localização, contato, figurinha, áudio, status, apagar/editar mensagem, nome, descrição, convite e configurações de grupo, entrar por convite).
+- **Pausados (9), o owner liga um a um com `integracao_ativar` (pede OK):** apagar, desconectar e reiniciar a instância, alterar privacidade, nome/recado/foto do perfil, bloquear contato e sair de grupo.
+- **Fora de propósito:** `sendText`, `sendPoll`, criar grupo, participantes, convites (já têm ferramenta com limites do servidor) e `webhook/set`, `webhook/find`, `instance/fetchInstances`, `instance/create` (vazam segredo ou desviam mensagens).
+- **Verificação:** typecheck, build, `rules:check`, `db:validate` (28 migrações) e 375 testes Vitest (novos em `tests/integrationCatalog.test.ts` e `tests/integrationsCatalogFile.test.ts`). Corpos das rotas de escrita seguem a documentação da v2 e **ainda não foram exercitados ao vivo**.
+- **Pendências:** aplicar a migração (`supabase db push`); regra "Limites" (propor ao Herickson com pergunta), busca na web nativa, importação do Instagram (Zernio) e modo de prospecção com teto de 30/dia ficam para as próximas fases.
+
+---
+
+## 2026-10-12 — Catálogo de integrações por endpoint (primeira fatia)
+
+- **Pedido do owner:** a Maia usar APIs novas (começando pela reação do WhatsApp na Evolution) sem alguém editar código a cada uma, mantendo a decisão de que o código só muda em sessão direta.
+- **O que entrou:** tabela `maia_integrations` (migração `20261012005057_maia_integrations_v1.sql`, ainda **não aplicada em produção**), permissão `integracao.usar`, módulo `server/integrationCatalog.ts` e as ferramentas `integracao_listar`, `integracao_chamar`, `integracao_propor` e `integracao_ativar` (Claude em `maiaImageTool.ts` e Codex em `codexMaiaMcp.ts`). A primeira linha do catálogo é `whatsapp_reagir` (Evolution `/message/sendReaction`), já ativa.
+- **Regras de segurança:** a Maia só **propõe** (sempre pendente); **ativar pede aprovação** do owner a cada vez (`approvalPolicy.ts`). O catálogo guarda só o NOME da variável de segredo, que precisa começar com `INTEGRACAO_` (a chave da Evolution só vale para o endereço da Evolution); nunca o valor, e o token não deve ser enviado pelo chat. A URL é https literal, sem endereço interno/local e sem usuário/senha; só `{EVOLUTION_API_URL}` e `{EVOLUTION_INSTANCE}` são trocados por ambiente. A chamada recusa redirecionamento, limita tempo (15 s) e resposta (4 000 caracteres) e apaga o segredo de qualquer retorno. Membro só chama com `integracao.usar`; propor é só do dono.
+- **Limites desta fatia:** sem cofre de segredos (o dono coloca a variável no ambiente do servidor), sem interceptar token enviado por mensagem, sem integração de risco externo (só `leitura` e `interna`), sem mudança em `maia-rules.json`. Para reagir a uma mensagem a Maia precisa do id dela, que nem sempre está no contexto.
+- **Verificação:** typecheck, build, `rules:check`, `db:validate`, 340 testes Vitest e 32 de banco (novos: `tests/integrationCatalog.test.ts`).
+- **Pendência:** aplicar a migração antes de ligar o código em produção (`supabase db push`, com aprovação do owner); regra "Limites" ainda manda dizer que não faz e avisar o dono; busca na web continua bloqueada.
+
+---
+
 ## 2026-10-11 — Claude Code CLI como executor principal da Maia
 
 - **Pedido do owner:** trocar o Claude Agent SDK pelo Claude Code CLI (`claude -p`) como executor principal, mantendo WhatsApp, Jev, Codex, Supabase, RAG, memória, regras e aprovações, com possibilidade de voltar ao estado anterior.
