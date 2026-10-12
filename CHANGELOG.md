@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Texto citado (reply) passa para o agente
+
+- **Causa:** ao responder uma mensagem no grupo (ou no privado), o agente recebia só o texto novo, sem o conteúdo citado. Isso o fez perder o contexto do pedido e responder de forma incorreta.
+- **Correção:** `quotedTextFrom` extrai o texto da mensagem citada (`contextInfo.quotedMessage`); `withQuoted` prefixa o texto com `[Citando: "..."]` antes de guardar no payload. Vale para grupos, dono e membros.
+- **Verificação:** TypeScript e 445 testes.
+
 ## 2026-10-12 — maxTurns elevado para 30 e aviso de parcial
 
 - **Causa:** tarefas de planilha com muitas células chegavam a 25+ chamadas e estourravam o limite de 12 passos do CLI/SDK, sem resposta ao dono.
