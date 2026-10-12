@@ -4,6 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## maxTurns elevado e aviso de parcial (12/10/2026)
+
+- **Causa:** planilhas com muitas células estouravam o limite de 12 passos, sem resposta ao dono. **Correção:** limite elevado para 30 nos dois executores; quando ainda bater, mensagem informa que foi parcial.
+
 ## Jev: régua corrigida (12/10/2026)
 
 - **Causa:** a concordância de 51% vinha de uma régua que só conhecia arte/consulta/escrita. **Correção:** categorias das ferramentas mapeadas para as do Jev, métricas por intenção, categoria e confiança recalculadas na visualização (62% com a régua corrigida). Modo sombra mantido.

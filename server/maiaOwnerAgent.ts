@@ -177,7 +177,7 @@ async function runClaudeOnce(
         systemPrompt,
         model: opts.model,
         maxBudgetUsd: opts.maxBudgetUsd,
-        maxTurns: 12,
+        maxTurns: 30,
         timeoutMs: opts.timeoutMs,
         // Busca na web só para o dono; para os demais a ferramenta nem é oferecida.
         tools: isOwner ? CLI_OWNER_TOOLS : undefined,
@@ -216,7 +216,7 @@ async function runClaudeViaSdk(
         systemPrompt,
         ...(opts.model ? { model: opts.model } : {}),
         abortController: controller,
-        maxTurns: 12,
+        maxTurns: 30,
         maxBudgetUsd: opts.maxBudgetUsd,
         persistSession: false,
         canUseTool: permission,
@@ -398,7 +398,11 @@ export async function handleOwnerMessage(text: string): Promise<number> {
       }
       await failTask(db, taskId, message).catch(() => {});
       await addTaskEvent(db, taskId, "task_failed", null, message).catch(() => {});
-      const fallback = "Não consegui concluir agora. Tente de novo em instantes.";
+      const kind = classifyError(error).kind;
+      const fallback =
+        kind === "max_turns"
+          ? "Completei parte do pedido, mas atingi o limite de passos antes de terminar. Confira o que já foi alterado e me reenvie o que ainda faltar."
+          : "Não consegui concluir agora. Tente de novo em instantes.";
       await sendOwnerText(owner, fallback).catch(() => {});
       await recordMessage(db, { channel: "whatsapp", author: "maia", text: fallback }).catch(() => {});
     });
