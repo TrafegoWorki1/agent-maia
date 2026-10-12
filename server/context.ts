@@ -5,7 +5,7 @@ import { recentMessages, type Db } from "./store.ts";
 // Decisão do owner (10/10/2026): limites antigos (30 min, 8 linhas, 400 caracteres por linha) cortavam a
 // própria resposta da Maia no meio — um "Ok"/"Aprovado" do dono confirmava um rascunho que ela não via mais
 // inteiro. Autodiagnóstico da própria Maia (sem acesso de escrita), aplicado aqui.
-const WINDOW_MS = 2 * 60 * 60 * 1000;
+const WINDOW_MS = 12 * 60 * 60 * 1000;
 const MAX_LINES = 14;
 const MAX_CHARS_PER_LINE = 4000;
 
