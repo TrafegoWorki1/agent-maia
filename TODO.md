@@ -18,6 +18,8 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 
 **Ações do owner**
 - [ ] Reverter a linha editada depois da aplicação na migração `20261011185724_maia_client_groups_access` (quem reverte é a outra sessão).
+- [ ] Aplicar a migração `20261012030526_maia_secrets_vault`, criar `INTEGRACAO_VAULT_KEY` no `.env` (32 bytes em hexadecimal) e reiniciar o worker para o cofre funcionar.
+- [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).
 - [ ] Decidir sobre o trabalho de grupos e organização que ainda não está commitado (fora do PR #5).
 - [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
 - [ ] Reiniciar o worker sempre que o código mudar.

@@ -15,6 +15,12 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Pendências:** aplicar a migração; descadastro automático por resposta ainda não existe; checagem de WhatsApp e envios não testados ao vivo.
 - **Verificação:** 407 testes, `db:validate` com 32 migrações, 63 ferramentas no MCP.
 
+## Cofre de segredos para tokens de integrações (12/10/2026)
+
+- **Mudança:** `cofre NOME | valor` no privado do dono guarda o token criptografado (`maia_secrets`), sem passar pela IA nem pelo histórico; em grupo é recusado. O catálogo lê do cofre quando o `.env` não tem o segredo.
+- **Limites:** a mensagem segue no celular e na base da Evolution; o registro da fila existe por segundos na Vercel.
+- **Pendências:** aplicar a migração `20261012030526`; criar `INTEGRACAO_VAULT_KEY`; reiniciar o worker.
+
 ## Resumo de 10–12/10/2026: o que foi feito
 
 - **Executor Claude pelo Claude Code CLI** (commits `92f0f1b`, `784046e`, `edcc606`): Claude roda por `claude -p`; o Agent SDK continua como alternativa.
