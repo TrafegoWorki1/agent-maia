@@ -15,6 +15,19 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Pendências:** aplicar a migração; descadastro automático por resposta ainda não existe; checagem de WhatsApp e envios não testados ao vivo.
 - **Verificação:** 407 testes, `db:validate` com 32 migrações, 63 ferramentas no MCP.
 
+## Resumo de 10–12/10/2026: o que foi feito
+
+- **Executor Claude pelo Claude Code CLI** (commits `92f0f1b`, `784046e`, `edcc606`): Claude roda por `claude -p`; o Agent SDK continua como alternativa.
+- **Catálogo de integrações** (`66a9abd` e anteriores): tabela `maia_integrations`, 34 endpoints da Evolution v2 (25 ativos, 9 pausados), 18 rotas do Instagram pela Zernio (10 de leitura, 8 externas com OK por uso).
+- **Correção da listagem de ferramentas:** parâmetros de ferramenta viram texto JSON. Antes, um `z.record` derrubava a lista inteira e a Maia perdia grupos, contatos e avisos.
+- **Correção das respostas:** coluna `response_deliveries.requester`, que nunca tinha chegado ao banco.
+- **Fase 2:** busca na web só para o dono, sem OK; trava que pede OK para ações que alteram algo depois de uma busca; regra "Limites" nova (versão `2026-10-12.1`).
+- **Mencionar todos** no grupo: menção fantasma (todos avisados, texto sem números).
+- **Fase 4, prospecção pedida pelo dono:** lotes com mensagem final, um envio por vez com OK, teto de 30 por dia, SAIR obrigatório, sem repetir contato em 30 dias, checagem de WhatsApp.
+- **Migrações aplicadas no banco:** `20261012005057`, `20261012012214`, `20261012013924`, `20261012014613`, `20261012020001`, `20261012021430`.
+- **PR #5** aberto para `main`, com `db:guard` passando.
+
+
 ## Fase 2: busca na web para o dono e trava depois da busca (12/10/2026)
 
 - **Mudança:** o dono pede pesquisa direta; a regra "Limites" passa a dizer o que fazer sem ferramenta. Depois de uma busca na tarefa, ações que alteram algo pedem OK, até do dono.

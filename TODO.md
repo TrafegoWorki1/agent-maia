@@ -2,6 +2,30 @@
 
 Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
+## Atualizado em 12/10/2026 — a fazer
+
+**Validar ao vivo (pelo WhatsApp, com o número do dono)**
+- [ ] Rotas de escrita da Evolution e da Zernio (responder, ocultar, apagar, reagir, renomear grupo etc.): nenhuma foi exercitada.
+- [ ] Menção a todos (menção fantasma) em um grupo real: confirmar que todos recebem o aviso.
+- [ ] Prospecção de ponta a ponta: checagem de WhatsApp, lote, OK por contato, teto e SAIR.
+- [ ] Busca na web pelo WhatsApp e a trava depois da busca.
+- [ ] Reação no WhatsApp: a Maia precisa do id da mensagem; testar com um id real.
+
+**Implementar**
+- [ ] Descadastro automático quando o contato responde SAIR (hoje é manual, com `prospeccao_descadastrar`).
+- [ ] Escrita de ice breakers do Instagram: o formato dos itens não está documentado.
+- [ ] Conexão de conta da Zernio por OAuth: exige login no navegador.
+
+**Ações do owner**
+- [ ] Reverter a linha editada depois da aplicação na migração `20261011185724_maia_client_groups_access` (quem reverte é a outra sessão).
+- [ ] Decidir sobre o trabalho de grupos e organização que ainda não está commitado (fora do PR #5).
+- [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
+- [ ] Reiniciar o worker sempre que o código mudar.
+
+**Limpeza**
+- [ ] Conferir o `db:drift` depois das migrações desta semana.
+
+
 ## Validações operacionais
 
 - [x] Aplicar `20261011012443_maia_owner_preferences_v1.sql` no Supabase (exceção direta explicitamente autorizada pelo owner); reconciliar versão registrada e arquivo do repositório antes do merge.
