@@ -3,7 +3,7 @@ import { describeAction } from "./actionDescriptions.ts";
 import { sendOwnerText, DeliveryError } from "./evolutionSend.ts";
 import { deliverResponse } from "./responseDelivery.ts";
 import { createImageServer, IMAGE_TOOL, isLocalSafeTool, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
-import { agreement, recordJev, triageText, type JevResult } from "./jev.ts";
+import { agreement, toolLabels, recordJev, triageText, type JevResult } from "./jev.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import { isReadTool } from "./approvalPolicy.ts";
@@ -370,7 +370,7 @@ function recordJevShadow(db: ReturnType<typeof getDb>, taskId: number, channel: 
   void (async () => {
     const { jev, erro } = await pending;
     const tools = await toolsUsed(db, taskId);
-    await recordJev(db, { channel, taskId, jev, erro, ferramentas: tools, concordou: agreement(jev, tools.map(toolCategory)) });
+    await recordJev(db, { channel, taskId, jev, erro, ferramentas: tools, concordou: agreement(jev, tools.flatMap(toolLabels)) });
   })().catch((error) => console.error("[jev] falha ao registrar:", error instanceof Error ? error.message : error));
 }
 
