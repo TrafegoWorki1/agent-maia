@@ -21,7 +21,7 @@ import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
-import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers, withMentionTags } from "./groupTools.ts";
+import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
@@ -226,13 +226,12 @@ server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo
   const invalid = validateText(texto); if (invalid) throw new Error(invalid);
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   const mentions = await resolveMentions(getDb(), mencionar ?? []); if (!mentions.ok) throw new Error(mentions.error);
-  let numbers = mentions.numbers;
+  let ghost: string[] = [];
   if (mencionar_todos) {
     const everyone = await everyMemberNumbers(found.group.jid, mentions.numbers); if (!everyone.ok) throw new Error(everyone.error);
-    numbers = [...new Set([...mentions.numbers, ...everyone.numbers])];
-    if (withMentionTags(texto, numbers).length > 3000) throw new Error(`com as menções de ${numbers.length} participantes a mensagem passa do limite de 3000 caracteres`);
+    ghost = everyone.numbers;
   }
-  const id = await sendGroupText(found.group.jid, texto, numbers);
+  const id = await sendGroupText(found.group.jid, texto, mentions.numbers, ghost);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
   await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;

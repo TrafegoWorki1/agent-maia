@@ -67,8 +67,8 @@ export function withMentionTags(text: string, numbers: string[]): string {
   return missing.length ? `${text.trim()} ${missing.map((n) => `@${n}`).join(" ")}` : text;
 }
 
-// Mencionar todos: a Evolution não tem um "@todos" próprio, então a mensagem marca cada participante do grupo (o WhatsApp
-// avisa a todos). Só números com DDI+DDD+número; o próprio número da Maia não entra.
+// Mencionar todos (menção fantasma): lista os participantes do grupo para irem só no campo mentioned, sem @número no texto.
+// Só números com DDI+DDD+número; o que já foi citado de forma visível (`skip`) não repete.
 export async function everyMemberNumbers(jid: string, skip: string[] = []): Promise<{ ok: true; numbers: string[] } | { ok: false; error: string }> {
   const list = await fetchGroupParticipants(jid);
   if (!list.ok) return { ok: false, error: `não consegui listar os participantes do grupo: ${list.error}` };
@@ -111,9 +111,12 @@ const messageId = (json: unknown): string | null => {
 };
 
 // Devolve o id da mensagem aceita pelo WhatsApp (a conferência da entrega).
-export async function sendGroupText(jid: string, text: string, mentions: string[]): Promise<string> {
+// `mentions` aparecem como @número no texto. `ghost` entram só no campo mentioned: a pessoa é avisada, mas o texto não mostra
+// nada (menção fantasma, usada para marcar todos do grupo sem encher a mensagem).
+export async function sendGroupText(jid: string, text: string, mentions: string[], ghost: string[] = []): Promise<string> {
   const body: Record<string, unknown> = { number: jid, text: withMentionTags(text, mentions) };
-  if (mentions.length) body.mentioned = mentions;
+  const notified = [...new Set([...mentions, ...ghost])];
+  if (notified.length) body.mentioned = notified;
   const { status, json } = await post("/message/sendText", body);
   const id = messageId(json);
   if (status < 200 || status >= 300 || !id) throw new Error(`a Evolution não confirmou o envio do texto (HTTP ${status})`);
