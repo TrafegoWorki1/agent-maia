@@ -1,6 +1,6 @@
 # Pendências atuais da Maia
 
-Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+Atualizado em 12/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
 ## Atualizado em 12/10/2026 — a fazer
 
@@ -26,12 +26,14 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Migração `20261012104713_maia_rules_contatos_prospeccao` aplicada (regra de contatos com prospecção pedida pelo dono).
 - [ ] Testar prospecção pelo WhatsApp com números seus: preparar lote, enviar um contato com OK, conferir teto e SAIR.
 - [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).
-- [ ] Revisar e publicar a reorganização do painel: sete áreas, clientes e grupos de acesso; conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
-- [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
+- [x] Publicar a reorganização do painel: sete áreas, clientes e grupos de acesso; commit `d4d2180`, Vercel Production em `Ready`.
+- [x] Integrar o PR #5 à `main`; GitHub confirmou `MERGED`.
+- [x] Desativar a aba Conversa com Maia, redirecionar links antigos para Regras ativas e publicar `80095aa` em produção.
+- [ ] Conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
 - [ ] Reiniciar o worker sempre que o código mudar.
 
 **Limpeza**
-- [ ] Conferir o `db:drift` depois das migrações desta semana.
+- [x] Conferir o `db:drift`: 34 migrações e 788 objetos, sem divergência em 12/10/2026 antes da publicação do painel.
 
 
 ## Validações operacionais
