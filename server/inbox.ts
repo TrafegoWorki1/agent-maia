@@ -48,6 +48,9 @@ function addressedToMaia(body: Record<string, unknown>, data: Record<string, unk
     const mentioned = Array.isArray(context.mentionedJid) ? context.mentionedJid : [];
     if (mentioned.some((j) => ids.includes(digitsOf(j)))) return true;
   }
+  // Se é um reply a alguém que não é a Maia, a mensagem é para essa outra pessoa — a janela de conversa não se aplica.
+  const quotedFrom = typeof context.participant === "string" ? digitsOf(context.participant) : "";
+  if (quotedFrom && ids.length && !ids.includes(quotedFrom)) return false;
   const last = state.lastReplyAt ? Date.parse(state.lastReplyAt) : NaN;
   return Boolean(state.lastReplyTo && participant && digitsOf(state.lastReplyTo) === digitsOf(participant) && !Number.isNaN(last) && now.getTime() - last <= CONVERSATION_WINDOW_MS);
 }
