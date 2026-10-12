@@ -50,7 +50,7 @@ export const MAX_DM_PER_TASK = 3;
 const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_gerenciar_participantes|grupo_enviar_convite|grupo_alterar_foto)$/;
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
-const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria)$/;
+const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor)$/;
 
 // Quem pode conversar com a Maia no privado: o dono sempre; membro só com a permissão conversa.maia.
 export function canConverse(who: Requester): boolean {
@@ -74,6 +74,7 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (who.role === "owner") return { decision: "allow", reason: "owner" };
 
   if (OWNER_ONLY.test(toolName)) return { decision: "approve", reason: "só o owner cadastra" };
+  if (/^mcp__maia__integracao_chamar$/.test(toolName)) return who.permissions.has("integracao.usar") ? { decision: "allow", reason: "tem integracao.usar" } : { decision: "approve", reason: "sem a permissão integracao.usar" };
   if (readOnly) {
     const needed = readPermission(toolName);
     if (!needed || who.permissions.has(needed)) return { decision: "allow", reason: "consulta permitida" };

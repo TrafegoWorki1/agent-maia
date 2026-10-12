@@ -34,6 +34,11 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__maia__instagram_direct_responder": (i) => `responder no Direct da conversa ${str(i, "conversa_id") ?? "?"}: “${str(i, "texto")?.slice(0, 180) ?? "sem texto"}${(str(i, "texto")?.length ?? 0) > 180 ? "…" : ""}”`,
   "mcp__maia__instagram_automacao_criar": (i) => `criar pausada a automação “${str(i, "nome") ?? "nova"}” de comentário → DM${str(i, "post_id") ? ` no post ${str(i, "post_id")}` : " em qualquer post"}${Array.isArray(i.palavras_chave) && i.palavras_chave.length ? `, para palavras: ${i.palavras_chave.map(String).slice(0, 8).join(", ")}` : ", para qualquer comentário"}; DM: “${str(i, "mensagem_direct")?.slice(0, 140) ?? "sem texto"}${(str(i, "mensagem_direct")?.length ?? 0) > 140 ? "…" : ""}”`,
   "mcp__maia__instagram_automacao_ativar": (i) => `${i.ativar === false ? "pausar" : "ativar"} a automação de comentário ${str(i, "automacao_id") ?? "?"}`,
+  "mcp__maia__integracao_chamar_externa": (i) => {
+    const p = i.parametros && typeof i.parametros === "object" ? Object.entries(i.parametros as Record<string, unknown>).map(([k, v]) => `${k}=${String(v).slice(0, 60)}`).join(", ") : "";
+    return `executar a integração "${str(i, "slug") ?? "?"}"${p ? ` (${p.slice(0, 220)})` : ""}`;
+  },
+  "mcp__maia__integracao_ativar": (i) => `ativar a integração "${str(i, "slug") ?? "?"}" do catálogo`,
   "mcp__maia__instagram_automacao_excluir": (i) => `excluir a automação de comentário ${str(i, "automacao_id") ?? "?"}`,
   "mcp__maia__instagram_post_cancelar": (i) => `cancelar o post do Instagram ${str(i, "post_id") ?? "?"}`,
   "mcp__maia__instagram_post_editar": (i) => `editar o post do Instagram ${str(i, "post_id") ?? "?"}${str(i, "legenda") ? `: nova legenda “${str(i, "legenda")?.slice(0, 140)}”` : ""}${str(i, "agendar_para") ? `; novo horário ${str(i, "agendar_para")}` : ""}`,
