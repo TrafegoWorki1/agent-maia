@@ -8,6 +8,14 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Jev: régua corrigida e métricas por intenção
+
+- **Causa da nota baixa (51%):** a concordância comparava a categoria do Jev com `toolCategory`, que só devolve arte/consulta/escrita e contava ToolSearch como escrita. Categorias como grupo, tarefa e conversa nunca podiam bater.
+- **Correção:** `toolLabels` traduz cada ferramenta para as categorias do Jev (ignora ToolSearch/TodoWrite/Read/Grep/Glob/WebSearch); `agreement` trata conversa com ferramenta como divergência e sem ferramenta como acerto só para conversa/fora do escopo; `intentAgreement` compara pela intenção. `toolCategory` e a decisão de efeito do fallback não mudaram.
+- **Métricas:** `jevMetrics` recalcula na visualização, a partir de categoria/intenção/ferramentas gravadas, a concordância total, por categoria e por intenção, a calibração por faixa de confiança, a latência (p50/p90/p99/max) e o % de pedidos simples. Mantém triadas, comparaveis, concordancia, meta, alertasManipulacao, falhas e ultimas.
+- **Medição prévia (288 triagens, 09–12/10):** 51% gravado; 62% com a régua corrigida. Modo sombra mantido (`activeRouting` falso).
+- **Verificação:** TypeScript e 445 testes (novo tests/jevMetrics.test.ts). Sem migração. Pendente: reiniciar o worker para a nova régua valer nas triagens novas; conjunto rotulado (~100 mensagens) antes de qualquer roteamento ativo.
+
 ## 2026-10-12 — Aba de conversa desativada
 
 - **Pedido:** desativar a aba de conversa com a Maia no painel.
