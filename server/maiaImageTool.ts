@@ -20,7 +20,7 @@ import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
-import { everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
+import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -228,6 +228,25 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: `Texto enviado no grupo "${group.group.subject}" e aceito pelo WhatsApp (mensagem ${id}).` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_apagar_mensagem",
+        "Apaga uma mensagem de um grupo do WhatsApp pelo ID da mensagem. Só funciona para mensagens enviadas pela Maia (fromMe). Ação que sai para fora: exige aprovação.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo, como aparece na lista de grupos."),
+          mensagem_id: z.string().min(1).describe("ID da mensagem a apagar (key.id retornado pelo WhatsApp ao enviar)."),
+        },
+        async (args) => {
+          const group = await resolveGroup(args.grupo);
+          if (!group.ok) return { content: [{ type: "text", text: `Não apaguei: ${group.error}.` }], isError: true };
+          try {
+            await deleteGroupMessage(group.group.jid, args.mensagem_id);
+            if (taskId) await addTaskEvent(getDb(), taskId, "task_verified", "grupo_apagar_mensagem", `mensagem ${args.mensagem_id}`).catch(() => {});
+            return { content: [{ type: "text", text: `Mensagem apagada no grupo "${group.group.subject}".` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui apagar: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
         },
       ),
