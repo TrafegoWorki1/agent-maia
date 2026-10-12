@@ -4,6 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Jev: régua corrigida (12/10/2026)
+
+- **Causa:** a concordância de 51% vinha de uma régua que só conhecia arte/consulta/escrita. **Correção:** categorias das ferramentas mapeadas para as do Jev, métricas por intenção, categoria e confiança recalculadas na visualização (62% com a régua corrigida). Modo sombra mantido.
+
 ## Aba de conversa desativada (12/10/2026)
 
 - Removida a aba Conversa do Agente Maia. A seção abre em Regras ativas e links antigos do chat redirecionam para essa tela. O chat deixa de ser carregado pelo painel.
