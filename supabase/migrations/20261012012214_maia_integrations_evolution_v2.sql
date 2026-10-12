@@ -9,6 +9,9 @@
 -- Código que depende desta migração: server/integrationCatalog.ts, server/maiaImageTool.ts, server/codexMaiaMcp.ts.
 -- Rollback (nova migração que desfaz, nunca edição desta): pausar as linhas inseridas (status = 'paused') e, se preciso,
 -- remover 'externa' da restrição depois de apagar essas linhas.
+-- destrutivo-aprovado: owner (Herickson), 12/10/2026, no plano de Fase 1 do catálogo. A única instrução destrutiva é o drop
+-- da restrição maia_integrations_risk_check, recriada logo em seguida para aceitar 'externa'. Comentário adicionado depois
+-- da aplicação; o efeito no banco não mudou.
 
 alter table public.maia_integrations drop constraint maia_integrations_risk_check;
 alter table public.maia_integrations add constraint maia_integrations_risk_check check (risk in ('leitura', 'interna', 'externa'));
