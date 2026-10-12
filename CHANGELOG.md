@@ -18,12 +18,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
-## 2026-10-12 — Mencionar todos no grupo
+## 2026-10-12 — Mencionar todos no grupo (menção fantasma)
 
-- **Pedido do owner:** a Maia poder mencionar todos os participantes de um grupo. Não existia: não havia endpoint no catálogo nem opção na ferramenta de texto de grupo (só mencionava nomes citados).
-- **O que entrou:** `grupo_enviar_texto` ganhou `mencionar_todos` (nos dois executores). Lista os participantes do grupo e marca cada número válido, pelo mesmo campo `mentioned` que as menções já usavam. Recusa se o texto com todas as menções passar de 3000 caracteres.
-- **Limite:** a Evolution não tem um "@todos" próprio, então cada participante aparece com o número no texto (o WhatsApp avisa a todos). Em grupos grandes a mensagem fica longa e pode ser recusada.
-- **Verificação:** typecheck, testes (`tests/mencionarTodos.test.ts`) e árvore do índice com 370 testes.
+- **Pedido do owner:** a Maia poder mencionar todos os participantes de um grupo, sem marcar cada um no texto. Não existia: não havia endpoint no catálogo nem opção na ferramenta de texto de grupo.
+- **O que entrou:** `grupo_enviar_texto` ganhou `mencionar_todos` (nos dois executores), em **menção fantasma**: os participantes com número válido vão só no campo `mentioned`, então todos são avisados e o texto não mostra número nenhum (`sendGroupText` ganhou o parâmetro `ghost`). Quem for citado de forma visível em `mencionar` continua aparecendo como @número.
+- **Limite:** a Evolution não tem um "@todos" próprio nem documenta campo para isso; a menção fantasma usa o mesmo campo `mentioned` das menções que já funcionavam. Não foi testada ao vivo.
+- **Verificação:** typecheck e testes (`tests/mencionarTodos.test.ts`: texto limpo, mentioned completo, sem repetir).
 
 ---
 
