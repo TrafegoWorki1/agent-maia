@@ -21,7 +21,7 @@ import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
-import { everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
+import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { organizationTools } from "./organization.ts";
@@ -383,6 +383,13 @@ server.registerTool("linkedin_post_editar", { description: "Edita texto ou horá
 // Ferramentas de grupo/conversa/arquivo que o servidor do Claude já tinha e a contingência não: mesmas mensagens e
 // mesmas verificações (guarded → access.ts). O anúncio com URL temporária depende do conector Meta Ads do Claude e fica de fora.
 const GROUP_NAME = z.string().min(2).max(100);
+
+server.registerTool("grupo_apagar_mensagem", { description: "Apaga uma mensagem de um grupo pelo ID da mensagem (apenas mensagens enviadas pela Maia). Exige aprovação.", inputSchema: { grupo: z.string().min(2).max(100), mensagem_id: z.string().min(1) } }, async ({ grupo, mensagem_id }) => guarded("mcp__maia__grupo_apagar_mensagem", { grupo, mensagem_id }, async () => {
+  const group = await resolveGroup(grupo); if (!group.ok) throw new Error(group.error);
+  await deleteGroupMessage(group.group.jid, mensagem_id);
+  await addTaskEvent(getDb(), taskId, "task_verified", "grupo_apagar_mensagem", `mensagem ${mensagem_id}`).catch(() => {});
+  return `Mensagem apagada no grupo "${group.group.subject}".`;
+}));
 
 server.registerTool("grupo_gerenciar_participantes", { description: "Adiciona, remove, promove a admin ou rebaixa participantes de um grupo do WhatsApp que já existe (diferente de criar grupo). Informe o nome exato do grupo.", inputSchema: { grupo: GROUP_NAME, acao: z.enum(["adicionar", "remover", "promover", "rebaixar"]), participantes: z.array(z.string().max(60)).min(1).max(20) } }, async (args) => guarded("mcp__maia__grupo_gerenciar_participantes", args, async () => {
   const group = await resolveGroup(args.grupo); if (!group.ok) throw new Error(`Não fiz: ${group.error}.`);
