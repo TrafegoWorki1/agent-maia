@@ -16,6 +16,8 @@ bug, qual era o sintoma e a causa.
 - **Medição prévia (288 triagens, 09–12/10):** 51% gravado; 62% com a régua corrigida. Modo sombra mantido (`activeRouting` falso).
 - **Verificação:** TypeScript e 445 testes (novo tests/jevMetrics.test.ts). Sem migração. Pendente: reiniciar o worker para a nova régua valer nas triagens novas; conjunto rotulado (~100 mensagens) antes de qualquer roteamento ativo.
 
+- **Estado (12/10/2026):** PR #9 mesclado na `main` (commit `91dadd0`). Worker reiniciado sem tarefas em andamento; um único worker ativo. Pendentes: PRs #7 e #8 sem merge; testes ao vivo de cofre, prospecção, citação/áudio em grupo e menção fantasma.
+
 ## 2026-10-12 — Aba de conversa desativada
 
 - **Pedido:** desativar a aba de conversa com a Maia no painel.
