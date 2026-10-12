@@ -103,7 +103,7 @@ export function PeoplePage() {
   }
 
   return <div className="people-page">
-    <PageHeader eyebrow="Equipe & acessos" title="Pessoas" subtitle="Uma visão clara de quem faz parte da operação e como pode usar a Maia."
+    <PageHeader eyebrow="Equipe e acessos" title="Acessos" subtitle="Cadastre pessoas e gerencie as permissões individuais para usar a Maia."
       action={<div className="people-heading-actions"><button className="button button-outline" type="button" onClick={() => void signOut()}><LogOut size={15} /> Sair</button>{isOwner && <button className="button button-dark" type="button" onClick={startCreate}><Plus size={16} /> Nova pessoa</button>}</div>} />
     <div className="people-summary" aria-label="Resumo das pessoas">
       {[{ label: "Pessoas cadastradas", value: people.length, detail: "na sua operação", icon: Users }, { label: "Acessos ativos", value: activeCount, detail: "cadastros habilitados", icon: Check }, { label: "Acessos desativados", value: people.length - activeCount, detail: "cadastros pausados", icon: LockKeyhole }].map(({ label, value, detail, icon: Icon }) =>
@@ -132,7 +132,8 @@ export function PeoplePage() {
             {selected.person_numbers.length === 0 && <p className="people-section-description">Nenhum número vinculado.</p>}
             {isOwner && <AddNumber key={selected.id} personId={selected.id} onDone={load} onError={setError} disabled={busy} />}
           </section>
-          <section className="people-detail-section" aria-label="Permissões"><div className="people-section-heading"><h3><ShieldCheck size={16} /> Permissões de acesso</h3><span>{permissionCount} de {catalog.length}</span></div><p className="people-section-description">{locked ? "O proprietário tem acesso a todas as permissões." : "Confira o que esta pessoa pode solicitar à Maia."}{!locked && isOwner && " Alterações são salvas automaticamente."}</p>
+          <section className="people-detail-section" aria-label="Permissões"><div className="people-section-heading"><h3><ShieldCheck size={16} /> Permissões individuais</h3><span>{permissionCount} de {catalog.length}</span></div><p className="people-section-description">{locked ? "O proprietário tem acesso a todas as permissões." : "Confira as permissões concedidas diretamente a esta pessoa."}{!locked && isOwner && " Alterações são salvas automaticamente."}</p>
+            {isOwner && !locked && <p className="people-section-description">Grupos podem conceder permissões adicionais. <a href="#acessos/grupos-acesso">Confira os grupos de acesso.</a></p>}
             <div className="people-permissions">{catalog.map((perm) => { const on = locked || granted.has(perm.code); return <label key={perm.code} className={`people-permission ${on ? "people-permission-on" : ""}`}><input type="checkbox" checked={on} disabled={!isOwner || locked || busy} onChange={() => void togglePermission(selected, perm.code, granted.has(perm.code))} /><span><strong>{perm.label}</strong><small>{perm.description}</small></span>{on && <Check size={15} className="people-permission-check" aria-hidden="true" />}</label>; })}</div>
           </section>
           {isOwner && !locked && <div className="people-profile-footer"><div><strong>{selected.active ? "Pausar este acesso" : "Retomar este acesso"}</strong><small>{selected.active ? "O cadastro e suas permissões serão mantidos." : "Reative a pessoa com as permissões atuais."}</small></div><button className={`button ${selected.active ? "button-danger-quiet" : "button-outline"}`} type="button" disabled={busy} onClick={() => void setActive(selected)}>{busy ? "Salvando…" : selected.active ? "Desativar" : "Reativar"}</button></div>}

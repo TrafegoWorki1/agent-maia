@@ -157,17 +157,12 @@ export function IndicadoresPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Desempenho" title="Indicadores" subtitle="Resultados da operação da Maia e investimento em mídia, com período e fonte identificados." />
+      <PageHeader eyebrow="Desempenho" title="Indicadores" subtitle="Entrega e qualidade da operação da Maia, com período e denominador identificados." />
       <Loading snapshot={snapshot} error={error}>
         {(s) => {
-          const meta = s.sources.meta;
           const q = s.quality.current;
           const counts = q.counts;
           const completed = counts.terminal - counts.failures - counts.uncertain;
-          const spendByCurrency = new Map<string, number>();
-          if (meta?.status === "ok" && meta.data) {
-            for (const account of meta.data.accounts) spendByCurrency.set(account.currency, (spendByCurrency.get(account.currency) ?? 0) + account.spend_7d);
-          }
           return (
             <>
               <Panel title="Entrega operacional" caption={`Semana ${q.week} · execuções operacionais registradas. Conversas simples não entram nesta amostra.`}>
@@ -194,13 +189,7 @@ export function IndicadoresPage() {
                   <Kpi label="Tempo de resposta · p95" value={q.responseTime?.p95Ms == null ? "sem dado" : `${Math.round(q.responseTime.p95Ms / 1000)} s`} helper="95% das respostas registradas chegaram até esse tempo" />
                 </section>
               </Panel>
-              <Panel title="Investimento em mídia" caption="Meta Ads · gasto dos 7 dias cobertos pela última coleta disponível. Valores separados por moeda.">
-                {meta?.status === "error" && <p className="empty-note">A última coleta falhou. Confira o diagnóstico em Conexões e dados.</p>}
-                {spendByCurrency.size ? <section className="metrics-grid" aria-label="Investimento em mídia">
-                  {[...spendByCurrency].map(([currency, spend]) => <Kpi key={currency} label={`Investimento · ${currency}`} value={formatMoney(spend, currency)} helper={`Coletado em ${formatWhen(meta?.fetched_at)}`} />)}
-                </section> : <p className="empty-note">Ainda sem investimento disponível para este período.</p>}
-                <p className="empty-note">CTR, CPC, leads, CPA e ROAS dependem de ampliar a coleta e definir a fonte de conversões e receita.</p>
-              </Panel>
+              <p className="empty-note">Investimento e contas de mídia estão em <a href="#marketing/campanhas">Marketing → Campanhas</a>.</p>
             </>
           );
         }}
@@ -225,7 +214,7 @@ export function CampanhasPage() {
               <Table
                 head={["Conta", "Gasto 7 dias", "Moeda"]}
                 rows={(meta?.data?.accounts ?? []).map((a) => [a.name, formatMoney(a.spend_7d, a.currency), a.currency])}
-                empty={meta?.status === "ok" ? "Nenhuma conta encontrada." : "Ainda não consultado. Clique em Atualizar fontes em Conexões e dados."}
+                empty={meta?.status === "ok" ? "Nenhuma conta encontrada." : "Ainda não consultado. Veja Sistema e integrações → Conexões e fontes."}
               />
             </Panel>
           );
@@ -259,7 +248,7 @@ export function InsightsPage() {
   const { snapshot, error } = useSnapshot();
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Customer insights" subtitle="Padrões das suas conversas com a Maia, nos últimos 7 dias. Sem conteúdo pessoal." />
+      <PageHeader eyebrow="Marketing" title="Conversas e insights" subtitle="Padrões das suas conversas com a Maia nos últimos 7 dias, sem expor o conteúdo das mensagens." />
       <Loading snapshot={snapshot} error={error}>
         {(s) => {
           const c = s.conversation;
@@ -334,7 +323,7 @@ export function OcorrenciasPage() {
 
 export function ManualOperadorPanel() {
   return (
-    <Panel title="Quem assume a operação da Maia" caption="Manual do operador, para quando a Maia parar ou precisar de revisão.">
+    <Panel title="Continuidade da operação" caption="Manual de quem assume a operação da Maia quando ela para ou precisa de revisão.">
       <div style={{ display: "grid", gap: 14 }}>
         {MANUAL_SECTIONS.map((section) => (
           <details key={section.title} open={section.title === "Se a Maia parar"}>

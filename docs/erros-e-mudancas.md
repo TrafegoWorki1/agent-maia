@@ -4,10 +4,24 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Fechamento dos formulários do painel (12/10/2026)
+
+- **Causa:** atualizar cadastros após conflito não atualizava os valores/revisões dos formulários.
+- **Correção:** clientes selecionados por ID; formulários reiniciados pela revisão. Gravação aceita seguida de falha na leitura é comunicada como cadastro salvo, evitando repetir a escrita.
+- **Verificação:** 426 testes de aplicação e 35 de banco aprovados, TypeScript/build aprovados. Navegador indisponível para inspeção visual autenticada; correção ainda não publicada nesta sessão.
+
+## Painel, clientes e grupos de acesso (12/10/2026)
+
+- **Causa:** a navegação repetia grupos e permissões em Operação com dados de demonstração, enquanto os cadastros reais ficavam em outras telas.
+- **Mudança:** sete áreas com abas; Acessos no lugar de Pessoas; Agente Maia reúne conversa, regras ativas e continuidade; Sistema e integrações reúne fontes e roteamento. Identidade do login no cabeçalho, links antigos preservados e snapshot compartilhado. Grupos reais podem ser associados a clientes e a equipes com membros/permissões.
+- **Separação:** contexto por grupo/cliente, acesso às ferramentas limitado ao próprio cliente e revalidação das permissões durante fila/aprovação/entrega. Grupos novos nascem pausados; aprovações continuam individuais. Cadastros globais são exclusivos do proprietário.
+- **Reconciliação:** SQL de `20261011185724` conferido no histórico remoto, somente leitura. A inclusão posterior de `requester` foi retirada; essa coluna fica apenas na migração corretiva `20261012014613`. Preservadas as mudanças da outra sessão.
+- **Verificação:** 421 testes de aplicação e 35 de banco, typecheck, build, validação de 34 migrações e catálogo/documento aprovados. A guarda é conferida após o commit. Conferência visual e exercício real de grupo de cliente ainda pendentes.
+
 ## Correção: coluna requester ausente em response_deliveries (12/10/2026)
 
 - **Causa:** a coluna foi incluída numa migração já aplicada, então o banco nunca a recebeu e as respostas da Maia falhavam ao gravar.
-- **Correção:** migração nova que acrescenta a coluna (`if not exists`). **Pendência:** reverter a linha editada na migração `20261011185724`.
+- **Correção:** migração nova que acrescenta a coluna (`if not exists`). A linha incluída posteriormente em `20261011185724` foi retirada na reconciliação do painel descrita acima.
 
 ## Fase 4: prospecção com OK a cada envio (12/10/2026)
 

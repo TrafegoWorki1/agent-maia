@@ -14,12 +14,13 @@ import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPrefer
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
+import { organizationTools } from "./organization.ts";
 import { addTaskEvent, getDb } from "./store.ts";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
-import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers } from "./groupTools.ts";
+import { everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -51,6 +52,10 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
     name: "maia",
     version: "1.0.0",
     tools: [
+      ...organizationTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
+        catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no cadastro." }], isError: true }; }
+      })),
       ...workTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args, taskId)) }] }; }
         catch (error) {

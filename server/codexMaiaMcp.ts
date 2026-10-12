@@ -21,12 +21,14 @@ import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
-import { readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText, everyMemberNumbers } from "./groupTools.ts";
+import { everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
+import { organizationTools } from "./organization.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { isLocalSafeTool } from "./maiaImageTool.ts";
+import { refreshGroupRequester } from "./groupAuthorization.ts";
 import { readFileSync } from "node:fs";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
@@ -42,9 +44,9 @@ const inGroup = process.env.MAIA_CODEX_GROUP === "1";
 
 function requester(): Requester {
   try {
-    const raw = JSON.parse(process.env.MAIA_CODEX_REQUESTER ?? "") as { role?: string; name?: string; number?: string; permissions?: string[] };
+    const raw = JSON.parse(process.env.MAIA_CODEX_REQUESTER ?? "") as { role?: string; name?: string; number?: string; permissions?: string[]; groupScope?: Requester["groupScope"]; accessGroups?: string[]; clientIds?: string[] };
     if ((raw.role === "owner" || raw.role === "member" || raw.role === "guest") && Array.isArray(raw.permissions)) {
-      return { role: raw.role, name: raw.name ?? "", number: raw.number ?? "", permissions: new Set(raw.permissions) };
+      return { role: raw.role, name: raw.name ?? "", number: raw.number ?? "", permissions: new Set(raw.permissions), groupScope: raw.groupScope, accessGroups: raw.accessGroups, clientIds: raw.clientIds };
     }
   } catch {}
   return ownerRequester();
@@ -60,7 +62,11 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
     await addTaskEvent(db, taskId, "access_denied", tool, "escrita pelo painel não permitida");
     return { ok: false, message: "Ações de escrita são feitas pelo WhatsApp, com aprovação." };
   }
-  const verdict = decideAccess(tool, requester(), await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+  let who: Requester;
+  try { who = await refreshGroupRequester(db, requester()); }
+  catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
+  const verdict = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+  if (verdict.decision === "deny") { await addTaskEvent(db, taskId, "access_denied", tool, verdict.reason); return { ok: false, message: verdict.reason }; }
   if (verdict.decision === "allow") return { ok: true };
   if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
     await addTaskEvent(db, taskId, "access_denied", tool, "outra aprovação já pendente");
@@ -70,7 +76,6 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: action.slice(0, 500), taskId });
   await setTaskStatus(db, taskId, "aguardando_aprovacao");
   await addTaskEvent(db, taskId, "approval_requested", tool, null);
-  const who = requester();
   // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK.
   const notice = `Pedido de aprovação (#${approval.id})${inGroup ? ` feito por ${who.name || "alguém"} no grupo` : ""}: ${action} (${verdict.reason}).\n\nResponda OK para aprovar ou NÃO para recusar.`;
   await recordMessage(db, { channel: "whatsapp", author: "maia", text: notice });
@@ -78,6 +83,10 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   const outcome = await waitApproval(db, approval.id, approval.expiresAt);
   await setTaskStatus(db, taskId, "em_andamento");
   await addTaskEvent(db, taskId, outcome === "approved" ? "approval_approved" : outcome === "denied" ? "approval_denied" : "approval_expired", tool, null);
+  if (outcome === "approved") {
+    try { await refreshGroupRequester(db, who); }
+    catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
+  }
   return outcome === "approved" ? { ok: true } : { ok: false, message: "Ação recusada ou sem aprovação do dono." };
 }
 
@@ -92,6 +101,11 @@ async function guarded(tool: string, input: Record<string, unknown>, run: () => 
 }
 
 const server = new McpServer({ name: "maia", version: "1.0.0" });
+
+for (const t of organizationTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
 
 for (const t of workTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape, annotations: { readOnlyHint:t.name === "tarefas_listar", destructiveHint:false, openWorldHint:false } }, async (args: Record<string, unknown>) =>

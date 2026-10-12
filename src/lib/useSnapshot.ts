@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { fetchSnapshot, type Snapshot } from "./snapshotApi";
 
 const POLL_MS = 30_000;
 
-// Lê o snapshot do servidor local a cada 30 segundos. Mantém o último dado bom se uma leitura falhar.
-// enabled=false: não consulta o servidor local (usado na Vercel).
-export function useSnapshot(enabled = true): { snapshot: Snapshot | null; error: string | null; reload: () => Promise<void> } {
+// Uma leitura compartilhada a cada 30 segundos, local ou autenticada na Vercel.
+// enabled=false impede a consulta para contas sem acesso ao snapshot.
+type SnapshotState = { snapshot: Snapshot | null; error: string | null; reload: () => Promise<void> };
+const SnapshotContext = createContext<SnapshotState | null>(null);
+export function SnapshotProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+  const value = useSnapshotState(enabled);
+  return createElement(SnapshotContext.Provider, { value }, children);
+}
+export function useSnapshot(enabled = true): SnapshotState {
+  const shared = useContext(SnapshotContext);
+  const local = useSnapshotState(enabled && !shared);
+  return shared ?? local;
+}
+function useSnapshotState(enabled = true): SnapshotState {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 

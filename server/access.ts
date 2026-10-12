@@ -1,6 +1,7 @@
 import { canonicalPhone, samePhone } from "./evolutionWebhook.ts";
 import { requiresApproval } from "./approvalPolicy.ts";
 import type { Db } from "./store.ts";
+import { groupToolDenial, type GroupScope } from "./groupScope.ts";
 
 // Quem pediu e o que pode. O sistema decide por código (não pela conversa): dono faz tudo que é interno e privado;
 // membro faz o que a permissão dele cobre; o resto vira pedido de OK ao dono. Ação pública ou de risco sempre pede OK.
@@ -12,6 +13,9 @@ export interface Requester {
   name: string;
   number: string;
   permissions: ReadonlySet<string>;
+  accessGroups?: string[];
+  clientIds?: string[];
+  groupScope?: GroupScope;
 }
 
 export function ownerRequester(name = "Herickson"): Requester {
@@ -20,7 +24,7 @@ export function ownerRequester(name = "Herickson"): Requester {
 
 // Identifica o número em Pessoas. O dono é reconhecido pelo número do .env ou pelo papel "proprietario".
 // Número que não bate com ninguém (ou vazio) é visitante: sem poderes.
-export async function resolveRequester(db: Db, number: string, pushName: string): Promise<Requester> {
+export async function resolveRequester(db: Db, number: string, pushName: string, clientId: string | null = null): Promise<Requester> {
   const digits = number.replace(/\D/g, "");
   const name = pushName.trim();
   if (digits && samePhone(digits, process.env.EVOLUTION_OWNER_NUMBER)) return ownerRequester(name || "Herickson");
@@ -32,7 +36,17 @@ export async function resolveRequester(db: Db, number: string, pushName: string)
   if (!person || !person.active) return { role: "guest", name, number: digits, permissions: new Set() };
   if (person.role === "proprietario") return ownerRequester(String(person.name));
   const { data: perms } = await db.from("person_permissions").select("permission_code").eq("person_id", hit.person_id);
-  return { role: "member", name: String(person.name), number: digits, permissions: new Set((perms ?? []).map((p) => String(p.permission_code))) };
+  const memberships = await db.from("maia_access_group_members").select("access_group_id").eq("person_id", hit.person_id);
+  if (memberships.error) throw new Error("Não foi possível confirmar as permissões dos grupos de acesso.");
+  const ids = (memberships.data ?? []).map((m) => String(m.access_group_id));
+  const groups = ids.length ? await db.from("maia_access_groups").select("id,client_id").in("id", ids).eq("active", true) : { data: [], error: null };
+  if (groups.error) throw new Error("Não foi possível confirmar os grupos de acesso.");
+  const eligible = (groups.data ?? []).filter((g) => !g.client_id || g.client_id === clientId).map((g) => String(g.id));
+  const grants = eligible.length ? await db.from("maia_access_group_permissions").select("permission_code").in("access_group_id", eligible) : { data: [], error: null };
+  if (grants.error) throw new Error("Não foi possível confirmar as permissões herdadas.");
+  return { role: "member", name: String(person.name), number: digits,
+    accessGroups: (groups.data ?? []).map((g) => String(g.id)), clientIds: (groups.data ?? []).filter((g) => g.client_id).map((g) => String(g.client_id)),
+    permissions: new Set([...(perms ?? []).map((p) => String(p.permission_code)), ...(grants.data ?? []).map((p) => String(p.permission_code))]) };
 }
 
 export interface AccessContext {
@@ -40,10 +54,11 @@ export interface AccessContext {
   webTainted?: boolean;
   groupRegistered?: boolean; // para ferramentas de grupo: o grupo está em maia_groups?
   dmInTask?: number; // mensagens diretas já enviadas nesta tarefa
+  targetGroupJid?: string;
 }
 
 export interface AccessDecision {
-  decision: "allow" | "approve";
+  decision: "allow" | "approve" | "deny";
   reason: string;
 }
 
@@ -69,6 +84,9 @@ function readPermission(toolName: string): string | null {
 }
 
 export function decideAccess(toolName: string, who: Requester, ctx: AccessContext, readOnly: boolean): AccessDecision {
+  const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
+  if (scopeDenial) return { decision: "deny", reason: scopeDenial };
+  if (/^mcp__maia__(grupos_clientes_listar|grupo_cliente_classificar)$/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "cadastro de clientes e acessos exclusivo do owner no privado" };
   if (requiresApproval(toolName)) return { decision: "approve", reason: "ação pública ou de risco" };
   if (ctx.webTainted && !readOnly) return { decision: "approve", reason: "a tarefa usou busca na web; a ação pede OK mesmo para o dono" };
   const isGroupSend = GROUP_SEND.test(toolName);
@@ -110,6 +128,7 @@ function inside(path: string, root: string): boolean {
 
 export function decideBuiltin(toolName: string, input: Record<string, unknown>, who: Requester, roots: BuiltinRoots, resolvePath: (p: string) => string): { decision: "allow" | "deny"; reason: string } {
   if (SAFE_BUILTIN.has(toolName)) return { decision: "allow", reason: "ferramenta interna segura" };
+  if (who.groupScope?.clientId) return { decision: "deny", reason: "arquivos gerais da operação não são disponibilizados em grupo de cliente" };
   if (FILE_BUILTIN.has(toolName)) {
     const raw = typeof input.file_path === "string" ? input.file_path : typeof input.path === "string" ? input.path : "";
     const target = raw ? resolvePath(raw) : roots.projectRoot;

@@ -6,6 +6,7 @@ import { DEFAULT_CONFIG } from "../server/ai/config.ts";
 import { classifyError } from "../server/ai/errorClassifier.ts";
 import { decideBuiltin, ownerRequester } from "../server/access.ts";
 import { fakeSpawn } from "./helpers/fakeClaude.ts";
+import { organizationTools } from "../server/organization.ts";
 
 const ok = (result = "pronto") => JSON.stringify({ type: "result", subtype: "success", is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, output_tokens: 5 } });
 const maia = () => new McpServer({ name: "maia", version: "1.0.0" });
@@ -133,6 +134,14 @@ describe("leitura de repositórios extras (VPS)", () => {
 });
 
 describe("paridade de ferramentas entre Claude e Codex", () => {
+  it("as ferramentas de organização são registradas nos dois executores", () => {
+    for (const file of ["server/maiaImageTool.ts", "server/codexMaiaMcp.ts"]) {
+      const source = readFileSync(file, "utf8");
+      expect(source).toContain('import { organizationTools }');
+      expect(source).toMatch(/(?:organizationTools\.map|for \(const t of organizationTools\))/);
+    }
+    expect(organizationTools.map((t) => t.name)).toEqual(["grupos_clientes_listar", "grupo_cliente_classificar"]);
+  });
   const names = (file: string, re: RegExp) => new Set([...readFileSync(file, "utf8").matchAll(re)].map((m) => m[1]));
   const claude = names("server/maiaImageTool.ts", /\btool\(\s*"([a-z_]+)"/g);
   const codex = names("server/codexMaiaMcp.ts", /registerTool\(\s*"([a-z_]+)"/g);

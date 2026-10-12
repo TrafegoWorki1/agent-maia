@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { arrivedFromAuthLink, supabase } from "../../lib/supabaseBrowser";
 
 // Só entra no painel quem fez login com e-mail e senha. Não há cadastro público: o proprietário
-// convida as pessoas e cada uma recebe as permissões escolhidas em "Pessoas".
+// convida as pessoas e cada uma recebe as permissões escolhidas em "Acessos".
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);

@@ -2,9 +2,13 @@ import { DeliveryError, sendTextChecked, splitReply } from "./evolutionSend.ts";
 import { addTaskEvent, markTaskReplied, recordMessage, setTaskStatus, type Db } from "./store.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { samePhone } from "./evolutionWebhook.ts";
+import type { Requester } from "./access.ts";
+import { refreshGroupRequester } from "./groupAuthorization.ts";
 
-export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string) {
-  const r = await db.from("response_deliveries").upsert(splitReply(text).map((part, i) => ({ task_id: taskId, recipient, part: i, text: part, request_text: i === 0 ? request?.slice(0,16000) ?? null : null })), { onConflict: "task_id,part", ignoreDuplicates: true });
+export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string, who?: Requester) {
+  const requester = who?.groupScope ? { ...who, permissions:[...who.permissions] } : null;
+  if (recipient.endsWith("@g.us") && requester?.groupScope?.jid !== recipient) throw new DeliveryError("Resposta sem autorização do grupo.", false);
+  const r = await db.from("response_deliveries").upsert(splitReply(text).map((part, i) => ({ task_id: taskId, recipient, part: i, text: part, requester, request_text: i === 0 ? request?.slice(0,16000) ?? null : null })), { onConflict: "task_id,part", ignoreDuplicates: true });
   if (r.error) throw new Error(`Persistência da resposta: ${r.error.message}`);
   await addTaskEvent(db, taskId, "execution_completed", null, "Resposta gerada; entrega ainda pendente");
 }
@@ -17,6 +21,12 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
     if (!item) break;
     let accepted = false;
     try {
+      if (item.recipient.endsWith("@g.us")) {
+        const saved = item.requester as (Omit<Requester,"permissions"> & { permissions:string[] }) | null;
+        if (!saved?.groupScope || saved.groupScope.jid !== item.recipient || !Array.isArray(saved.permissions)) throw new DeliveryError("Resposta antiga sem autorização de grupo. Faça um novo pedido.", false);
+        try { await refreshGroupRequester(db,{ ...saved,permissions:new Set(saved.permissions) }); }
+        catch (error) { throw new DeliveryError(error instanceof Error ? error.message : "Acesso ao grupo indisponível.", false); }
+      }
       const id = await sendTextChecked(item.recipient, item.text);
       accepted = true;
       const saved = await db.from("response_deliveries").update({ status: "sent", message_id: id, finished_at: new Date().toISOString() }).eq("id", item.id);
@@ -50,8 +60,8 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
   }
 }
 
-export async function deliverResponse(db: Db, taskId: number, recipient: string, text: string, request?: string) {
-  await persistResponse(db, taskId, recipient, text, request);
+export async function deliverResponse(db: Db, taskId: number, recipient: string, text: string, request?: string, who?: Requester) {
+  await persistResponse(db, taskId, recipient, text, request, who);
   await runResponseDeliveries(db, taskId);
   const r = await db.from("response_deliveries").select("status").eq("task_id", taskId);
   if (r.error) throw new Error(r.error.message);

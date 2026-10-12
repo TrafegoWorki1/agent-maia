@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { PageHeader, Panel, StatusPill } from "../../components/ui";
-import { fetchSnapshot, formatWhen, requestRefresh, type Snapshot } from "../../lib/snapshotApi";
+import { formatWhen, requestRefresh } from "../../lib/snapshotApi";
+import { useSnapshot } from "../../lib/useSnapshot";
 
 const SOURCE_LABELS = { gmail: "Gmail", meta: "Meta Ads", sheets: "Google Sheets", calendar: "Google Agenda" } as const;
 
@@ -14,19 +15,9 @@ function whatsappState(state: string | null, error: string | null): { status: "a
 }
 
 export function ConnectionsPage() {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { snapshot, error: loadError, reload: load } = useSnapshot();
   const [notice, setNotice] = useState<string | null>(null);
-  const load = useCallback(async () => {
-    try { setSnapshot(await fetchSnapshot()); setLoadError(null); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : "Falha ao carregar o painel"); }
-  }, []);
   const refreshing = snapshot?.refreshing ?? false;
-  useEffect(() => {
-    void load();
-    const timer = setInterval(() => void load(), refreshing ? 5_000 : 30_000);
-    return () => clearInterval(timer);
-  }, [load, refreshing]);
 
   async function refreshNow() {
     try {
@@ -40,8 +31,9 @@ export function ConnectionsPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Integrações" title="Conexões e dados" subtitle="Disponibilidade, atualização e erros das fontes. O painel consulta o estado a cada 30 segundos."
-        action={<button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Atualizando…" : "Atualizar fontes"}</button>} />
+      <PageHeader eyebrow="Sistema e integrações" title="Conexões e fontes" subtitle="Disponibilidade, atualização e erros das fontes. O painel consulta o estado a cada 30 segundos."
+        action={import.meta.env.VITE_MAIA_HOSTED !== "1" ? <button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Atualizando…" : "Atualizar fontes"}</button> : undefined} />
+      {import.meta.env.VITE_MAIA_HOSTED === "1" && <p className="empty-note">A atualização das fontes é executada pelo computador da operação.</p>}
       {loadError && <p role="alert" className="empty-note">Não foi possível atualizar o estado: {loadError}{snapshot ? " Exibindo a última leitura disponível." : ""}</p>}
       {notice && <p role="status" className="empty-note">{notice}</p>}
       {!snapshot && !loadError && <p className="empty-note">Carregando conexões…</p>}
@@ -52,20 +44,19 @@ export function ConnectionsPage() {
             <tbody>
               <tr><td>WhatsApp · Evolution</td><td><StatusPill status={whatsapp.status} label={whatsapp.label} /></td><td>{formatWhen(snapshot.generatedAt)}</td><td>{snapshot.whatsapp.error ?? (whatsapp.status === "alvo" ? "Estado da instância consultado na Evolution" : snapshot.whatsapp.state ?? "A Evolution não retornou o estado da instância")}</td></tr>
               <tr><td>Recebimento de eventos</td><td><StatusPill status={snapshot.webhook.lastEventAt ? "alvo" : "sem_dado"} label={snapshot.webhook.lastEventAt ? "Evento registrado" : "Sem registro"} /></td><td>{formatWhen(snapshot.webhook.lastEventAt)}</td><td>{snapshot.webhook.host ?? "Endereço não informado; consulte o horário do último evento"}</td></tr>
-              <tr><td>Agente da Maia</td><td><StatusPill status={snapshot.chat?.status === "ok" ? "alvo" : snapshot.chat?.status === "error" ? "critico" : "sem_dado"} label={snapshot.chat?.status === "ok" ? "Última execução OK" : snapshot.chat?.status === "error" ? "Última execução falhou" : snapshot.chat ? "Em execução" : "Sem execução"} /></td><td>{formatWhen(snapshot.chat?.started_at)}</td><td>{snapshot.chat?.error ?? "Resultado do processamento pelo modelo"}</td></tr>
             </tbody>
           </table></div>
         </Panel>
-        <Panel title="Redes sociais · Zernio" caption="A Maia tem acesso às contas conectadas e usa a integração com aprovação para ações públicas.">
+        <Panel title="Redes sociais · Zernio" caption="Integrações disponíveis. O estado de cada conta é confirmado pela Maia ao consultar o serviço.">
           <div className="table-wrap"><table>
             <thead><tr><th>Conexão</th><th>Status</th><th>Objetivo atual</th></tr></thead>
             <tbody><tr>
               <td>Instagram da Worki</td>
-              <td><StatusPill status="alvo" label="Conectado" /></td>
+              <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar posts, Stories, métricas, músicas e conversas; publicar fotos, carrosséis, Reels e Stories; editar/cancelar posts ainda não publicados; responder Direct com aprovação dentro de 24h; gerenciar automações de comentário para DM com aprovação. A busca de áudio depende de reconexão Facebook Login.</td>
             </tr><tr>
               <td>LinkedIn da Worki</td>
-              <td><StatusPill status="alvo" label="Conectado" /></td>
+              <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar conta, organizações e métricas; publicar ou agendar posts com aprovação. DMs/InMail não estão disponíveis.</td>
             </tr></tbody>
           </table></div>
