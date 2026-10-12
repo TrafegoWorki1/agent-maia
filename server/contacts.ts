@@ -47,11 +47,35 @@ export async function loadContacts(db: Db): Promise<Contact[]> {
 export async function resolveContact(db: Db, query: string): Promise<{ ok: true; contact: Contact } | { ok: false; error: string }> {
   const hits = matchContacts(await loadContacts(db), query);
   if (hits.length === 1) return { ok: true, contact: hits[0] };
-  if (hits.length === 0) return { ok: false, error: `não tenho "${query}" nos contatos. Passe o número ou peça para cadastrar` };
+  if (hits.length === 0) return { ok: false, error: `não tenho "${query}" nos contatos. Salve com contato_salvar (nome e número) e envie de novo` };
   return { ok: false, error: `há ${hits.length} contatos para "${query}" (${hits.slice(0, 4).map((c) => `${c.name || "sem nome"} +${c.number}`).join("; ")}). Diga qual` };
 }
 
-// Cadastra um membro: pessoa com número e permissões. Começa só com conversa e consulta de resumo.
+// Contato avulso: só entra na agenda (permite à Maia enviar e receber o repasse), sem Pessoa, papel nem permissão.
+export async function saveContact(db: Db, input: { name: string; number: string }): Promise<{ ok: true; created: boolean } | { ok: false; error: string }> {
+  const number = input.number.replace(/\D/g, "");
+  if (number.length < 12 || number.length > 13) return { ok: false, error: "número inválido (use DDI+DDD+número)" };
+  const name = input.name.trim().slice(0, 60);
+  if (!name) return { ok: false, error: "falta o nome" };
+  const existing = (await loadContacts(db)).find((c) => canonicalPhone(c.number) === canonicalPhone(number));
+  if (existing) return { ok: true, created: false };
+  try {
+    await upsertContact(db, { number, name, source: "cadastrado" });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+  return { ok: true, created: true };
+}
+
+// A Maia mandou mensagem a este número nas últimas 48 h? Compara pelo número canônico (com ou sem o nono dígito).
+export async function hasRecentOutreach(db: Db, number: string, now = Date.now()): Promise<boolean> {
+  const since = new Date(now - 48 * 3600_000).toISOString();
+  const { data } = await db.from("outreach").select("number").gte("at", since);
+  const wanted = canonicalPhone(number);
+  return (data ?? []).some((r) => canonicalPhone(String(r.number)) === wanted);
+}
+
+// Cadastra um membro da equipe: pessoa com número e permissões. Só quando o dono pede para adicionar à equipe.
 export async function registerMember(db: Db, input: { name: string; number: string; permissions?: string[] }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const number = input.number.replace(/\D/g, "");
   if (number.length < 12 || number.length > 13) return { ok: false, error: "número inválido (use DDI+DDD+número)" };

@@ -4,6 +4,12 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Contato avulso e repasse da resposta (12/10/2026)
+
+- Causa: salvar um contato para enviar mensagem criava uma Pessoa `equipe` com permissão de conversa, e a resposta dessa pessoa não era repassada ao dono.
+- Correção: `contato_salvar` (só agenda) e repasse ao dono para qualquer número procurado nas últimas 48 h, mesmo cadastrado. `membro_cadastrar` só quando o dono pedir para adicionar à equipe.
+- Pendente: limpar o cadastro de equipe do João em produção; repassar áudio/mídia de contato avulso.
+
 ## Criativo do WhatsApp para Meta Ads (12/10/2026)
 
 - Prompt de imagem agora menciona `anuncio_midia_url_temporaria`, igual ao vídeo. Toda a infraestrutura já existia (`adsMedia.ts`, bucket `ads_media_temp`, limpeza automática).
