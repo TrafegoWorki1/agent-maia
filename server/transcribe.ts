@@ -23,6 +23,7 @@ export interface WhisperConfig {
   key?: string;
   language?: string;
   retryWaitMs?: number;
+  timeoutMs?: number;
 }
 
 // Nunca inclui a chave nem o corpo da resposta nas mensagens de erro.
@@ -36,7 +37,7 @@ export async function whisperTranscribe(config: WhisperConfig, audio: Buffer, mi
       headers.Authorization = `Bearer ${config.key}`;
       headers["x-api-key"] = config.key;
     }
-    return fetchImpl(endpoint, { method: "POST", headers, body: form, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    return fetchImpl(endpoint, { method: "POST", headers, body: form, signal: AbortSignal.timeout(config.timeoutMs ?? TIMEOUT_MS) });
   };
   let timedOut = false;
   const run = async (): Promise<Response | null> => {
@@ -61,9 +62,9 @@ export async function whisperTranscribe(config: WhisperConfig, audio: Buffer, mi
   return typeof json?.text === "string" ? json.text.trim() : "";
 }
 
-export function transcriberFromEnv(): Transcriber | null {
+export function transcriberFromEnv(timeoutMs?: number): Transcriber | null {
   const url = process.env.WHISPER_API_URL;
   if (!url) return null;
-  const config: WhisperConfig = { url, key: process.env.WHISPER_API_KEY };
+  const config: WhisperConfig = { url, key: process.env.WHISPER_API_KEY, ...(timeoutMs ? { timeoutMs } : {}) };
   return (audio, mimetype) => whisperTranscribe(config, audio, mimetype);
 }

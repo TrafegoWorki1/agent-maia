@@ -20,6 +20,9 @@ export interface GroupMeta {
 
 export type PendingMeta = { kind: "owner" } | { kind: "member"; from: string; name: string } | ({ kind: "group" } & GroupMeta);
 
+// Em segundo plano ninguém espera: um áudio longo pode levar minutos no Whisper em CPU (medido em 12/10/2026).
+const RETRY_TIMEOUT_MS = 360_000;
+
 const PENDING = /^(\d+)-audio-pendente\.(ogg|m4a|mp3|wav|webm)$/;
 
 function extensionFor(mimetype: string): string {
@@ -83,7 +86,7 @@ export interface RetryHandlers {
 }
 
 // Tenta transcrever o áudio pendente mais antigo. Devolve true se o texto foi entregue.
-export async function retryPendingAudio(handlers: RetryHandlers, transcribe: Transcriber | null = transcriberFromEnv(), dir = MEDIA_DIR): Promise<boolean> {
+export async function retryPendingAudio(handlers: RetryHandlers, transcribe: Transcriber | null = transcriberFromEnv(RETRY_TIMEOUT_MS), dir = MEDIA_DIR): Promise<boolean> {
   const next = pendingAudios(dir)[0];
   if (!next || !transcribe) return false;
   let text: string;
