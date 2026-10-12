@@ -85,7 +85,44 @@ function startWorker(): void {
   });
 }
 
+// Transcrição local (scripts/whisper_local.py): sobe junto com o worker quando o .env aponta para 127.0.0.1.
+// Se já houver um servidor respondendo na porta, não sobe outro.
+function usesLocalWhisper(): boolean {
+  const url = env.WHISPER_API_URL;
+  return Boolean(url && /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url));
+}
+
+async function whisperAlreadyUp(): Promise<boolean> {
+  try {
+    const response = await fetch(`${env.WHISPER_API_URL!.replace(/\/+$/, "")}/health`, { signal: AbortSignal.timeout(3_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+let whisperRestarts = 0;
+function startWhisperLocal(): void {
+  const whisper = spawn("python", [here("whisper_local.py")], { stdio: ["ignore", "pipe", "pipe"] });
+  children.push(whisper);
+  capture(whisper, "whisper");
+  whisper.on("exit", (code, signal) => {
+    if (stopping) return;
+    log("launcher", `transcrição local saiu (código ${code}, sinal ${signal ?? "nenhum"})`);
+    if (whisperRestarts >= 5) {
+      log("launcher", "transcrição local caiu 5 vezes seguidas e não será reiniciada. Áudios vão para a retomada até ela voltar.");
+      return;
+    }
+    whisperRestarts += 1;
+    setTimeout(startWhisperLocal, 5_000);
+  });
+}
+
 log("launcher", `iniciando (pid ${process.pid}, Node ${process.version})`);
+if (usesLocalWhisper()) {
+  if (await whisperAlreadyUp()) log("launcher", "transcrição local já está respondendo; não subo outra.");
+  else startWhisperLocal();
+}
 startWorker();
 log("launcher", `Maia ativa: mensagens chegam pela Vercel (${PUBLIC_URL}). O painel local (porta 3000) não sobe mais por aqui; use pnpm dev se precisar.`);
 log("launcher", "Feche esta janela (ou Ctrl+C) para desligar.");
