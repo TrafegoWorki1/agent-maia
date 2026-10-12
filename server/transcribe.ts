@@ -4,9 +4,10 @@
 // resposta {"text": "...", "language": "pt", "segments": [...]}. Roda em CPU: pode levar de 20 a 90 segundos.
 export type Transcriber = (audio: Buffer, mimetype: string) => Promise<string>;
 
-const TIMEOUT_MS = 240_000;
+// 120 s por tentativa e sem nova tentativa quando estoura o tempo: o pior caso é ~2 min, não os ~8 min de antes (12/10/2026).
+const TIMEOUT_MS = 120_000;
 const RETRY_STATUS = new Set([502, 503, 504]); // o contêiner pode estar reiniciando
-const RETRY_WAIT_MS = 20_000;
+const RETRY_WAIT_MS = 10_000;
 
 function extensionFor(mimetype: string): string {
   if (/ogg|opus/i.test(mimetype)) return "ogg";
@@ -37,10 +38,21 @@ export async function whisperTranscribe(config: WhisperConfig, audio: Buffer, mi
     }
     return fetchImpl(endpoint, { method: "POST", headers, body: form, signal: AbortSignal.timeout(TIMEOUT_MS) });
   };
-  let response = await attempt().catch(() => null);
+  let timedOut = false;
+  const run = async (): Promise<Response | null> => {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) timedOut = true;
+      return null;
+    }
+  };
+  let response = await run();
+  if (timedOut) throw new Error("o servidor de transcrição não respondeu a tempo");
   if (!response || RETRY_STATUS.has(response.status)) {
     await new Promise((resolve) => setTimeout(resolve, config.retryWaitMs ?? RETRY_WAIT_MS));
-    response = await attempt().catch(() => null);
+    response = await run();
+    if (timedOut) throw new Error("o servidor de transcrição não respondeu a tempo");
   }
   if (!response) throw new Error("o servidor de transcrição não respondeu");
   if (response.status === 401 || response.status === 403) throw new Error("o servidor de transcrição recusou a chave");

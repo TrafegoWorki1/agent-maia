@@ -2,6 +2,7 @@ import { downloadAudio, downloadMedia, sendOwnerText } from "./evolutionSend.ts"
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
+import { savePendingAudio } from "./audioRetry.ts";
 import { handleGroupMessage, handleMemberMessage, handleOwnerMessage } from "./maiaOwnerAgent.ts";
 import { CALLS_MAIA } from "./inbox.ts";
 import { canConverse, resolveRequester } from "./access.ts";
@@ -69,7 +70,18 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
     // Decisão do owner (10/10/2026): sem aviso de "recebi, transcrevendo..." — é mecânica interna,
     // não contexto que o owner precise ver. A transcrição roda em CPU e pode levar até ~90 segundos.
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
-    const text = (await transcribe(data, mimetype)).trim();
+    let text: string;
+    try {
+      text = (await transcribe(data, mimetype)).trim();
+    } catch (error) {
+      // Servidor Whisper fora do ar ou lento: guarda o áudio por 24 h para tentar de novo (server/audioRetry.ts).
+      console.error("[audio] transcrição:", error instanceof Error ? error.message : error);
+      const saved = savePendingAudio(data, mimetype);
+      await notifyOwner(saved
+        ? "Não consegui ouvir o áudio agora: o servidor de transcrição não respondeu. Guardei o áudio por 24 h e te mostro o texto assim que o servidor voltar. Se for urgente, mande em texto."
+        : "Não consegui ouvir o áudio agora: o servidor de transcrição não respondeu. Mande em texto ou tente de novo em instantes.");
+      return;
+    }
     if (!text) {
       await notifyOwner("Não consegui entender o áudio. Pode mandar de novo ou em texto?");
       return;

@@ -21,6 +21,12 @@ describe("transcrição pelo servidor Whisper", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("não repete quando o servidor estoura o tempo (falha em até ~2 min, não ~8)", async () => {
+    const timeout = vi.fn(async () => { throw new DOMException("The operation was aborted due to timeout", "TimeoutError"); });
+    await expect(whisperTranscribe(cfg, audio, "audio/ogg", timeout as unknown as typeof fetch)).rejects.toThrow("não respondeu a tempo");
+    expect(timeout).toHaveBeenCalledTimes(1);
+  });
+
   it("áudio sem fala devolve texto vazio", async () => {
     const fetchMock = vi.fn(async () => ok(""));
     await expect(whisperTranscribe(cfg, audio, "audio/ogg", fetchMock as unknown as typeof fetch)).resolves.toBe("");
