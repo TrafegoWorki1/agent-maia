@@ -38,6 +38,7 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
     const p = i.parametros && typeof i.parametros === "object" ? Object.entries(i.parametros as Record<string, unknown>).map(([k, v]) => `${k}=${String(v).slice(0, 60)}`).join(", ") : "";
     return `executar a integração "${str(i, "slug") ?? "?"}"${p ? ` (${p.slice(0, 220)})` : ""}`;
   },
+  "mcp__maia__prospeccao_enviar_proximo": (i) => `enviar a próxima mensagem do lote de prospecção ${typeof i.lote === "number" ? i.lote : "?"} para um contato (com OK)`,
   "mcp__maia__integracao_ativar": (i) => `ativar a integração "${str(i, "slug") ?? "?"}" do catálogo`,
   "mcp__maia__instagram_automacao_excluir": (i) => `excluir a automação de comentário ${str(i, "automacao_id") ?? "?"}`,
   "mcp__maia__instagram_post_cancelar": (i) => `cancelar o post do Instagram ${str(i, "post_id") ?? "?"}`,

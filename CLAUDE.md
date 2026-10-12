@@ -25,6 +25,7 @@ Leia `README.md`, `TODO.md`, `docs/regras-da-maia.md` e, para mudanças de banco
 - No WhatsApp, o owner tem autonomia para ações internas e privadas já aprovadas. Publicação em Instagram/LinkedIn, anúncios e compartilhamento de arquivos exigem aprovação. Grupos não cadastrados, a partir do quarto contato no pedido e criação de grupo têm controles próprios.
 - Membros dependem das permissões cadastradas. `conversa.maia` permite conversar no privado, sem liberar todas as ferramentas. Fora das permissões, seguir a aprovação pontual do servidor. O chat do painel mantém seu bloqueio de escrita.
 - Aprovação não concede permissão permanente; vale uma vez, expira em 10 minutos e não permite repetir um efeito externo incerto. Não alegar garantias de fingerprint/revalidação que ainda não estejam implementadas.
+- Prospecção (decisão do owner, 12/10/2026): só por pedido direto do dono, com lote de mensagem final, OK a cada envio, teto de 30 por dia, descadastro com SAIR obrigatório e sem repetir contato em 30 dias. Nunca autônoma nem em massa. Código: `server/prospeccao.ts` e as ferramentas `prospeccao_*`.
 - Proatividade permite os avisos existentes e sugestões. Não libera prospecção autônoma, contato em massa, integração nova ou ações externas fora do pedido.
 
 ## Dados, mídias e conhecimento

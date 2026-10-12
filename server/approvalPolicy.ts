@@ -8,6 +8,8 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__maia__linkedin_publicar$/,
   // Ativar uma integração do catálogo amplia o que a Maia pode chamar: sempre pede OK do owner.
   /^mcp__maia__integracao_ativar$/,
+  // Prospecção: cada envio para um contato é uma ação separada, com OK do dono.
+  /^mcp__maia__prospeccao_enviar_proximo$/,
   // Integração externa do catálogo (envia, apaga, altera grupo ou perfil): OK do owner a cada uso.
   /^mcp__maia__integracao_chamar_externa$/,
   // Instagram (Zernio): responder Direct e criar/ativar/pausar/excluir automação de comentário→DM.
