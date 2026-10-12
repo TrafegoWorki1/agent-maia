@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — maxTurns elevado para 30 e aviso de parcial
+
+- **Causa:** tarefas de planilha com muitas células chegavam a 25+ chamadas e estourravam o limite de 12 passos do CLI/SDK, sem resposta ao dono.
+- **Correção:** `maxTurns` elevado de 12 para 30 nos dois executores (CLI e SDK) no handler do dono. Quando ainda bater o limite, a mensagem é "Completei parte do pedido, mas atingi o limite de passos antes de terminar. Confira o que já foi alterado e me reenvie o que ainda faltar."
+- **Verificação:** TypeScript e 445 testes.
+
 ## 2026-10-12 — Jev: régua corrigida e métricas por intenção
 
 - **Causa da nota baixa (51%):** a concordância comparava a categoria do Jev com `toolCategory`, que só devolve arte/consulta/escrita e contava ToolSearch como escrita. Categorias como grupo, tarefa e conversa nunca podiam bater.
