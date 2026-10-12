@@ -18,6 +18,14 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Regra de contatos: prospecção pedida pelo dono
+
+- **Problema:** a Maia recusava prospecção pedida pelo dono ("não faço prospecção por conta própria"). A regra de contatos não citava as ferramentas prospeccao_* nem o fluxo com OK a cada envio.
+- **Correção:** texto da regra `contatos_membros` (versão `2026-10-12.2`) explica o fluxo: prospeccao_preparar, prospeccao_enviar_proximo com OK a cada envio, teto de 30 por dia, SAIR e prospeccao_descadastrar. Migração `20261012104713_maia_rules_contatos_prospeccao` (**ainda não aplicada**), que confere o texto anterior antes de trocar.
+- **Verificação:** 421 testes, `rules:check`, `db:validate` e `db:guard`.
+
+---
+
 ## 2026-10-12 — Cofre de segredos: token enviado no privado, sem passar pela IA nem pelo histórico
 
 - **Pedido do owner:** mandar token de uma API nova só no privado da Maia, ela guardar e depois apagar do histórico do banco; nenhuma credencial pode aparecer em grupo.

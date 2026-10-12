@@ -15,6 +15,11 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Pendências:** aplicar a migração; descadastro automático por resposta ainda não existe; checagem de WhatsApp e envios não testados ao vivo.
 - **Verificação:** 407 testes, `db:validate` com 32 migrações, 63 ferramentas no MCP.
 
+## Regra de contatos: prospecção pedida pelo dono (12/10/2026)
+
+- **Causa:** a regra só proibia prospecção por conta própria, e a Maia recusava o pedido do dono mesmo com as ferramentas prontas.
+- **Correção:** regra `contatos_membros` (versão 2026-10-12.2) com o fluxo de prospecção pedida. **Pendência:** aplicar a migração `20261012104713`.
+
 ## Cofre de segredos para tokens de integrações (12/10/2026)
 
 - **Mudança:** `cofre NOME | valor` no privado do dono guarda o token criptografado (`maia_secrets`), sem passar pela IA nem pelo histórico; em grupo é recusado. O catálogo lê do cofre quando o `.env` não tem o segredo.
