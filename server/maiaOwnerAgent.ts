@@ -22,7 +22,7 @@ import { classifyError } from "./ai/errorClassifier.ts";
 import { decideFallback, effectFromTools } from "./ai/fallback.ts";
 import { annotateRun } from "./ai/usageTracker.ts";
 import { budgetFor, claudeModelFor } from "./ai/providers/claude.ts";
-import { ClaudeCliUnavailable, claudeExecutor, cliAddDirs, runClaudeCli } from "./ai/providers/claudeCli.ts";
+import { CLI_OWNER_TOOLS, ClaudeCliUnavailable, claudeExecutor, cliAddDirs, runClaudeCli } from "./ai/providers/claudeCli.ts";
 import { buildCodexPrompt, runCodexText } from "./ai/providers/codex.ts";
 import { handleOwnerPreferenceCommand, isPersistentPreferenceRequest } from "./ownerPreferences.ts";
 import type { RoutingConfig } from "./ai/types.ts";
@@ -162,6 +162,8 @@ async function runClaudeOnce(
         maxBudgetUsd: opts.maxBudgetUsd,
         maxTurns: 12,
         timeoutMs: opts.timeoutMs,
+        // Busca na web só para o dono; para os demais a ferramenta nem é oferecida.
+        tools: isOwner ? CLI_OWNER_TOOLS : undefined,
         maia: newMaiaServer().instance as never,
         // Resposta vazia (null) do verificador conta como recusa: nunca libera por omissão.
         permission: async (toolName, input) => {
@@ -204,7 +206,7 @@ async function runClaudeViaSdk(
         mcpServers: { maia },
         // Só os conectores do claude.ai: sem configurações locais, sem servidores MCP do computador.
         settingSources: [],
-        disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"],
+        disallowedTools: ["Bash", "Edit", "Write", "WebFetch", "NotebookEdit"],
         cwd: process.cwd(),
         env: { ...process.env },
       },

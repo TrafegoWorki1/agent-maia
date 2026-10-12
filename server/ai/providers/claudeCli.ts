@@ -49,7 +49,10 @@ export function claudeExecutor(cfg: RoutingConfig, env: NodeJS.ProcessEnv = proc
 
 // Ferramentas internas liberadas ao agente operacional: só leitura. Escrita, shell e web ficam fora (iguais ao SDK).
 export const CLI_TOOLS = ["Read", "Grep", "Glob", "ToolSearch", "TodoWrite"];
-export const CLI_DISALLOWED = ["Bash", "PowerShell", "Edit", "Write", "WebFetch", "WebSearch", "NotebookEdit"];
+// WebSearch é oferecida só ao dono (maiaOwnerAgent.ts, via `tools`) e o servidor ainda confere cada uso (decideBuiltin).
+// WebFetch segue bloqueado: abrir páginas traria o conteúdo inteiro de terceiros para dentro da conversa.
+export const CLI_DISALLOWED = ["Bash", "PowerShell", "Edit", "Write", "WebFetch", "NotebookEdit"];
+export const CLI_OWNER_TOOLS = [...CLI_TOOLS, "WebSearch"];
 // Segredos nunca são lidos, mesmo dentro da pasta de trabalho (onde o CLI não pergunta antes de ler).
 export const CLI_DENY_READ = ["**/.env", "**/.env.*", "**/.git/**", "**/.ssh/**", "**/.aws/**", "**/.claude*/**", "**/node_modules/**"].map((p) => `Read(${p})`);
 export const PERMISSION_TOOL = "mcp__maiaperm__aprovar";
