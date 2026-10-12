@@ -6,9 +6,19 @@ import { transcriberFromEnv, type Transcriber } from "./transcribe.ts";
 // Áudio que a transcrição não deu conta (servidor Whisper fora do ar ou lento) fica em data/midia por 24 h, como qualquer
 // mídia do dono (retenção de server/media.ts). Um arquivo .json ao lado diz de quem é o áudio. O worker tenta de novo
 // de tempos em tempos: para o dono, mostra o texto e pergunta o que fazer (um pedido atrasado pode já não valer); para
-// um membro, trata o texto como a mensagem dele, dentro das permissões dele (quem decide é handleMemberMessage).
+// um membro, trata o texto como a mensagem dele, dentro das permissões dele (quem decide é handleMemberMessage);
+// em grupo, segue o mesmo caminho do áudio de grupo (memória do grupo e resposta só se a Maia foi chamada).
 
-export type PendingMeta = { kind: "owner" } | { kind: "member"; from: string; name: string };
+export interface GroupMeta {
+  jid: string;
+  participant: string;
+  name: string;
+  addressed: boolean;
+  receivedAt?: string;
+  keyId?: string;
+}
+
+export type PendingMeta = { kind: "owner" } | { kind: "member"; from: string; name: string } | ({ kind: "group" } & GroupMeta);
 
 const PENDING = /^(\d+)-audio-pendente\.(ogg|m4a|mp3|wav|webm)$/;
 
@@ -47,8 +57,19 @@ export function pendingAudios(dir = MEDIA_DIR): { path: string; at: number; mime
 
 function readMeta(audioPath: string): PendingMeta {
   try {
-    const meta = JSON.parse(readFileSync(sidecar(audioPath), "utf8")) as Partial<PendingMeta> & { from?: unknown; name?: unknown };
+    const meta = JSON.parse(readFileSync(sidecar(audioPath), "utf8")) as Record<string, unknown>;
     if (meta.kind === "member" && typeof meta.from === "string") return { kind: "member", from: meta.from, name: typeof meta.name === "string" ? meta.name : "" };
+    if (meta.kind === "group" && typeof meta.jid === "string") {
+      return {
+        kind: "group",
+        jid: meta.jid,
+        participant: typeof meta.participant === "string" ? meta.participant : "",
+        name: typeof meta.name === "string" ? meta.name : "",
+        addressed: meta.addressed === true,
+        ...(typeof meta.receivedAt === "string" ? { receivedAt: meta.receivedAt } : {}),
+        ...(typeof meta.keyId === "string" ? { keyId: meta.keyId } : {}),
+      };
+    }
   } catch {
     // arquivo guardado pela versão anterior (sem .json) ou ilegível: era do dono
   }
@@ -58,6 +79,7 @@ function readMeta(audioPath: string): PendingMeta {
 export interface RetryHandlers {
   notifyOwner: (text: string) => Promise<void>;
   resumeMember: (meta: { from: string; name: string }, text: string) => Promise<void>;
+  resumeGroup: (meta: GroupMeta, text: string) => Promise<void>;
 }
 
 // Tenta transcrever o áudio pendente mais antigo. Devolve true se o texto foi entregue.
@@ -76,6 +98,10 @@ export async function retryPendingAudio(handlers: RetryHandlers, transcribe: Tra
   if (!text) return false;
   if (meta.kind === "member") {
     await handlers.resumeMember({ from: meta.from, name: meta.name }, text);
+    return true;
+  }
+  if (meta.kind === "group") {
+    await handlers.resumeGroup(meta, text);
     return true;
   }
   const when = new Date(next.at).toLocaleTimeString("pt-BR", { timeZone: "America/Fortaleza", hour: "2-digit", minute: "2-digit" });

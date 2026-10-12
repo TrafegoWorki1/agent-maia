@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pendingAudios, retryPendingAudio, savePendingAudio } from "../server/audioRetry.ts";
+import { pendingAudios, retryPendingAudio, savePendingAudio, type GroupMeta } from "../server/audioRetry.ts";
 
 // Decisão do owner (12/10/2026): áudio que a transcrição não deu conta é guardado por 24 h e retomado depois,
 // do dono e dos membros.
@@ -14,7 +14,11 @@ const tmp = () => {
 };
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })));
 
-const handlers = () => ({ notifyOwner: vi.fn(async (_text: string) => {}), resumeMember: vi.fn(async (_m: { from: string; name: string }, _t: string) => {}) });
+const handlers = () => ({
+  notifyOwner: vi.fn(async (_text: string) => {}),
+  resumeMember: vi.fn(async (_m: { from: string; name: string }, _t: string) => {}),
+  resumeGroup: vi.fn(async (_m: GroupMeta, _t: string) => {}),
+});
 const owner = { kind: "owner" } as const;
 
 describe("áudio pendente", () => {
@@ -48,6 +52,18 @@ describe("áudio pendente", () => {
     expect(h.notifyOwner).not.toHaveBeenCalled();
     expect(existsSync(path)).toBe(false);
     expect(existsSync(path.replace(/\.ogg$/, ".json"))).toBe(false);
+  });
+
+  it("grupo: o texto volta ao fluxo do grupo com autoria, chamada e horário originais, sem avisar o dono", async () => {
+    const dir = tmp();
+    const meta = { kind: "group", jid: "120363@g.us", participant: "558588887777", name: "Max", addressed: true, receivedAt: "2026-10-12T21:54:56.000Z", keyId: "ABC123" } as const;
+    const path = savePendingAudio(Buffer.from("a"), "audio/ogg", meta, 1000, dir)!;
+    const h = handlers();
+    expect(await retryPendingAudio(h, async () => "Maia, resume o contrato", dir)).toBe(true);
+    expect(h.resumeGroup).toHaveBeenCalledWith(meta, "Maia, resume o contrato");
+    expect(h.notifyOwner).not.toHaveBeenCalled();
+    expect(h.resumeMember).not.toHaveBeenCalled();
+    expect(existsSync(path)).toBe(false);
   });
 
   it("áudio guardado sem o arquivo .json (versão anterior) é tratado como do dono", async () => {
