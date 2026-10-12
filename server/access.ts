@@ -36,6 +36,8 @@ export async function resolveRequester(db: Db, number: string, pushName: string)
 }
 
 export interface AccessContext {
+  // A tarefa já usou busca na web: conteúdo de terceiros entrou na conversa. Ações que alteram algo pedem OK, até do dono.
+  webTainted?: boolean;
   groupRegistered?: boolean; // para ferramentas de grupo: o grupo está em maia_groups?
   dmInTask?: number; // mensagens diretas já enviadas nesta tarefa
 }
@@ -68,6 +70,7 @@ function readPermission(toolName: string): string | null {
 
 export function decideAccess(toolName: string, who: Requester, ctx: AccessContext, readOnly: boolean): AccessDecision {
   if (requiresApproval(toolName)) return { decision: "approve", reason: "ação pública ou de risco" };
+  if (ctx.webTainted && !readOnly) return { decision: "approve", reason: "a tarefa usou busca na web; a ação pede OK mesmo para o dono" };
   const isGroupSend = GROUP_SEND.test(toolName);
   if (isGroupSend && !ctx.groupRegistered) return { decision: "approve", reason: "grupo não cadastrado" };
   if (DIRECT_SEND.test(toolName) && (ctx.dmInTask ?? 0) >= MAX_DM_PER_TASK) return { decision: "approve", reason: `mais de ${MAX_DM_PER_TASK} contatos no mesmo pedido` };

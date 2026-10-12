@@ -18,6 +18,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Fase 2: busca na web para o dono, trava depois da busca e regra "Limites"
+
+- **Pedido do owner:** o dono pede pesquisa na web direto, sem OK; quando a Maia não tem a ferramenta, ela pergunta se a demanda deve ser passada ao Herickson.
+- **O que entrou:** `WebSearch` oferecida ao CLI só para o dono (`CLI_OWNER_TOOLS`) e liberada pelo `decideBuiltin` só para o dono; `WebFetch` segue bloqueado (abrir páginas traria o conteúdo inteiro de terceiros). Regra "Limites" nova (versão `2026-10-12.1`, migração `20261012020001_maia_rules_limites_busca`, que confere o texto anterior antes de trocar).
+- **Trava contra injeção:** depois de uma busca na web na tarefa (registro em `task_events`, `tool_use` / `WebSearch`), ações que não são de leitura pedem OK, até do dono (`decideAccess`, `ctx.webTainted`).
+- **Limite:** a pergunta "passar ao Herickson?" é regra de texto; quem decide se a ferramenta existe continua sendo o modelo. Para quem é o dono, a regra só manda dizer que não tem a ferramenta, sem a pergunta.
+- **Verificação:** typecheck, build, `rules:check`, `db:validate` (31 migrações), 393 testes Vitest (novos em `tests/webSearch.test.ts`). **Pendência:** `db:guard` acusa o `drop constraint` da migração `20261012012214` (já aplicada); a marcação `-- destrutivo-aprovado` precisa ser acrescentada num commit próprio.
+
+---
+
 ## 2026-10-12 — Catálogo: Instagram pela Zernio (Fase 3), parâmetros no caminho e opcionais
 
 - **Pedido do owner:** disponibilizar à Maia os endpoints do Instagram que ainda não tinham ferramenta.

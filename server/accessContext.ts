@@ -16,6 +16,9 @@ export async function accessContext(db: Db, taskId: number, toolName: string, in
       ctx.groupRegistered = false;
     }
   }
+  // Busca na web nesta tarefa: o registro de uso fica em task_events (tool_use / WebSearch), o mesmo nos dois executores.
+  const { count: webUses } = await db.from("task_events").select("id", { count: "exact", head: true }).eq("task_id", taskId).eq("type", "tool_use").eq("operation", "WebSearch");
+  ctx.webTainted = (webUses ?? 0) > 0;
   if (toolName === "mcp__maia__contato_enviar_mensagem") {
     const { count } = await db.from("task_events").select("id", { count: "exact", head: true }).eq("task_id", taskId).eq("type", "dm_sent");
     ctx.dmInTask = count ?? 0;

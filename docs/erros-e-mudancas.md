@@ -9,6 +9,12 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Causa:** a coluna foi incluída numa migração já aplicada, então o banco nunca a recebeu e as respostas da Maia falhavam ao gravar.
 - **Correção:** migração nova que acrescenta a coluna (`if not exists`). **Pendência:** reverter a linha editada na migração `20261011185724`.
 
+## Fase 2: busca na web para o dono e trava depois da busca (12/10/2026)
+
+- **Mudança:** o dono pede pesquisa direta; a regra "Limites" passa a dizer o que fazer sem ferramenta. Depois de uma busca na tarefa, ações que alteram algo pedem OK, até do dono.
+- **Pendência:** `db:guard` acusa o `drop constraint` da migração `20261012012214` (aplicada); falta a marcação `destrutivo-aprovado` em commit próprio.
+- **Verificação:** 393 testes, `db:validate` com 31 migrações, `rules:check` ok.
+
 ## Catálogo: Instagram pela Zernio (12/10/2026)
 
 - **Mudança:** 18 rotas do Instagram da Zernio no catálogo (10 de leitura, 8 externas com OK por uso), parâmetros no caminho e opcionais, chave `ZERNIO_API_KEY` presa a zernio.com. **Pendências:** migração não aplicada; escrita não exercitada ao vivo; Fases 2 e 4 não começaram. **Verificação:** 384 testes, 60 ferramentas no MCP, `db:validate` com 29 migrações.
