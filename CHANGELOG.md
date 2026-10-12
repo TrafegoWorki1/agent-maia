@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Transcrição de áudio pelo Whisper local (no PC)
+
+- **Decisão do dono:** usar o Whisper do próprio PC em vez do servidor da VPS. O áudio fica na máquina do dono; nada sai para fora.
+- **O que entrou:** `scripts/whisper_local.py`, um servidor de transcrição em `127.0.0.1:8000` com o mesmo contrato do servidor antigo (`POST /transcribe` com `audio_file`, resposta `{"text": ...}`) e `GET /health`. Usa o faster-whisper com o modelo `small` já instalado no PC, em CPU (int8), carregado só do cache local. A biblioteca padrão do Python atende as requisições, sem FastAPI, porque o disco do C: tinha 0,3 GB livres.
+- **Configuração:** `WHISPER_API_URL=http://127.0.0.1:8000` no `.env` (o `.env` não vai para o git). Para voltar à VPS, basta trocar esse valor de volta e reiniciar o worker.
+- **Teste:** fala sintética de 18 s transcrita em ~5 s, com texto correto. O `/health` respondeu `model_loaded: true`.
+- **Atenção:** o servidor local precisa estar rodando junto com o worker (`python scripts/whisper_local.py`). Se ele estiver desligado, a transcrição falha e o áudio vai para a retomada de 24 h.
+- **Pendências:** o modelo `large-v3` ainda não está no PC (não foi encontrado; falta espaço no C:); decidir se o `small` local basta; iniciar o servidor local automaticamente com o worker; teste ao vivo com um áudio do WhatsApp.
+
 ## 2026-10-12 — Áudio: falha rápida e retomada quando o Whisper volta
 
 - **Sintoma:** o dono mandou um áudio de 59 s; a Maia não reagiu e o pedido ficou sem resposta. Um áudio anterior (21:21 UTC) só gerou "Não consegui processar o áudio agora" depois de 8,4 min.
