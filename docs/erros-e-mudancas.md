@@ -4,6 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Texto citado (reply) passa para o agente (12/10/2026)
+
+- **Causa:** reply em grupo/privado chegava ao agente sem o texto original citado; ele perdia o contexto e interpretava errado. **Correção:** `quotedTextFrom` + `withQuoted` prefixam `[Citando: "..."]` ao texto antes de guardar.
+
 ## maxTurns elevado e aviso de parcial (12/10/2026)
 
 - **Causa:** planilhas com muitas células estouravam o limite de 12 passos, sem resposta ao dono. **Correção:** limite elevado para 30 nos dois executores; quando ainda bater, mensagem informa que foi parcial.

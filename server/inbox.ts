@@ -1,4 +1,4 @@
-import { audioFrom, incomingText, mediaFrom, normalizeEvent, samePhone } from "./evolutionWebhook.ts";
+import { audioFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, withQuoted } from "./evolutionWebhook.ts";
 
 // Triagem do webhook: transforma um evento da Evolution numa linha da fila `inbox` do Supabase.
 // Função pura (sem banco, sem rede), usada pela rota da Vercel. O worker do PC lê essas linhas depois.
@@ -87,7 +87,9 @@ export function toInboxRow(
         // Grupo cadastrado: todo texto entra (memória de 7 dias, com autoria). Só responde quando chamada.
         const addressed = addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now);
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
-        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text, addressed }) };
+        // Inclui o texto citado (reply) para que o agente entenda o contexto do pedido.
+        const textWithCtx = withQuoted(text, quotedTextFrom(body));
+        return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text: textWithCtx, addressed }) };
       }
       // Áudio em grupo cadastrado: não tem texto ainda, então "chamar pelo nome" só é sabido após a transcrição
       // (feita pelo worker, server/ownerRouter.ts). Aqui já decidimos o resto de addressedToMaia (menção, resposta
@@ -115,12 +117,15 @@ export function toInboxRow(
 
   const text = incomingText(body);
   if (text) {
-    if (samePhone(text.from, owner)) return { kind: "text", sender: "owner", key_id: keyId, payload: text.text };
-    if (samePhone(text.from, approver)) return { kind: "text", sender: "approver", key_id: keyId, payload: text.text };
+    // Inclui o texto citado (reply) para o agente entender o contexto do pedido.
+    const quoted = quotedTextFrom(body);
+    const fullText = withQuoted(text.text, quoted);
+    if (samePhone(text.from, owner)) return { kind: "text", sender: "owner", key_id: keyId, payload: fullText };
+    if (samePhone(text.from, approver)) return { kind: "text", sender: "approver", key_id: keyId, payload: fullText };
     // Membro com a permissão conversa.maia: fala direto com a Maia no privado, dentro do que pode.
     if (members && [...members].some((n) => samePhone(n, text.from))) {
       const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
-      return { kind: "text", sender: "member", key_id: keyId, payload: JSON.stringify({ from: text.from, name, text: text.text }) };
+      return { kind: "text", sender: "member", key_id: keyId, payload: JSON.stringify({ from: text.from, name, text: fullText }) };
     }
     // Resposta de alguém que a Maia contatou nas últimas 48 h: o texto entra para ser repassado ao dono.
     if (contacted && [...contacted].some((n) => samePhone(n, text.from))) {
