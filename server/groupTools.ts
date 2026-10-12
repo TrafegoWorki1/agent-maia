@@ -105,6 +105,17 @@ async function post(path: string, body: unknown): Promise<{ status: number; json
   return { status: response.status, json: await response.json().catch(() => null) };
 }
 
+async function del(path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+  const { url, instance, apikey } = evo();
+  const response = await fetch(`${url}${path}/${instance}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", apikey },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20_000),
+  });
+  return { status: response.status, json: await response.json().catch(() => null) };
+}
+
 const messageId = (json: unknown): string | null => {
   const id = (json as { key?: { id?: unknown } } | null)?.key?.id;
   return typeof id === "string" ? id : null;
@@ -123,6 +134,13 @@ export async function sendGroupText(jid: string, text: string, mentions: string[
   const id = messageId(json);
   if (status < 200 || status >= 300 || !id) throw new Error(`a Evolution não confirmou o envio do texto (HTTP ${status})`);
   return id;
+}
+
+// Apaga uma mensagem do grupo pelo key.id. A Evolution exige fromMe=true para mensagens da própria conta;
+// admins podem apagar mensagens de outros com everyOne=true (depende do servidor/versão da Evolution).
+export async function deleteGroupMessage(jid: string, keyId: string, fromMe = true): Promise<void> {
+  const { status } = await del("/message/delete", { id: keyId, remoteJid: jid, fromMe });
+  if (status < 200 || status >= 300) throw new Error(`a Evolution não confirmou a exclusão (HTTP ${status})`);
 }
 
 export async function sendGroupPoll(jid: string, question: string, options: string[], selectable: number): Promise<string> {
