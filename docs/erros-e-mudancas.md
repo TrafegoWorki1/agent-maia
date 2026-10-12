@@ -9,6 +9,12 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Causa:** a coluna foi incluída numa migração já aplicada, então o banco nunca a recebeu e as respostas da Maia falhavam ao gravar.
 - **Correção:** migração nova que acrescenta a coluna (`if not exists`). **Pendência:** reverter a linha editada na migração `20261011185724`.
 
+## Fase 4: prospecção com OK a cada envio (12/10/2026)
+
+- **Mudança:** lotes de contatos com mensagem final, um envio por vez com OK do dono, teto de 30 por dia, descadastro com SAIR e sem repetir contato em 30 dias. Tabelas na migração `20261012021430`.
+- **Pendências:** aplicar a migração; descadastro automático por resposta ainda não existe; checagem de WhatsApp e envios não testados ao vivo.
+- **Verificação:** 407 testes, `db:validate` com 32 migrações, 63 ferramentas no MCP.
+
 ## Fase 2: busca na web para o dono e trava depois da busca (12/10/2026)
 
 - **Mudança:** o dono pede pesquisa direta; a regra "Limites" passa a dizer o que fazer sem ferramenta. Depois de uma busca na tarefa, ações que alteram algo pedem OK, até do dono.

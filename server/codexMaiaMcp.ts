@@ -28,6 +28,7 @@ import { decideAccess, ownerRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { isLocalSafeTool } from "./maiaImageTool.ts";
 import { readFileSync } from "node:fs";
+import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -282,6 +283,22 @@ server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsAp
     return result(`Não consegui solicitar a criação do grupo: ${error instanceof Error ? error.message : String(error)}`, true);
   }
 });
+
+server.registerTool("prospeccao_preparar", { description: "Prepara um lote de prospecção a pedido do dono (mensagem final e contatos). Confere WhatsApp, descadastro e repetições. Não envia nada: cada envio sai depois, com OK do dono.", inputSchema: { nome: z.string().min(2).max(80), texto: z.string().min(10).max(2000), contatos: z.array(z.object({ numero: z.string().min(8).max(20), nome: z.string().max(80).optional() })).min(1).max(200) } }, async (args) => guarded("mcp__maia__prospeccao_preparar", args, async () => {
+  const invalid = validateText(args.texto); if (invalid) throw new Error(invalid);
+  const result = await prepareBatch(getDb(), args); if (!result.ok) throw new Error(result.error);
+  return `Lote ${result.lote} ("${args.nome}") preparado com ${result.aceitos} contato(s). Ignorados: ${result.ignorados.length}. Para enviar, peça o próximo contato do lote ${result.lote}.`;
+}));
+
+server.registerTool("prospeccao_enviar_proximo", { description: "Envia a próxima mensagem pendente de um lote de prospecção, para UM contato, com OK do dono antes.", inputSchema: { lote: z.number().int().min(1) } }, async ({ lote }) => guarded("mcp__maia__prospeccao_enviar_proximo", { lote }, async () => {
+  const result = await sendNextProspect(getDb(), lote); if (!result.ok) throw new Error(result.error);
+  return result.mensagem;
+}));
+
+server.registerTool("prospeccao_descadastrar", { description: "Coloca um número na lista de descadastro: ele deixa de receber prospecção. Só o dono.", inputSchema: { numero: z.string().min(8).max(20) } }, async ({ numero }) => guarded("mcp__maia__prospeccao_descadastrar", { numero }, async () => {
+  const result = await addOptOut(getDb(), numero); if (!result.ok) throw new Error(result.error);
+  return result.mensagem;
+}));
 
 server.registerTool("membro_cadastrar", { description: "Cadastra um membro e suas permissões.", inputSchema: { nome: z.string().min(2).max(60), numero: z.string().min(10).max(20), permissoes: z.array(z.string().max(40)).max(12).optional() } }, async ({ nome, numero, permissoes }) => guarded("mcp__maia__membro_cadastrar", { nome, numero, permissoes }, async () => {
   const registered = await registerMember(getDb(), { name: nome, number: numero, permissions: permissoes }); if (!registered.ok) throw new Error(registered.error);

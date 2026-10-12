@@ -18,6 +18,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Fase 4: prospecção pedida pelo dono, com OK a cada envio
+
+- **Pedido do owner:** prospectar uma lista de contatos quando ele pedir, com aprovação a cada envio, teto diário e descadastro.
+- **O que entrou:** módulo `server/prospeccao.ts` e as ferramentas `prospeccao_preparar` (lote com mensagem final, confere WhatsApp, descadastro e repetições), `prospeccao_enviar_proximo` (um contato por chamada, **sempre com OK do dono**) e `prospeccao_descadastrar` (só o dono). Tabelas `maia_prospect_batches`, `maia_prospects` e `maia_optouts` na migração `20261012021430_maia_prospeccao_v1` (**ainda não aplicada**).
+- **Regras aplicadas pelo código:** teto de 30 envios por dia (dia de São Paulo); sem repetir quem já foi contatado em 30 dias ou em outro lote; a mensagem precisa conter a palavra SAIR; quem pediu para sair nunca recebe, mesmo depois de entrar no lote; lote de até 200 contatos; checagem de WhatsApp na Evolution antes de gravar.
+- **Limites:** descadastro por resposta no WhatsApp ainda é manual (ferramenta `prospeccao_descadastrar`); a checagem de WhatsApp (`/chat/whatsappNumbers`) e os envios ainda não foram exercitados ao vivo; a contagem do teto e do histórico lê até 1000 linhas por consulta.
+- **Verificação:** typecheck, build, `db:validate` (32 migrações), 407 testes Vitest (novos em `tests/prospeccao.test.ts`) e `smoke:maia-tools` com 63 ferramentas.
+- **Pendências:** aplicar a migração `20261012021430`; reiniciar o worker; resposta automática de descadastro ("SAIR") no inbox.
+
+---
+
 ## 2026-10-12 — Mencionar todos no grupo (menção fantasma)
 
 - **Pedido do owner:** a Maia poder mencionar todos os participantes de um grupo, sem marcar cada um no texto. Não existia: não havia endpoint no catálogo nem opção na ferramenta de texto de grupo.

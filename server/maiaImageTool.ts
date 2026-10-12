@@ -15,6 +15,7 @@ import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { addTaskEvent, getDb } from "./store.ts";
+import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
@@ -524,6 +525,41 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }
+        },
+      ),
+      tool(
+        "prospeccao_preparar",
+        "Prepara um lote de prospecção a pedido do dono: uma mensagem final e uma lista de contatos. Confere WhatsApp, descadastro e repetições. Não envia nada: cada envio sai depois, um por vez, com OK do dono. A mensagem precisa ensinar como sair (a palavra SAIR).",
+        {
+          nome: z.string().min(2).max(80).describe("Nome do lote, para o dono reconhecer."),
+          texto: z.string().min(10).max(2000).describe("Mensagem final, em português, em nome da Maia, assistente do Herickson, com a frase para sair (ex.: 'Para não receber mais, responda SAIR.')."),
+          contatos: z.array(z.object({ numero: z.string().min(8).max(20).describe("DDI+DDD+número."), nome: z.string().max(80).optional() })).min(1).max(200),
+        },
+        async (args) => {
+          const invalid = validateText(args.texto);
+          if (invalid) return { content: [{ type: "text", text: `Não preparei: ${invalid}.` }], isError: true };
+          const result = await prepareBatch(getDb(), args);
+          if (!result.ok) return { content: [{ type: "text", text: `Não preparei: ${result.error}.` }], isError: true };
+          const motivos = result.ignorados.slice(0, 20).map((s) => `${s.number}: ${s.motivo}`).join("; ");
+          return { content: [{ type: "text", text: `Lote ${result.lote} ("${args.nome}") preparado com ${result.aceitos} contato(s). Ignorados: ${result.ignorados.length}${motivos ? ` (${motivos})` : ""}. Para enviar, peça o próximo contato do lote ${result.lote}.` }] };
+        },
+      ),
+      tool(
+        "prospeccao_enviar_proximo",
+        "Envia a próxima mensagem pendente de um lote de prospecção, para UM contato, com OK do dono antes. Respeita o teto diário e o descadastro.",
+        { lote: z.number().int().min(1).describe("Número do lote, como devolvido por prospeccao_preparar.") },
+        async (args) => {
+          const result = await sendNextProspect(getDb(), args.lote);
+          return result.ok ? { content: [{ type: "text", text: result.mensagem }] } : { content: [{ type: "text", text: `Não enviei: ${result.error}.` }], isError: true };
+        },
+      ),
+      tool(
+        "prospeccao_descadastrar",
+        "Coloca um número na lista de descadastro: ele deixa de receber prospecção. Só o dono.",
+        { numero: z.string().min(8).max(20).describe("DDI+DDD+número.") },
+        async (args) => {
+          const result = await addOptOut(getDb(), args.numero);
+          return result.ok ? { content: [{ type: "text", text: result.mensagem }] } : { content: [{ type: "text", text: `Não registrei: ${result.error}.` }], isError: true };
         },
       ),
       tool(
