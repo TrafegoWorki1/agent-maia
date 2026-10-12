@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Subir criativo do WhatsApp direto nos anúncios
+
+- **O que é:** o dono manda uma imagem ou vídeo no WhatsApp com a legenda do que quer anunciar; a Maia usa `anuncio_midia_url_temporaria` para gerar um link temporário (2h) no Supabase Storage e então passa esse link para `ads_creative_upload_media` (Meta Ads MCP) com `upload_source: URL`.
+- **Já existia:** `server/integrations/adsMedia.ts` (bucket `ads_media_temp`, limpeza a cada ciclo do worker), a ferramenta no servidor da Maia e a menção no prompt de vídeo.
+- **O que faltava:** o prompt de imagem não mencionava a ferramenta; adicionado agora.
+- **Fluxo:** imagem/vídeo recebido → `anuncio_midia_url_temporaria` → URL Supabase Storage → `ads_creative_upload_media` → criativo no Meta Ads.
+
 ## 2026-10-12 — Texto citado (reply) passa para o agente
 
 - **Causa:** ao responder uma mensagem no grupo (ou no privado), o agente recebia só o texto novo, sem o conteúdo citado. Isso o fez perder o contexto do pedido e responder de forma incorreta.

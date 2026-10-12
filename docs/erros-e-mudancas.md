@@ -4,6 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Criativo do WhatsApp para Meta Ads (12/10/2026)
+
+- Prompt de imagem agora menciona `anuncio_midia_url_temporaria`, igual ao vídeo. Toda a infraestrutura já existia (`adsMedia.ts`, bucket `ads_media_temp`, limpeza automática).
+
 ## Texto citado (reply) passa para o agente (12/10/2026)
 
 - **Causa:** reply em grupo/privado chegava ao agente sem o texto original citado; ele perdia o contexto e interpretava errado. **Correção:** `quotedTextFrom` + `withQuoted` prefixam `[Citando: "..."]` ao texto antes de guardar.
