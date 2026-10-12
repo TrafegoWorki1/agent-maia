@@ -237,7 +237,7 @@ server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, sto
   });
 });
 
-server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional(), mencionar_todos: z.boolean().optional() } }, async ({ grupo, texto, mencionar, mencionar_todos }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar, mencionar_todos }, async () => {
+server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional(), mencionar_todos: z.boolean().optional(), citar_id: z.string().optional() } }, async ({ grupo, texto, mencionar, mencionar_todos, citar_id }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar, mencionar_todos, citar_id }, async () => {
   const invalid = validateText(texto); if (invalid) throw new Error(invalid);
   const found = await resolveGroup(grupo); if (!found.ok) throw new Error(found.error);
   const mentions = await resolveMentions(getDb(), mencionar ?? []); if (!mentions.ok) throw new Error(mentions.error);
@@ -246,7 +246,7 @@ server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo
     const everyone = await everyMemberNumbers(found.group.jid, mentions.numbers); if (!everyone.ok) throw new Error(everyone.error);
     ghost = everyone.numbers;
   }
-  const id = await sendGroupText(found.group.jid, texto, mentions.numbers, ghost);
+  const id = await sendGroupText(found.group.jid, texto, mentions.numbers, ghost, citar_id);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
   await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;

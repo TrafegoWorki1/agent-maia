@@ -203,6 +203,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           texto: z.string().min(1).max(3000).describe("Texto final da mensagem."),
           mencionar: z.array(z.string().max(60)).max(20).optional().describe("Quem mencionar: números com DDI+DDD ou nomes cadastrados em Pessoas."),
           mencionar_todos: z.boolean().optional().describe("true marca todos os participantes do grupo em menção fantasma: todos são avisados e o texto não mostra números. Só quando o dono pedir de forma explícita."),
+          citar_id: z.string().optional().describe("ID da mensagem a citar (reply): o texto sai como resposta direta a essa mensagem no grupo. Passe o ID exato recebido no prompt — não invente."),
         },
         async (args) => {
           const invalid = validateText(args.texto);
@@ -218,7 +219,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             ghost = everyone.numbers;
           }
           try {
-            const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers, ghost);
+            const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers, ghost, args.citar_id);
             await recordConvMessage(getDb(), { conv: group.group.jid, name: "Maia", text: args.texto, fromMaia: true }).catch(() => {});
             if (taskId) {
               await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});
