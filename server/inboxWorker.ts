@@ -3,6 +3,7 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
 import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
+import { retryPendingAudio } from "./audioRetry.ts";
 import { handleApproverText } from "./groups.ts";
 import { handleGroupAudio, handleMemberAudio, handleMemberMedia, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { markMessagesRead } from "./chats.ts";
@@ -263,6 +264,15 @@ async function main(): Promise<void> {
   };
   void deliveries();
   setInterval(() => void deliveries(), 30_000);
+  // Áudio do dono que a transcrição não deu conta: tenta de novo a cada 10 min (um por vez) e mostra o texto quando voltar.
+  let retryingAudio = false;
+  setInterval(() => {
+    if (retryingAudio) return;
+    retryingAudio = true;
+    void retryPendingAudio(notifyOwner)
+      .catch((error) => console.error("[audio] nova tentativa:", error instanceof Error ? error.message : error))
+      .finally(() => { retryingAudio = false; });
+  }, 10 * 60 * 1000);
 
   let lastPurge = 0;
   let stopping = false;

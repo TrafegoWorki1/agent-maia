@@ -4,6 +4,12 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Áudio: falha rápida e retomada (12/10/2026)
+
+- Causa: o Whisper do EasyPanel não concluía a transcrição; a Maia esperava ~8 min e depois descartava o áudio.
+- Correção: espera máxima de ~2 min, aviso imediato, áudio guardado por 24 h e nova tentativa a cada 10 min, mostrando o texto ao dono quando o servidor voltar.
+- Pendente: reiniciar/verificar o Whisper no EasyPanel; retomada para áudio de membro.
+
 ## Contato avulso e repasse da resposta (12/10/2026)
 
 - Causa: salvar um contato para enviar mensagem criava uma Pessoa `equipe` com permissão de conversa, e a resposta dessa pessoa não era repassada ao dono.
