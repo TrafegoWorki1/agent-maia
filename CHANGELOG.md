@@ -18,6 +18,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## Atualização 12/10/2026 (estado atual)
+
+- **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
+- **Chave do cofre:** `INTEGRACAO_VAULT_KEY` criada no `.env` da pasta `agent-maia` (sem registro no repositório). Backup é responsabilidade do owner.
+- **Worker:** reiniciado depois da chave; há um só worker na pasta original.
+- **Ainda falta validar ao vivo:** cofre (`cofre teste | ...`), prospecção pelo WhatsApp, menção fantasma e rotas de escrita.
+
 ## 2026-10-12 — Regra de contatos: prospecção pedida pelo dono
 
 - **Problema:** a Maia recusava prospecção pedida pelo dono ("não faço prospecção por conta própria"). A regra de contatos não citava as ferramentas prospeccao_* nem o fluxo com OK a cada envio.

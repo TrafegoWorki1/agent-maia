@@ -26,6 +26,13 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Limites:** a mensagem segue no celular e na base da Evolution; o registro da fila existe por segundos na Vercel.
 - **Pendências:** aplicar a migração `20261012030526`; criar `INTEGRACAO_VAULT_KEY`; reiniciar o worker.
 
+## Atualização 12/10/2026 (estado atual)
+
+- **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
+- **Chave do cofre:** `INTEGRACAO_VAULT_KEY` criada no `.env` da pasta `agent-maia` (sem registro no repositório). Backup é responsabilidade do owner.
+- **Worker:** reiniciado depois da chave; há um só worker na pasta original.
+- **Ainda falta validar ao vivo:** cofre (`cofre teste | ...`), prospecção pelo WhatsApp, menção fantasma e rotas de escrita.
+
 ## Resumo de 10–12/10/2026: o que foi feito
 
 - **Executor Claude pelo Claude Code CLI** (commits `92f0f1b`, `784046e`, `edcc606`): Claude roda por `claude -p`; o Agent SDK continua como alternativa.

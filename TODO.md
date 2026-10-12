@@ -18,7 +18,10 @@ Atualizado em 10/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 
 **Ações do owner**
 - [ ] Reverter a linha editada depois da aplicação na migração `20261011185724_maia_client_groups_access` (quem reverte é a outra sessão).
-- [ ] Aplicar a migração `20261012030526_maia_secrets_vault`, criar `INTEGRACAO_VAULT_KEY` no `.env` (32 bytes em hexadecimal) e reiniciar o worker para o cofre funcionar.
+- [x] Migração `20261012030526_maia_secrets_vault` aplicada; chave `INTEGRACAO_VAULT_KEY` criada no `.env`; worker reiniciado.
+- [ ] Testar o cofre pelo privado do dono: `cofre teste | abc12345678`, depois `cofre listar` e `cofre apagar teste`.
+- [x] Migração `20261012104713_maia_rules_contatos_prospeccao` aplicada (regra de contatos com prospecção pedida pelo dono).
+- [ ] Testar prospecção pelo WhatsApp com números seus: preparar lote, enviar um contato com OK, conferir teto e SAIR.
 - [ ] Decidir se o webhook da Vercel deve apagar o texto do comando `cofre` antes de gravar na fila (hoje o worker apaga logo depois de ler).
 - [ ] Decidir sobre o trabalho de grupos e organização que ainda não está commitado (fora do PR #5).
 - [ ] Revisar e fazer o merge do PR #5 (as migrações já estão aplicadas).
