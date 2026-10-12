@@ -3,7 +3,8 @@ import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
 import { savePendingAudio } from "./audioRetry.ts";
-import { handleGroupMessage, handleMemberMessage, handleOwnerMessage } from "./maiaOwnerAgent.ts";
+import { sendGroupText } from "./groupTools.ts";
+import { handleGroupMessage, handleMemberMessage, handleOwnerMessage, startWithName } from "./maiaOwnerAgent.ts";
 import { CALLS_MAIA } from "./inbox.ts";
 import { canConverse, resolveRequester } from "./access.ts";
 import { recordConvMessage } from "./conversations.ts";
@@ -214,14 +215,42 @@ export async function handleGroupAudio(ref: GroupAudioRef): Promise<void> {
   if (!transcribe) return;
   try {
     const { data, mimetype } = await downloadAudio(ref.key, ref.mimetype);
-    const text = (await transcribe(data, mimetype)).trim();
+    let text: string;
+    try {
+      text = (await transcribe(data, mimetype)).trim();
+    } catch (error) {
+      // Servidor Whisper fora do ar ou lento: guarda o áudio por 24 h e retoma depois (server/audioRetry.ts).
+      // No grupo só avisa quem estava falando com a Maia; para os demais áudios, silêncio, como sempre.
+      console.error("[audio-grupo] transcrição:", error instanceof Error ? error.message : error);
+      const keyId = typeof ref.key.id === "string" ? ref.key.id : undefined;
+      const saved = savePendingAudio(data, mimetype, { kind: "group", jid: ref.jid, participant: ref.participant, name: ref.name, addressed: ref.addressed, ...(ref.receivedAt ? { receivedAt: ref.receivedAt } : {}), ...(keyId ? { keyId } : {}) });
+      if (ref.addressed) {
+        const notice = startWithName(ref.name, saved
+          ? "não consegui ouvir seu áudio agora. Guardei por 24 h e te respondo aqui assim que eu conseguir ouvir. Se for urgente, escreva em texto."
+          : "não consegui ouvir seu áudio agora. Escreva em texto ou tente de novo em instantes.");
+        await sendGroupText(ref.jid, notice, []).catch(() => {});
+      }
+      return;
+    }
     if (!text) return;
-    await recordConvMessage(getDb(), { conv: ref.jid, participant: ref.participant, name: ref.name, text, ...(ref.receivedAt ? { at:new Date(ref.receivedAt) } : {}) }).catch((error) => console.error("[audio-grupo] conversa:", error instanceof Error ? error.message : error));
-    if (!ref.addressed && !CALLS_MAIA.test(text)) return;
-    await handleGroupMessage({ jid: ref.jid, participant: ref.participant, name: ref.name, text, receivedAt:ref.receivedAt });
+    await processGroupAudioText({ jid: ref.jid, participant: ref.participant, name: ref.name, addressed: ref.addressed, receivedAt: ref.receivedAt, keyId: typeof ref.key.id === "string" ? ref.key.id : undefined }, text);
   } catch (error) {
     console.error("[audio-grupo]", error instanceof Error ? error.message : error);
   }
+}
+
+// Texto do áudio de grupo já transcrito: entra na memória do grupo e só vira pedido se a Maia foi chamada.
+async function processGroupAudioText(ref: { jid: string; participant: string; name: string; addressed: boolean; receivedAt?: string; keyId?: string }, text: string): Promise<void> {
+  await recordConvMessage(getDb(), { conv: ref.jid, participant: ref.participant, name: ref.name, text, ...(ref.receivedAt ? { at: new Date(ref.receivedAt) } : {}) }).catch((error) => console.error("[audio-grupo] conversa:", error instanceof Error ? error.message : error));
+  if (!ref.addressed && !CALLS_MAIA.test(text)) return;
+  await handleGroupMessage({ jid: ref.jid, participant: ref.participant, name: ref.name, text, receivedAt: ref.receivedAt, ...(ref.keyId ? { keyId: ref.keyId } : {}) });
+}
+
+// Áudio de grupo retomado depois: confere de novo se o grupo ainda atende e se a mensagem está no período dele.
+export async function resumeGroupAudio(meta: { jid: string; participant: string; name: string; addressed: boolean; receivedAt?: string; keyId?: string }, text: string): Promise<void> {
+  const scope = await loadGroupScope(getDb(), meta.jid);
+  if (!scope || !scopeIncludesMessage(scope, meta.receivedAt)) return;
+  await processGroupAudioText(meta, text);
 }
 
 export interface MemberMediaRef extends MediaRef {
