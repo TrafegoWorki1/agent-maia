@@ -61,3 +61,4 @@ Permissões por pessoa, áudio pelo Whisper, grupos cadastrados, cota de imagens
 As ferramentas Instagram agora estão disponíveis nos executores Claude e Codex. Validação autenticada da interface e dos fluxos externos segue pendente; áudio pode exigir reconexão Facebook Login. Não testar envio real sem um cenário de teste autorizado.
 
 - [ ] Jev: rotular ~100 mensagens reais; só considerar roteamento ativo com 200 rotuladas e 85% na faixa de alta confiança. Usar complexidade=simples para modelo mais barato em modo sombra.
+- [ ] PRs #7 (docs) e #8 (áudio sem eco) aguardam merge; depois, testes ao vivo de cofre, prospecção, citação/áudio em grupo e menção fantasma.
