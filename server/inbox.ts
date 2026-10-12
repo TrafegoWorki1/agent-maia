@@ -37,14 +37,16 @@ function digitsOf(jid: unknown): string {
 // que ela estava tendo com a mesma pessoa nos últimos 10 minutos.
 function addressedToMaia(body: Record<string, unknown>, data: Record<string, unknown>, text: string, participant: string, state: GroupState, now: Date): boolean {
   if (CALLS_MAIA.test(text)) return true;
+  // A Maia pode ser citada pelo telefone ou pelo identificador interno do WhatsApp (@lid, 15 dígitos): MAIA_LID no ambiente.
   const own = digitsOf(body.sender);
+  const ids = [own, digitsOf(process.env.MAIA_LID)].filter(Boolean);
   const message = (data.message ?? {}) as Record<string, unknown>;
   const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
   const context = (extended.contextInfo ?? data.contextInfo ?? {}) as Record<string, unknown>;
-  if (own) {
-    if (digitsOf(context.participant) === own) return true;
+  if (ids.length) {
+    if (ids.includes(digitsOf(context.participant))) return true;
     const mentioned = Array.isArray(context.mentionedJid) ? context.mentionedJid : [];
-    if (mentioned.some((j) => digitsOf(j) === own)) return true;
+    if (mentioned.some((j) => ids.includes(digitsOf(j)))) return true;
   }
   const last = state.lastReplyAt ? Date.parse(state.lastReplyAt) : NaN;
   return Boolean(state.lastReplyTo && participant && digitsOf(state.lastReplyTo) === digitsOf(participant) && !Number.isNaN(last) && now.getTime() - last <= CONVERSATION_WINDOW_MS);

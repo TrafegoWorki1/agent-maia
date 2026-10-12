@@ -45,6 +45,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Correção: Maia não respondia à menção em grupo (identificador @lid)
+
+- **Sintoma:** uma pessoa marcou a Maia no grupo Operacional e ela não respondeu; só respondeu depois que o dono pediu no privado.
+- **Causa:** o WhatsApp passou a citar a Maia pelo identificador interno (`@lid`, 15 dígitos) nos grupos. `addressedToMaia` (`server/inbox.ts`) comparava o `mentionedJid` só com o **telefone** da instância, então a mensagem era guardada como contexto e ignorada. Nenhuma tarefa de grupo foi criada.
+- **Correção:** variável `MAIA_LID` no ambiente. O webhook (`inbox.ts`) passa a comparar menção e citação também com ela. No worker, `server/groupMention.ts` reconhece o `@MAIA_LID` no texto como rede de segurança, sem depender de o webhook na Vercel já conhecer a variável.
+- **Verificação:** testes em `tests/groupMention.test.ts` (reproduzem o incidente: com `MAIA_LID` a menção conta; sem ele, não).
+- **Pendência:** acrescentar `MAIA_LID` no ambiente da Vercel; sem isso a correção vale só pelo worker. Se a instância mudar de número, o valor muda.
+
+---
+
 ## Atualização 12/10/2026 (estado atual)
 
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
