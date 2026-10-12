@@ -15,7 +15,8 @@ bug, qual era o sintoma e a causa.
 - **Correção:** `server/transcribe.ts` — 120 s por tentativa, 10 s de espera e sem repetir quando estoura o tempo (pior caso ~2 min). `server/ownerRouter.ts` — se a transcrição falha, avisa na hora e guarda o áudio. Novo `server/audioRetry.ts` — o áudio fica em `data/midia` por 24 h (mesma retenção da mídia do dono), e o worker tenta de novo a cada 10 min, um por vez; quando consegue, mostra o texto ao dono e apaga o áudio. Não executa o pedido sozinho: um pedido atrasado pode já não valer.
 - **Arquivos:** `server/transcribe.ts`, `server/audioRetry.ts`, `server/ownerRouter.ts`, `server/inboxWorker.ts`, `tests/transcribe.test.ts`, `tests/audioRetry.test.ts`.
 - **Verificação:** `pnpm typecheck` e `vitest` (455 testes) passando.
-- **Pendências:** o servidor Whisper continua com problema e precisa ser reiniciado ou verificado no EasyPanel; áudio de membro ainda não tem a retomada (só o do dono); a retomada de áudio pendente entra em vigor depois de reiniciar o worker.
+- **Membro (mesmo dia):** a retomada vale também para áudio de membro. Um `.json` ao lado do áudio guarda quem mandou; o membro recebe na hora "Não consegui ouvir seu áudio agora. Guardei por 24 h e te respondo..." e, quando o servidor volta, o texto vira a mensagem dele via `resumeMemberAudio` (confere de novo a permissão `conversa.maia`, grava na conversa e segue `handleMemberMessage`, dentro das permissões e aprovações dele). O dono não é avisado nesse caso. Áudio guardado pela versão anterior, sem o `.json`, é tratado como do dono. Testes: 457 passando.
+- **Pendências:** o servidor Whisper continua com problema e precisa ser reiniciado ou verificado no EasyPanel; a retomada de áudio pendente entra em vigor depois de reiniciar o worker; áudio em grupo ainda não tem retomada.
 
 ## 2026-10-12 — Contato avulso e repasse da resposta a quem a Maia procurou
 

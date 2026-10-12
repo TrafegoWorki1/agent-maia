@@ -1,11 +1,14 @@
-import { readFileSync, readdirSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MEDIA_DIR, saveMedia } from "./media.ts";
 import { transcriberFromEnv, type Transcriber } from "./transcribe.ts";
 
-// Áudio do dono que não pôde ser transcrito (servidor Whisper fora do ar ou lento) fica em data/midia por 24 h,
-// como qualquer mídia do dono (retenção de server/media.ts). O worker tenta de novo de tempos em tempos e, quando
-// consegue, mostra o texto ao dono. Não executa o pedido sozinho: um pedido atrasado pode já não valer.
+// Áudio que a transcrição não deu conta (servidor Whisper fora do ar ou lento) fica em data/midia por 24 h, como qualquer
+// mídia do dono (retenção de server/media.ts). Um arquivo .json ao lado diz de quem é o áudio. O worker tenta de novo
+// de tempos em tempos: para o dono, mostra o texto e pergunta o que fazer (um pedido atrasado pode já não valer); para
+// um membro, trata o texto como a mensagem dele, dentro das permissões dele (quem decide é handleMemberMessage).
+
+export type PendingMeta = { kind: "owner" } | { kind: "member"; from: string; name: string };
 
 const PENDING = /^(\d+)-audio-pendente\.(ogg|m4a|mp3|wav|webm)$/;
 
@@ -17,9 +20,13 @@ function extensionFor(mimetype: string): string {
   return "ogg";
 }
 
-export function savePendingAudio(data: Buffer, mimetype: string, now = Date.now(), dir = MEDIA_DIR): string | null {
+const sidecar = (audioPath: string) => audioPath.replace(/\.[^.]+$/, ".json");
+
+export function savePendingAudio(data: Buffer, mimetype: string, meta: PendingMeta = { kind: "owner" }, now = Date.now(), dir = MEDIA_DIR): string | null {
   try {
-    return saveMedia(data, `audio-pendente.${extensionFor(mimetype)}`, now, dir);
+    const path = saveMedia(data, `audio-pendente.${extensionFor(mimetype)}`, now, dir);
+    writeFileSync(sidecar(path), JSON.stringify(meta));
+    return path;
   } catch (error) {
     console.error("[audio] não consegui guardar o áudio:", error instanceof Error ? error.message : error);
     return null;
@@ -38,8 +45,23 @@ export function pendingAudios(dir = MEDIA_DIR): { path: string; at: number; mime
   }
 }
 
-// Tenta transcrever o áudio pendente mais antigo. Devolve true se avisou o dono.
-export async function retryPendingAudio(notify: (text: string) => Promise<void>, transcribe: Transcriber | null = transcriberFromEnv(), dir = MEDIA_DIR): Promise<boolean> {
+function readMeta(audioPath: string): PendingMeta {
+  try {
+    const meta = JSON.parse(readFileSync(sidecar(audioPath), "utf8")) as Partial<PendingMeta> & { from?: unknown; name?: unknown };
+    if (meta.kind === "member" && typeof meta.from === "string") return { kind: "member", from: meta.from, name: typeof meta.name === "string" ? meta.name : "" };
+  } catch {
+    // arquivo guardado pela versão anterior (sem .json) ou ilegível: era do dono
+  }
+  return { kind: "owner" };
+}
+
+export interface RetryHandlers {
+  notifyOwner: (text: string) => Promise<void>;
+  resumeMember: (meta: { from: string; name: string }, text: string) => Promise<void>;
+}
+
+// Tenta transcrever o áudio pendente mais antigo. Devolve true se o texto foi entregue.
+export async function retryPendingAudio(handlers: RetryHandlers, transcribe: Transcriber | null = transcriberFromEnv(), dir = MEDIA_DIR): Promise<boolean> {
   const next = pendingAudios(dir)[0];
   if (!next || !transcribe) return false;
   let text: string;
@@ -48,9 +70,15 @@ export async function retryPendingAudio(notify: (text: string) => Promise<void>,
   } catch {
     return false;
   }
+  const meta = readMeta(next.path);
   rmSync(next.path, { force: true });
+  rmSync(sidecar(next.path), { force: true });
   if (!text) return false;
+  if (meta.kind === "member") {
+    await handlers.resumeMember({ from: meta.from, name: meta.name }, text);
+    return true;
+  }
   const when = new Date(next.at).toLocaleTimeString("pt-BR", { timeZone: "America/Fortaleza", hour: "2-digit", minute: "2-digit" });
-  await notify(`O servidor de transcrição voltou. O áudio das ${when} que não consegui ouvir diz: "${text.slice(0, 1500)}". Quer que eu faça o que ele pedia?`);
+  await handlers.notifyOwner(`O servidor de transcrição voltou. O áudio das ${when} que não consegui ouvir diz: "${text.slice(0, 1500)}". Quer que eu faça o que ele pedia?`);
   return true;
 }
