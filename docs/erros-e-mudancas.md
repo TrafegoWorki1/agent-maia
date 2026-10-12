@@ -48,6 +48,10 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 
 - **Causa:** a menção veio com o identificador interno do WhatsApp (`@lid`), e o sistema só comparava com o telefone. **Correção:** `MAIA_LID` no ambiente, conferido no webhook e no worker. **Pendência:** `MAIA_LID` no ambiente da Vercel.
 
+## Áudio do dono sem eco da transcrição (12/10/2026)
+
+- **Mudança:** a Maia deixou de responder `Entendi: "<transcrição>"` ao áudio do dono. A transcrição segue no backend e vira o pedido. **Verificação:** `tests/audioSemEco.test.ts`, 438 testes.
+
 ## Atualização 12/10/2026 (estado atual)
 
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
