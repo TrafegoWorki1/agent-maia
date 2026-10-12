@@ -55,6 +55,14 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — Áudio do dono: sem repetir a transcrição no WhatsApp
+
+- **Pedido do owner:** a Maia não deve responder com o texto transcrito do áudio ("Entendi: ..."). A transcrição acontece no backend e vira o pedido; o dono só vê a resposta ao pedido.
+- **Correção:** removida a mensagem de eco em `handleOwnerAudio` (`server/ownerRouter.ts`). Continua transcrevendo, guardando o texto e tratando-o como pedido; os avisos de falha ("Não consegui entender o áudio" e "Não consegui processar o áudio agora") ficam.
+- **Verificação:** `tests/audioSemEco.test.ts` protege a decisão; 438 testes e typecheck passam.
+
+---
+
 ## Atualização 12/10/2026 (estado atual)
 
 - **Aplicado no banco:** `20261012030526_maia_secrets_vault` (cofre), `20261012104713_maia_rules_contatos_prospeccao` (regra de contatos com prospecção) e as demais migrações de hoje. Conferido por leitura.
