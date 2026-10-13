@@ -278,7 +278,7 @@ server.registerTool("grupo_cadastrar", { description: "Cadastra um grupo existen
 // Criar grupo não passa pelo guard genérico: ele usa o mesmo fluxo persistido
 // do roteador do owner, que cria uma aprovação do tipo "grupo" e só chama a
 // Evolution depois do OK. Assim o processo não fica aguardando 10 min no SDK.
-server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda aprovação antes de sair para a Evolution.", inputSchema: { grupo: z.string().min(2).max(100), participantes: z.array(z.string().min(10).max(20)).min(1).max(100) } }, async ({ grupo, participantes }) => {
+server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos da ferramenta: os números de `participantes` entram no grupo já na criação; a Maia entra sozinha por ser quem cria; o WhatsApp exige pelo menos um participante além da Maia. Se o pedido do owner não deixar claro quem deve entrar na criação, pergunte a ele antes de chamar a ferramenta, e mostre a lista exata que você vai enviar.", inputSchema: { grupo: z.string().min(2).max(100), participantes: z.array(z.string().min(10).max(20)).min(1).max(100) } }, async ({ grupo, participantes }) => {
   if (channel !== "whatsapp") return result("A criação de grupo é feita pelo WhatsApp, com aprovação.", true);
   if (requester().role !== "owner") return result("Só o owner pode solicitar a criação de grupo.", true);
   const numbers = [...new Set(participantes.map((item) => item.replace(/\D/g, "")).filter((number) => number.length >= 12 && number.length <= 13))];
