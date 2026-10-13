@@ -18,14 +18,14 @@ describe("menção a todos do grupo", () => {
 
   it("marca todos os números válidos, sem repetir e sem os que já foram pedidos", async () => {
     stubParticipants([
-      { id: "EVOLUTION_OWNER_NUMBER@s.whatsapp.net", admin: "admin" },
-      { id: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net" },
-      { id: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net" },
+      { id: "5511988886666@s.whatsapp.net", admin: "admin" },
+      { id: "5511988887777@s.whatsapp.net" },
+      { id: "5511988887777@s.whatsapp.net" },
       { id: "123@lid" },
       { jid: "5585911112222@s.whatsapp.net" },
     ]);
     const r = await everyMemberNumbers("grupo@g.us", ["5585911112222"]);
-    expect(r).toEqual({ ok: true, numbers: ["EVOLUTION_OWNER_NUMBER", "EVOLUTION_APPROVER_NUMBER"] });
+    expect(r).toEqual({ ok: true, numbers: ["5511988886666", "5511988887777"] });
   });
 
   it("recusa quando o grupo não tem nenhum número válido", async () => {
@@ -39,25 +39,25 @@ describe("menção a todos do grupo", () => {
   });
 
   it("as menções visíveis entram no texto como @número", () => {
-    expect(withMentionTags("Reunião hoje às 15h", ["EVOLUTION_APPROVER_NUMBER"])).toBe("Reunião hoje às 15h @EVOLUTION_APPROVER_NUMBER");
+    expect(withMentionTags("Reunião hoje às 15h", ["5511988887777"])).toBe("Reunião hoje às 15h @5511988887777");
   });
 
   // Menção fantasma: todos recebem o aviso, mas o texto não mostra número nenhum.
   it("a menção fantasma notifica todos e deixa o texto limpo", async () => {
     let sent: { text?: string; mentioned?: string[] } = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init?: RequestInit) => { sent = JSON.parse(String(init?.body)); return new Response(JSON.stringify({ key: { id: "MSG1" } }), { status: 201 }); }));
-    const id = await sendGroupText("grupo@g.us", "Reunião hoje às 15h", [], ["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"]);
+    const id = await sendGroupText("grupo@g.us", "Reunião hoje às 15h", [], ["5511988887777", "5511988886666"]);
     expect(id).toBe("MSG1");
     expect(sent.text).toBe("Reunião hoje às 15h");
-    expect(sent.mentioned).toEqual(["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"]);
+    expect(sent.mentioned).toEqual(["5511988887777", "5511988886666"]);
   });
 
   it("menção visível e fantasma juntas: só a visível aparece no texto, sem repetir ninguém", async () => {
     let sent: { text?: string; mentioned?: string[] } = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init?: RequestInit) => { sent = JSON.parse(String(init?.body)); return new Response(JSON.stringify({ key: { id: "MSG2" } }), { status: 201 }); }));
-    await sendGroupText("grupo@g.us", "Oi", ["EVOLUTION_APPROVER_NUMBER"], ["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"]);
-    expect(sent.text).toBe("Oi @EVOLUTION_APPROVER_NUMBER");
-    expect(sent.mentioned).toEqual(["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"]);
+    await sendGroupText("grupo@g.us", "Oi", ["5511988887777"], ["5511988887777", "5511988886666"]);
+    expect(sent.text).toBe("Oi @5511988887777");
+    expect(sent.mentioned).toEqual(["5511988887777", "5511988886666"]);
   });
 
   it("sem menções, o campo mentioned nem é enviado", async () => {

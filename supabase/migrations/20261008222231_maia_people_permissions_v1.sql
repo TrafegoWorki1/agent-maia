@@ -65,9 +65,9 @@ insert into public.people (name, role) values ('Herickson Maia', 'proprietario')
 insert into public.people (name, role) values ('Aprovador', 'aprovador');
 
 insert into public.person_numbers (number, person_id)
-select 'EVOLUTION_APPROVER_NUMBER', id from public.people where role = 'proprietario';
+select '5511988887777', id from public.people where role = 'proprietario';
 insert into public.person_numbers (number, person_id)
-select 'EVOLUTION_OWNER_NUMBER', id from public.people where role = 'aprovador';
+select '5511988886666', id from public.people where role = 'aprovador';
 
 -- Proprietário tem todas as permissões; aprovador só aprova escrita e conversa.
 insert into public.person_permissions (person_id, permission_code)

@@ -61,8 +61,8 @@ describe("entrada em grupo", () => {
       },
     } as unknown as Db;
     const notify = vi.fn(async (_text: string) => {});
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
-    const join = { jid: JID, action: "add", participants: ["5585991872784", "EVOLUTION_OWNER_NUMBER"] };
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
+    const join = { jid: JID, action: "add", participants: ["5585991872784", "5511988886666"] };
     expect(await notifyGroupJoin(db, join, notify)).toBe(1);
     expect(notify.mock.calls[0][0]).toBe('Ítalo (+5585991872784) entrou no grupo "Projeto Ítalo". Quer que eu dê as boas-vindas?');
   });
@@ -77,16 +77,16 @@ describe("entrada em grupo", () => {
 
 describe("quem entrou vem pelo identificador interno (@lid)", () => {
   const LID = "159554305835854";
-  const participants = [{ number: "EVOLUTION_APPROVER_NUMBER", lid: LID, isAdmin: false }, { number: "EVOLUTION_OWNER_NUMBER", lid: "999", isAdmin: false }];
+  const participants = [{ number: "5511988887777", lid: LID, isAdmin: false }, { number: "5511988886666", lid: "999", isAdmin: false }];
   const lookup = async () => ({ ok: true as const, participants });
 
   it("lê o telefone (phoneNumber) quando o participante vem como objeto", () => {
-    const body = { event: "GROUP_PARTICIPANTS_UPDATE", data: { id: JID, action: "add", participants: [{ id: `${LID}@lid`, phoneNumber: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net" }] } };
-    expect(groupJoinFrom(body)?.participants).toEqual(["EVOLUTION_APPROVER_NUMBER"]);
+    const body = { event: "GROUP_PARTICIPANTS_UPDATE", data: { id: JID, action: "add", participants: [{ id: `${LID}@lid`, phoneNumber: "5511988887777@s.whatsapp.net" }] } };
+    expect(groupJoinFrom(body)?.participants).toEqual(["5511988887777"]);
   });
 
   it("troca o identificador interno pelo telefone da lista de participantes do grupo", async () => {
-    expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: [LID] }, lookup, 0)).toEqual(["EVOLUTION_APPROVER_NUMBER"]);
+    expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: [LID] }, lookup, 0)).toEqual(["5511988887777"]);
     expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: ["5585991872784"] }, lookup, 0)).toEqual(["5585991872784"]);
   });
 
@@ -96,7 +96,7 @@ describe("quem entrou vem pelo identificador interno (@lid)", () => {
   });
 
   it("o plano que esperava o número retoma mesmo com a entrada vindo pelo identificador interno", async () => {
-    const rows: Record<string, any>[] = [{ id: 2, created_at: new Date().toISOString(), title: "Projeto", request: "", steps: [{ text: "a", done: false }], status: "active", waiting: { type: "member_joined", jid: JID, number: "EVOLUTION_APPROVER_NUMBER" }, context: {} }];
+    const rows: Record<string, any>[] = [{ id: 2, created_at: new Date().toISOString(), title: "Projeto", request: "", steps: [{ text: "a", done: false }], status: "active", waiting: { type: "member_joined", jid: JID, number: "5511988887777" }, context: {} }];
     const db = {
       from(table: string) {
         const filters: ((r: any) => boolean)[] = [];
@@ -110,7 +110,7 @@ describe("quem entrou vem pelo identificador interno (@lid)", () => {
           maybeSingle: async () => ({ data: table === "maia_groups" ? { name: "Projeto Italo Teste" } : null }),
           then: (res: (v: unknown) => void) => {
             if (table === "maia_plans") { const hit = rows.filter((r) => filters.every((f) => f(r))); if (patch) hit.forEach((r) => Object.assign(r, patch)); res({ data: hit, error: null }); }
-            else res({ data: table === "contacts" ? [{ number: "EVOLUTION_APPROVER_NUMBER", name: "Herickson pessoal", aliases: [] }] : [], error: null });
+            else res({ data: table === "contacts" ? [{ number: "5511988887777", name: "Herickson pessoal", aliases: [] }] : [], error: null });
           },
         };
         return q;
@@ -118,7 +118,7 @@ describe("quem entrou vem pelo identificador interno (@lid)", () => {
     } as unknown as Db;
     const notify = vi.fn(async (_t: string) => {});
     const resume = vi.fn(async (_p: string) => {});
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     const result = await notifyGroupJoin(db, { jid: JID, action: "add", participants: [LID] }, notify, resume, lookup);
     expect(result).toBe(0);
     expect(resume).toHaveBeenCalledTimes(1);

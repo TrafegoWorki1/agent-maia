@@ -8,8 +8,8 @@ const member: Requester = { role: "member", name: "M", number: "2", permissions:
 
 describe("números e descadastro", () => {
   it("aceita só DDI+DDD+número, com 12 ou 13 dígitos", () => {
-    expect(normalizeNumber("+55 (11) 98888-7777")).toBe("EVOLUTION_APPROVER_NUMBER");
-    expect(normalizeNumber("EVOLUTION_APPROVER_NUMBER")).toBe("EVOLUTION_APPROVER_NUMBER");
+    expect(normalizeNumber("+55 (11) 98888-7777")).toBe("5511988887777");
+    expect(normalizeNumber("5511988887777")).toBe("5511988887777");
     expect(normalizeNumber("998372658")).toBeNull();
     expect(normalizeNumber("12345678901234")).toBeNull();
   });
@@ -37,14 +37,14 @@ describe("teto diário", () => {
 });
 
 describe("planejamento do lote", () => {
-  const onWhatsApp = new Set(["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"]);
+  const onWhatsApp = new Set(["5511988887777", "5511988886666"]);
   it("aceita quem tem WhatsApp, e explica quem ficou de fora", () => {
     const plan = planBatch({
       items: [
         { numero: "+55 11 98888-7777", nome: "Ana" },
-        { numero: "EVOLUTION_OWNER_NUMBER", nome: "Bia" },
+        { numero: "5511988886666", nome: "Bia" },
         { numero: "5585911110000", nome: "Sem zap" },
-        { numero: "EVOLUTION_APPROVER_NUMBER", nome: "Repetida" },
+        { numero: "5511988887777", nome: "Repetida" },
         { numero: "12", nome: "Inválido" },
         { numero: "5585922220000", nome: "Saiu" },
         { numero: "5585933330000", nome: "Já falamos" },
@@ -53,17 +53,17 @@ describe("planejamento do lote", () => {
       contacted: new Set(["5585933330000"]),
       onWhatsApp: new Set([...onWhatsApp, "5585922220000", "5585933330000"]),
     });
-    expect(plan.accepted).toEqual([{ number: "EVOLUTION_APPROVER_NUMBER", name: "Ana" }, { number: "EVOLUTION_OWNER_NUMBER", name: "Bia" }]);
+    expect(plan.accepted).toEqual([{ number: "5511988887777", name: "Ana" }, { number: "5511988886666", name: "Bia" }]);
     const motivos = Object.fromEntries(plan.skipped.map((s) => [s.number, s.motivo]));
     expect(motivos["5585911110000"]).toBe("sem WhatsApp");
-    expect(motivos["EVOLUTION_APPROVER_NUMBER"]).toBe("repetido na mesma lista");
+    expect(motivos["5511988887777"]).toBe("repetido na mesma lista");
     expect(motivos["12"]).toMatch(/inválido/);
     expect(motivos["5585922220000"]).toBe("pediu para sair");
     expect(motivos["5585933330000"]).toMatch(/já foi contatado/);
   });
 
   it("nome longo é cortado e vazio fica vazio", () => {
-    const plan = planBatch({ items: [{ numero: "EVOLUTION_APPROVER_NUMBER", nome: "x".repeat(120) }], optouts: new Set(), contacted: new Set(), onWhatsApp });
+    const plan = planBatch({ items: [{ numero: "5511988887777", nome: "x".repeat(120) }], optouts: new Set(), contacted: new Set(), onWhatsApp });
     expect(plan.accepted[0].name).toHaveLength(80);
   });
 });

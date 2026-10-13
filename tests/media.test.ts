@@ -9,8 +9,8 @@ import { mediaFrom } from "../server/evolutionWebhook.ts";
 import { toInboxRow } from "../server/inbox.ts";
 import { buildMediaPrompt, classifyDocument, clip, docxToText, extractVideoParts, purgeOldMedia, safeName, saveMedia, videoDuration, xlsxToText } from "../server/media.ts";
 
-const OWNER = "EVOLUTION_OWNER_NUMBER";
-const APPROVER = "EVOLUTION_APPROVER_NUMBER";
+const OWNER = "5511988886666";
+const APPROVER = "5511988887777";
 const MEMBER = "5585911112222";
 const message = (from: string, extra: Record<string, unknown>) => ({
   event: "messages.upsert",

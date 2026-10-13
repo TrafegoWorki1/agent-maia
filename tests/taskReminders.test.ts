@@ -36,7 +36,7 @@ describe("lembrete grava a própria mensagem na conversa", () => {
   afterEach(() => vi.clearAllMocks());
 
   it("envio aceito chama recordMessage com o texto que foi enviado (tarefa, responsável, prazo)", async () => {
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     const { db } = database({ id: 1, work_task_id: 4 }, { title: "Falar com o projeto do Gusta sobre a Mari Ferre", responsible: "Herickson", due_at: null, status: "pendente" });
     await runTaskReminders(db);
     expect(recordMessage).toHaveBeenCalledTimes(1);
@@ -48,7 +48,7 @@ describe("lembrete grava a própria mensagem na conversa", () => {
   });
 
   it("falha no envio não grava nada na conversa (nada foi de fato enviado)", async () => {
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     vi.mocked(sendTextChecked).mockRejectedValueOnce(new DeliveryError("HTTP 400", false));
     const { db } = database({ id: 2, work_task_id: 5 }, { title: "x", responsible: "y", due_at: null, status: "pendente" });
     await runTaskReminders(db);
@@ -56,7 +56,7 @@ describe("lembrete grava a própria mensagem na conversa", () => {
   });
 
   it("sem lembrete vencido, não faz nada", async () => {
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     const { db } = database(null, { title: "x", responsible: "y", due_at: null, status: "pendente" });
     await runTaskReminders(db);
     expect(sendTextChecked).not.toHaveBeenCalled();

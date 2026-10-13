@@ -32,11 +32,11 @@ describe("webhook da Evolution", () => {
   });
 
   it("compara números brasileiros com e sem o nono dígito", () => {
-    expect(samePhone("EVOLUTION_APPROVER_NUMBER", "EVOLUTION_APPROVER_NUMBER")).toBe(true);
-    expect(samePhone("EVOLUTION_APPROVER_NUMBER", "EVOLUTION_APPROVER_NUMBER")).toBe(true);
-    expect(samePhone("EVOLUTION_OWNER_NUMBER", "EVOLUTION_OWNER_NUMBER")).toBe(true);
-    expect(samePhone("EVOLUTION_OWNER_NUMBER", "EVOLUTION_APPROVER_NUMBER")).toBe(false);
-    expect(samePhone(undefined, "EVOLUTION_APPROVER_NUMBER")).toBe(false);
+    expect(samePhone("5511988887777", "551188887777")).toBe(true);
+    expect(samePhone("551188887777", "5511988887777")).toBe(true);
+    expect(samePhone("5511988886666", "551188886666")).toBe(true);
+    expect(samePhone("5511988886666", "5511988887777")).toBe(false);
+    expect(samePhone(undefined, "5511988887777")).toBe(false);
     expect(samePhone("", "")).toBe(false);
   });
 
@@ -52,22 +52,22 @@ describe("áudio recebido", () => {
   const audioEvent = (fromMe: boolean) => ({
     event: "messages.upsert",
     data: {
-      key: { id: "AUD1", remoteJid: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net", fromMe },
+      key: { id: "AUD1", remoteJid: "5511988887777@s.whatsapp.net", fromMe },
       message: { audioMessage: { mimetype: "audio/ogg; codecs=opus", ptt: true } },
     },
   });
 
   it("reconhece nota de voz do remetente e guarda a referência para baixar", () => {
     expect(audioFrom(audioEvent(false))).toEqual({
-      key: { id: "AUD1", remoteJid: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net", fromMe: false },
+      key: { id: "AUD1", remoteJid: "5511988887777@s.whatsapp.net", fromMe: false },
       mimetype: "audio/ogg; codecs=opus",
-      from: "EVOLUTION_APPROVER_NUMBER",
+      from: "5511988887777",
     });
   });
 
   it("ignora áudio enviado pela própria conta e texto comum", () => {
     expect(audioFrom(audioEvent(true))).toBeNull();
-    expect(audioFrom({ event: "messages.upsert", data: { key: { remoteJid: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net" }, message: { conversation: "oi" } } })).toBeNull();
+    expect(audioFrom({ event: "messages.upsert", data: { key: { remoteJid: "5511988887777@s.whatsapp.net" }, message: { conversation: "oi" } } })).toBeNull();
     expect(incomingText(audioEvent(false))).toBeNull();
   });
 });

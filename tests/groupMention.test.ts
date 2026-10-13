@@ -6,7 +6,7 @@ import { toInboxRow } from "../server/inbox.ts";
 // sistema só comparava com o telefone.
 const LID = "123456789012345";
 const PHONE = "558586661513";
-const OWNER = "EVOLUTION_OWNER_NUMBER";
+const OWNER = "5511988886666";
 const OP = "120363412181825151@g.us";
 const GROUPS = new Map([[OP, {}]]);
 

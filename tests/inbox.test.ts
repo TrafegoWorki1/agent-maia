@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { toInboxRow } from "../server/inbox.ts";
 
-const OWNER = "EVOLUTION_APPROVER_NUMBER";
-const APPROVER = "EVOLUTION_OWNER_NUMBER";
+const OWNER = "5511988887777";
+const APPROVER = "5511988886666";
 
 function message(from: string, extra: Record<string, unknown>, fromMe = false, event = "messages.upsert") {
   return {
@@ -43,10 +43,10 @@ describe("triagem do webhook para a fila", () => {
 
   it("grupo cadastrado: todo texto entra, marcando se chamou a Maia", () => {
     const OP = "120363412181825151@g.us";
-    const msg = (text: string, fromMe = false) => ({ event: "messages.upsert", instance: "wt_test", data: { pushName: "Herickson", key: { id: "G2", remoteJid: OP, fromMe, participant: "EVOLUTION_OWNER_NUMBER@s.whatsapp.net" }, message: { conversation: text } } });
+    const msg = (text: string, fromMe = false) => ({ event: "messages.upsert", instance: "wt_test", data: { pushName: "Herickson", key: { id: "G2", remoteJid: OP, fromMe, participant: "5511988886666@s.whatsapp.net" }, message: { conversation: text } } });
     const row = toInboxRow(msg("Maia, a reunião foi ótima"), OWNER, APPROVER, new Map([[OP, {}]]));
     expect(row).toMatchObject({ kind: "text", sender: "group" });
-    expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "EVOLUTION_OWNER_NUMBER", name: "Herickson", text: "Maia, a reunião foi ótima", addressed: true });
+    expect(JSON.parse(row!.payload!)).toEqual({ jid: OP, participant: "5511988886666", name: "Herickson", text: "Maia, a reunião foi ótima", addressed: true });
     expect(JSON.parse(toInboxRow(msg("Bom dia pessoal"), OWNER, APPROVER, new Map([[OP, {}]]))!.payload!)).toMatchObject({ text: "Bom dia pessoal", addressed: false });
     expect(JSON.parse(toInboxRow(msg("a Maiara chegou"), OWNER, APPROVER, new Map([[OP, {}]]))!.payload!)).toMatchObject({ addressed: false });
     expect(toInboxRow(msg("Maia, ok", true), OWNER, APPROVER, new Map([[OP, {}]]))).toMatchObject({ kind: "event" });
@@ -56,11 +56,11 @@ describe("triagem do webhook para a fila", () => {
   it("grupo operacional: continuação, resposta e menção também valem", () => {
     const OP = "120363412181825151@g.us";
     const now = new Date("2026-10-09T17:13:00Z");
-    const base = (text: string, extra: Record<string, unknown> = {}, participant = "EVOLUTION_OWNER_NUMBER@s.whatsapp.net") => ({
+    const base = (text: string, extra: Record<string, unknown> = {}, participant = "5511988886666@s.whatsapp.net") => ({
       event: "messages.upsert", instance: "wt_test", sender: "5585900000000@s.whatsapp.net",
       data: { pushName: "Herickson", key: { id: "G4", remoteJid: OP, fromMe: false, participant }, message: extra.message ?? { conversation: text } },
     });
-    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "EVOLUTION_OWNER_NUMBER" }]]);
+    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "5511988886666" }]]);
     // continuação da conversa com a mesma pessoa, sem dizer "Maia"
     expect(toInboxRow(base("Cria uma planilha e depois me envia o link aqui!"), OWNER, APPROVER, state, now)).toMatchObject({ kind: "text" });
     // outra pessoa, sem chamar: guardada na memória do grupo, mas sem resposta
@@ -84,8 +84,8 @@ describe("triagem do webhook para a fila", () => {
     expect(plain).toMatchObject({ kind: "audio", sender: "group" });
     expect(JSON.parse(plain!.payload!)).toMatchObject({ jid: OP, participant: "5511999999999", name: "Herickson", addressed: false, key: { id: "G5" }, mimetype: "audio/ogg; codecs=opus" });
     // dentro da janela de 10 min de uma conversa com a mesma pessoa: addressed true
-    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "EVOLUTION_OWNER_NUMBER" }]]);
-    expect(JSON.parse(toInboxRow(audioMsg("EVOLUTION_OWNER_NUMBER"), OWNER, APPROVER, state, now)!.payload!)).toMatchObject({ addressed: true });
+    const state = new Map([[OP, { lastReplyAt: "2026-10-09T17:08:00Z", lastReplyTo: "5511988886666" }]]);
+    expect(JSON.parse(toInboxRow(audioMsg("5511988886666"), OWNER, APPROVER, state, now)!.payload!)).toMatchObject({ addressed: true });
     // grupo não cadastrado: não entra como áudio
     expect(toInboxRow(audioMsg("5511999999999"), OWNER, APPROVER, new Map())).toMatchObject({ kind: "event", payload: OP });
     // mensagem da própria conta (fromMe): ignorada

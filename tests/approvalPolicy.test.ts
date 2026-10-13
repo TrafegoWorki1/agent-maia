@@ -3,7 +3,7 @@ import { requiresApproval } from "../server/approvalPolicy.ts";
 import { canConverse, decideAccess, type Requester } from "../server/access.ts";
 import { matchContacts } from "../server/contacts.ts";
 
-const owner: Requester = { role: "owner", name: "Herickson", number: "EVOLUTION_OWNER_NUMBER", permissions: new Set() };
+const owner: Requester = { role: "owner", name: "Herickson", number: "5511988886666", permissions: new Set() };
 const member = (...perms: string[]): Requester => ({ role: "member", name: "Jéssica", number: "5585911112222", permissions: new Set(perms) });
 const guest: Requester = { role: "guest", name: "Alguém", number: "", permissions: new Set() };
 

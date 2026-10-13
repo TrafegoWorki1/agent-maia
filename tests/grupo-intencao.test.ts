@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseGroupIntent } from "../server/groups.ts";
 
-const OWNER = "EVOLUTION_OWNER_NUMBER";
+const OWNER = "5511988886666";
 
 describe("pedido natural de criar grupo", () => {
   it("entende 'criar grupo Nome e me coloca' e inclui o dono", () => {
@@ -20,9 +20,9 @@ describe("pedido natural de criar grupo", () => {
   });
 
   it("mantém o formato explícito com números", () => {
-    expect(parseGroupIntent("criar grupo Teste | 5585986139044, EVOLUTION_OWNER_NUMBER", OWNER)).toEqual({
+    expect(parseGroupIntent("criar grupo Teste | 5585986139044, 5511988886666", OWNER)).toEqual({
       name: "Teste",
-      participants: ["5585986139044", "EVOLUTION_OWNER_NUMBER"],
+      participants: ["5585986139044", "5511988886666"],
     });
   });
 

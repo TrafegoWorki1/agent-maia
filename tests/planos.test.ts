@@ -135,7 +135,7 @@ describe("entrada no grupo retoma o plano", () => {
     await setWaiting(db, id, { type: "member_joined", jid: "g1@g.us", number: "5585991872784" });
     const notify = vi.fn(async (_t: string) => {});
     const resume = vi.fn(async (_p: string) => {});
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     expect(await notifyGroupJoin(db, { jid: "g1@g.us", action: "add", participants: ["5585991872784"] }, notify, resume)).toBe(0);
     expect(resume).toHaveBeenCalledTimes(1);
     expect(resume.mock.calls[0][0]).toContain("Ítalo (+5585991872784) entrou no grupo");
@@ -146,7 +146,7 @@ describe("entrada no grupo retoma o plano", () => {
     const { db } = memoryDb({ maia_groups: [groupRow] });
     const notify = vi.fn(async (_t: string) => {});
     const resume = vi.fn(async (_p: string) => {});
-    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_OWNER_NUMBER = "5511988886666";
     expect(await notifyGroupJoin(db, { jid: "g1@g.us", action: "add", participants: ["5585991872784"] }, notify, resume)).toBe(1);
     expect(resume).not.toHaveBeenCalled();
     expect(notify.mock.calls[0][0]).toContain("Quer que eu dê as boas-vindas?");

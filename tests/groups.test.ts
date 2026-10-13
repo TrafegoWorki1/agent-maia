@@ -3,9 +3,9 @@ import { groupExists, parseCreateGroup, parseOwnerTask } from "../server/groups.
 
 describe("comandos de grupo do dono", () => {
   it("lê o nome e os participantes de 'criar grupo'", () => {
-    expect(parseCreateGroup("criar grupo Operação Julho | EVOLUTION_APPROVER_NUMBER, EVOLUTION_OWNER_NUMBER")).toEqual({
+    expect(parseCreateGroup("criar grupo Operação Julho | 5511988887777, 5511988886666")).toEqual({
       name: "Operação Julho",
-      participants: ["EVOLUTION_APPROVER_NUMBER", "EVOLUTION_OWNER_NUMBER"],
+      participants: ["5511988887777", "5511988886666"],
     });
   });
 
@@ -158,15 +158,15 @@ describe("consultas novas de grupo (info, participantes, convite)", () => {
   });
 
   it("findGroupInfos traz descrição, dono e tamanho", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ subject: "Operacional", desc: "Grupo da equipe", owner: "EVOLUTION_OWNER_NUMBER@s.whatsapp.net", size: 3, creation: 1760000000 }), { status: 200 })));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ subject: "Operacional", desc: "Grupo da equipe", owner: "5511988886666@s.whatsapp.net", size: 3, creation: 1760000000 }), { status: 200 })));
     const result = await fetchGroupInfo("120363@g.us");
-    expect(result).toMatchObject({ ok: true, info: { subject: "Operacional", description: "Grupo da equipe", owner: "EVOLUTION_OWNER_NUMBER", size: 3 } });
+    expect(result).toMatchObject({ ok: true, info: { subject: "Operacional", description: "Grupo da equipe", owner: "5511988886666", size: 3 } });
   });
 
   it("participants lista número e quem é admin", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ participants: [{ id: "EVOLUTION_OWNER_NUMBER@s.whatsapp.net", admin: "superadmin" }, { id: "5585911112222@s.whatsapp.net", admin: null }] }), { status: 200 })));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ participants: [{ id: "5511988886666@s.whatsapp.net", admin: "superadmin" }, { id: "5585911112222@s.whatsapp.net", admin: null }] }), { status: 200 })));
     const result = await fetchGroupParticipants("120363@g.us");
-    expect(result).toMatchObject({ ok: true, participants: [{ number: "EVOLUTION_OWNER_NUMBER", isAdmin: true }, { number: "5585911112222", isAdmin: false }] });
+    expect(result).toMatchObject({ ok: true, participants: [{ number: "5511988886666", isAdmin: true }, { number: "5585911112222", isAdmin: false }] });
   });
 
   it("inviteCode monta o link a partir do inviteCode devolvido", async () => {

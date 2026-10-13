@@ -20,8 +20,8 @@ describe("grupo pelo nome", () => {
 
 describe("menções e validações", () => {
   it("coloca @número no texto quando falta", () => {
-    expect(withMentionTags("Bom dia", ["EVOLUTION_OWNER_NUMBER"])).toBe("Bom dia @EVOLUTION_OWNER_NUMBER");
-    expect(withMentionTags("Oi @EVOLUTION_OWNER_NUMBER", ["EVOLUTION_OWNER_NUMBER"])).toBe("Oi @EVOLUTION_OWNER_NUMBER");
+    expect(withMentionTags("Bom dia", ["5511988886666"])).toBe("Bom dia @5511988886666");
+    expect(withMentionTags("Oi @5511988886666", ["5511988886666"])).toBe("Oi @5511988886666");
   });
   it("valida texto, enquete e horário", () => {
     expect(validateText("  ")).not.toBeNull();

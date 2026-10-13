@@ -6,8 +6,8 @@ const sent: string[] = [];
 vi.mock("../server/evolutionSend.ts", () => ({ sendOwnerText: vi.fn(async (_to: string, text: string) => { sent.push(text); }) }));
 vi.mock("../server/approvals.ts", () => ({
   APPROVAL_TTL_MS: 600_000,
-  approverNumbers: vi.fn(async () => ["EVOLUTION_OWNER_NUMBER", "5585999999999"]),
-  ownerNumbers: vi.fn(async () => ["EVOLUTION_OWNER_NUMBER"]),
+  approverNumbers: vi.fn(async () => ["5511988886666", "5585999999999"]),
+  ownerNumbers: vi.fn(async () => ["5511988886666"]),
   createApproval: vi.fn(async () => ({ id: 9, expiresAt: "2099-01-01T00:00:00Z" })),
   decideFromText: vi.fn(),
   openApprovals: vi.fn(async () => []),
@@ -26,16 +26,16 @@ import { requestCreateGroup } from "../server/groups.ts";
 describe("pedido de criação de grupo", () => {
   beforeEach(() => {
     sent.length = 0;
-    process.env.EVOLUTION_APPROVER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    process.env.EVOLUTION_APPROVER_NUMBER = "5511988886666";
   });
 
   it("lista cada participante (com o nome da agenda) e avisa que a Maia entra por ser quem cria", async () => {
-    const reply = await requestCreateGroup({ db: {} as never, notifyOwner: async () => {} }, "Projeto Ítalo", ["5585991872784", "EVOLUTION_OWNER_NUMBER"]);
+    const reply = await requestCreateGroup({ db: {} as never, notifyOwner: async () => {} }, "Projeto Ítalo", ["5585991872784", "5511988886666"]);
     const message = sent[0];
     expect(message).toContain('Pedido para criar o grupo "Projeto Ítalo" (#9)');
     expect(message).toContain("além da Maia");
     expect(message).toContain("- Ítalo (+5585991872784)");
-    expect(message).toContain("- +EVOLUTION_OWNER_NUMBER");
+    expect(message).toContain("- +5511988886666");
     expect(message).toContain("Responda OK para criar ou NÃO para recusar");
     expect(sent.length).toBe(1);
     expect(reply).toContain("Ítalo (+5585991872784)");
