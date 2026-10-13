@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Validação ao vivo: PDF no grupo continua o plano
+
+- **Resultado do teste (grupo "Projeto Italo Teste", plano #2):** o PDF enviado pelo número 2658 chegou à fila às 02:56, o sistema reconheceu que o plano esperava um arquivo daquele grupo e daquele número, baixou e leu o arquivo, chamou a Maia (tarefa 401, "Continuação do plano #2") e ela mandou a análise no grupo e respondeu ao dono às 02:58. O plano #2 terminou concluído, com as 5 etapas feitas.
+- **Validado:** criação de grupo com OK do dono, plano gravado e retomado sozinho depois do OK, link enviado sem pedir de novo, gatilho de arquivo no grupo, leitura de PDF e continuação do plano sem o dono avisar.
+- **Não validado ainda:** a entrada de alguém no grupo retomando o plano sozinha com o identificador interno (@lid) já resolvido para telefone. Nesse teste a entrada ocorreu antes da correção, então o fluxo caiu no aviso "Quer que eu dê as boas-vindas?". Repetir com um grupo novo e outra pessoa entrando pelo link.
+- **Observação:** o plano #2 foi ajustado à mão para esperar o arquivo (a Maia tinha seguido o caminho manual depois do "Sim" do dono); no fluxo normal, a retomada pela entrada orienta a Maia a marcar essa espera.
+
 ## 2026-10-13 — Entrada em grupo pelo identificador interno (@lid) retoma o plano
 
 - **Sintoma (teste ao vivo, grupo "Projeto Italo Teste", plano #2):** o plano foi gravado, o OK criou o grupo e a Maia mandou o link sozinha. Mas quando a pessoa entrou, o plano não retomou: a Maia só perguntou "Quer que eu dê as boas-vindas?". Depois da sua resposta "Sim", ela fez as boas-vindas à mão e prometeu "leio o PDF, sem precisar me avisar", mas o plano continuava esperando a **entrada**, não o arquivo; o PDF enviado pelo número 2658 foi ignorado.
