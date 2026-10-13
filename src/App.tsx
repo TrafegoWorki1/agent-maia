@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Activity, Bot, CircleHelp, Home, KeyRound, Megaphone, Menu, Plug, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, Bot, CircleHelp, Home, KeyRound, Landmark, Layers, Megaphone, Menu, Plug, ShieldCheck, TrendingUp, Users, X } from "lucide-react";
 import { Avatar, DotStatus } from "./components/ui";
 import { connectionSummary, SnapshotProvider, useSnapshot } from "./lib/useSnapshot";
 import { supabase } from "./lib/supabaseBrowser";
@@ -20,8 +20,14 @@ const InsightsPage = lazy(() => import("./features/operacao/OperacaoPages").then
 const TomPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.TomPage })));
 const OcorrenciasPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.OcorrenciasPage })));
 const ManualOperadorPanel = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.ManualOperadorPanel })));
+const OportunidadesPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.OportunidadesPage })));
+const FunilPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.FunilPage })));
+const ProjetosListaPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.ProjetosListaPage })));
+const ImplementacoesPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.ImplementacoesPage })));
+const ReceitasPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.ReceitasPage })));
+const CustosPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.CustosPage })));
 const HOSTED = import.meta.env.VITE_MAIA_HOSTED === "1";
-const icons = { home: Home, marketing: Megaphone, execution: ShieldCheck, groups: Users, access: KeyRound, agent: Bot, system: Plug };
+const icons = { home: Home, marketing: Megaphone, execution: ShieldCheck, groups: Users, access: KeyRound, agent: Bot, system: Plug, comercial: TrendingUp, projetos: Layers, financeiro: Landmark };
 
 export default function App() {
   const [identity, setIdentity] = useState<{ owner: boolean; name: string } | null>(null);
@@ -95,6 +101,12 @@ function Screen({ id }: { id: ScreenId }) {
     case "tom": return <TomPage />;
     case "tarefas": return <TarefasPage />;
     case "ocorrencias": return <OcorrenciasPage />;
+    case "oportunidades": return <OportunidadesPage />;
+    case "funil": return <FunilPage />;
+    case "projetos-lista": return <ProjetosListaPage />;
+    case "implementacoes": return <ImplementacoesPage />;
+    case "receitas": return <ReceitasPage />;
+    case "custos": return <CustosPage />;
     case "grupos": return <GruposPage />;
     case "clientes": return <ClientsPage />;
     case "pessoas": return <PeoplePage />;
