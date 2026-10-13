@@ -3,16 +3,19 @@ import { z } from "zod";
 import type { Db } from "./store.ts";
 
 export const workStatus = z.enum(["pendente", "em_andamento", "concluida"]);
+export const workTipo = z.enum(["melhoria", "bug", "conteudo", "operacional", "outro"]);
 // Fuso explícito evita gravar horário local como UTC silenciosamente.
 export const timestamp = z.string().refine((s) => /(?:Z|[+-]\d{2}:\d{2})$/.test(s) && Number.isFinite(Date.parse(s)), "Use data ISO com fuso, ex.: 2026-10-11T09:00:00-03:00");
 export const createWorkSchema = z.object({
   titulo: z.string().trim().min(1).max(200), responsavel: z.string().trim().min(1).max(100),
   prazo: timestamp.nullable().optional(), chave: z.string().min(1).max(200).optional(),
+  tipo: workTipo.optional(),
 });
 export const updateWorkSchema = z.object({
   id: z.number().int().positive(), revisao: z.number().int().positive(),
   titulo: z.string().trim().min(1).max(200).optional(), responsavel: z.string().trim().min(1).max(100).optional(),
   status: workStatus.optional(), prazo: timestamp.nullable().optional(), evidencia: z.string().trim().min(1).max(2000).optional(),
+  tipo: workTipo.nullable().optional(),
 }).refine((a) => a.status !== "concluida" || !!a.evidencia, "Concluir exige evidência do trabalho entregue");
 export const reminderSchema = z.object({ tarefa_id: z.number().int().positive(), horario: timestamp, chave: z.string().min(1).max(200).optional() });
 export const editReminderSchema = z.object({ id: z.number().int().positive(), cancelar: z.boolean().optional(), horario: timestamp.optional() })
@@ -21,6 +24,7 @@ export const editReminderSchema = z.object({ id: z.number().int().positive(), ca
 export interface WorkTask {
   id: number; title: string; responsible: string; status: "pendente" | "em_andamento" | "concluida";
   due_at: string | null; revision: number; completion_evidence: string | null; completed_at: string | null; updated_at: string;
+  tipo: "melhoria" | "bug" | "conteudo" | "operacional" | "outro" | null;
 }
 export function isOverdue(t: Pick<WorkTask, "status" | "due_at">, now = new Date()): boolean {
   return t.status !== "concluida" && !!t.due_at && Date.parse(t.due_at) < now.getTime();
@@ -33,7 +37,7 @@ export async function createWorkTask(db: Db, input: unknown, sourceTaskId?: numb
   const a = createWorkSchema.parse(input);
   const key = a.chave ?? requestKey(`exec:${sourceTaskId ?? 0}`, a);
   if (!a.chave && !sourceTaskId) throw new Error("Criação exige chave de idempotência");
-  const row = { title: a.titulo, responsible: a.responsavel, due_at: a.prazo ?? null, request_key: key, source_task_id: sourceTaskId || null };
+  const row = { title: a.titulo, responsible: a.responsavel, due_at: a.prazo ?? null, request_key: key, source_task_id: sourceTaskId || null, ...(a.tipo ? { tipo: a.tipo } : {}) };
   const inserted = await db.from("work_tasks").upsert(row, { onConflict: "request_key", ignoreDuplicates: true }).select("*");
   check(inserted.error);
   const existing = inserted.data?.[0] ?? (await db.from("work_tasks").select("*").eq("request_key", key).single()).data;
@@ -43,7 +47,7 @@ export async function createWorkTask(db: Db, input: unknown, sourceTaskId?: numb
 export async function updateWorkTask(db: Db, input: unknown) {
   const a = updateWorkSchema.parse(input);
   const patch: Record<string, unknown> = {};
-  for (const [from, to] of [["titulo","title"],["responsavel","responsible"],["status","status"],["prazo","due_at"],["evidencia","completion_evidence"]] as const) {
+  for (const [from, to] of [["titulo","title"],["responsavel","responsible"],["status","status"],["prazo","due_at"],["evidencia","completion_evidence"],["tipo","tipo"]] as const) {
     if (a[from] !== undefined) patch[to] = a[from];
   }
   if (!Object.keys(patch).length) throw new Error("Nenhuma alteração informada");

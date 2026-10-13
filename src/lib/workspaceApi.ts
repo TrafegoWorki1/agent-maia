@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseBrowser";
 
-export interface WorkRow { id: number; title: string; responsible: string; status: "pendente" | "em_andamento" | "concluida"; due_at: string | null; revision: number; completion_evidence: string | null; overdue: boolean }
+export interface WorkRow { id: number; title: string; responsible: string; status: "pendente" | "em_andamento" | "concluida"; due_at: string | null; revision: number; completion_evidence: string | null; overdue: boolean; tipo: "melhoria" | "bug" | "conteudo" | "operacional" | "outro" | null }
 export interface ReminderRow { id: number; work_task_id: number; run_at: string; status: string; kind: string; message_id: string | null; error: string | null }
 export interface ReviewRow { task_id: number; relevant: boolean; resolution: string; expected: string; evidence: string }
 export interface Candidate { id: number; summary: string; status: string; created_at: string; request: string | null; response: string; events: { type: string; operation: string | null; detail: string | null }[] }

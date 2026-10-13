@@ -11,7 +11,7 @@ let root: Root | undefined;
 afterEach(async () => { if (root) await act(async () => root!.unmount()); document.body.innerHTML=""; root=undefined; });
 describe("painel de tarefas e revisão humana", () => {
   it("mostra atraso, falha/incerteza e ausência de nota sem simular eficácia", async () => {
-    vi.mocked(workspaceRequest).mockResolvedValue({ work:{ limit:200,tasks:[{ id:1,title:"Entregar planejamento",responsible:"Herickson",status:"pendente",due_at:"2026-10-09T12:00:00Z",revision:1,completion_evidence:null,overdue:true }],reminders:[{ id:1,work_task_id:1,run_at:"2026-10-09T12:00:00Z",status:"uncertain",kind:"prazo",message_id:null,error:"tempo limite" }] },effectiveness:{ sample:0,targetSample:20,sufficient:false,relevance:null,resolution:null,partial:0,candidates:[],reviews:[],deliveries:[],sampleScope:"Últimos 7 dias" } });
+    vi.mocked(workspaceRequest).mockResolvedValue({ work:{ limit:200,tasks:[{ id:1,title:"Entregar planejamento",responsible:"Herickson",status:"pendente",due_at:"2026-10-09T12:00:00Z",revision:1,completion_evidence:null,overdue:true,tipo:null }],reminders:[{ id:1,work_task_id:1,run_at:"2026-10-09T12:00:00Z",status:"uncertain",kind:"prazo",message_id:null,error:"tempo limite" }] },effectiveness:{ sample:0,targetSample:20,sufficient:false,relevance:null,resolution:null,partial:0,candidates:[],reviews:[],deliveries:[],sampleScope:"Últimos 7 dias" } });
     const host=document.createElement("div");document.body.append(host);root=createRoot(host);
     await act(async () => root!.render(createElement(TarefasPage)));
     expect(host.textContent).toContain("Pendente · Atrasada");

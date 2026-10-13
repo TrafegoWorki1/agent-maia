@@ -6,6 +6,7 @@ import { workspaceRequest, type WorkspaceData, type WorkRow } from "../../lib/wo
 // WhatsApp (ferramentas tarefa_criar/lembrete_criar) — nunca por um formulário aqui. Esta tela só acompanha e,
 // quando preciso, corrige o que já existe (editar, reagendar, cancelar, reenviar); não cria nada do zero.
 const statusLabel = { pendente: "Pendente", em_andamento: "Em andamento", concluida: "Concluída" };
+const tipoLabel: Record<string, string> = { melhoria: "Melhoria", bug: "Bug", conteudo: "Conteúdo", operacional: "Operacional", outro: "Outro" };
 const reminderLabel: Record<string,string> = { pending: "Agendado", sending: "Em envio", sent: "Aceito pelo WhatsApp", failed: "Falhou", uncertain: "Incerto · não repetido", cancelled: "Cancelado" };
 const brt = (v: string | null) => v ? new Date(v).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Sem prazo";
 const iso = (v: string) => v ? `${v}:00-03:00` : null;
@@ -14,6 +15,8 @@ export function TarefasPage() {
   const [data,setData] = useState<WorkspaceData | null>(null), [error,setError] = useState(""), [busy,setBusy] = useState(false);
   const [title,setTitle] = useState(""), [responsible,setResponsible] = useState("Herickson"), [due,setDue] = useState("");
   const [selected,setSelected] = useState<WorkRow | null>(null), [state,setState] = useState<WorkRow["status"]>("pendente"), [evidence,setEvidence] = useState("");
+  const [tipo,setTipo] = useState<WorkRow["tipo"]>(null);
+  const [filterTipo,setFilterTipo] = useState<string>("");
   const [reminderTime,setReminderTime] = useState("");
   const [editReminderId,setEditReminderId] = useState<number | null>(null);
   const [notice,setNotice] = useState("");
@@ -31,17 +34,23 @@ export function TarefasPage() {
   }
   async function update(e: FormEvent) {
     e.preventDefault(); if (!selected) return;
-    if (await mutate("update",{ id:selected.id,revisao:selected.revision,titulo:title,responsavel:responsible,prazo:iso(due),status:state,...(state === "concluida" ? { evidencia:evidence } : {}) })) { setSelected(null); setTitle(""); setDue(""); }
+    if (await mutate("update",{ id:selected.id,revisao:selected.revision,titulo:title,responsavel:responsible,prazo:iso(due),status:state,...(state === "concluida" ? { evidencia:evidence } : {}),tipo:tipo ?? null })) { setSelected(null); setTitle(""); setDue(""); }
   }
   function select(t: WorkRow) {
     setSelected(t); setTitle(t.title); setResponsible(t.responsible); setState(t.status); setEvidence(t.completion_evidence ?? "");
-    setDue(t.due_at ? new Date(Date.parse(t.due_at) - 3 * 3600000).toISOString().slice(0,16) : "");
+    setTipo(t.tipo); setDue(t.due_at ? new Date(Date.parse(t.due_at) - 3 * 3600000).toISOString().slice(0,16) : "");
   }
   return <>
     <PageHeader eyebrow="TRABALHO REAL" title="Tarefas e eficácia" subtitle="A Maia cria tarefa e lembrete pelo WhatsApp. Aqui você acompanha e corrige o que já existe; resposta da IA não significa trabalho concluído." />
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <Panel title="Trabalho operacional" caption={`Até ${data?.work.limit ?? 200} tarefas mais recentes, criadas pela Maia. Atraso é calculado pelo prazo, não um quarto estado.`}>
-      {!data ? <p>Carregando tarefas…</p> : !data.work.tasks.length ? <p>Nenhuma tarefa de trabalho cadastrada. O histórico de execuções da IA continua separado.</p> : <div className="table-wrap"><table><thead><tr><th>Tarefa</th><th>Responsável</th><th>Estado</th><th>Prazo · Brasília</th><th>Evidência informada</th><th>Ação</th></tr></thead><tbody>{data.work.tasks.map((t) => <tr key={t.id}><td>#{t.id} · {t.title}</td><td>{t.responsible}</td><td>{statusLabel[t.status]}{t.overdue ? " · Atrasada" : ""}</td><td>{brt(t.due_at)}</td><td>{t.completion_evidence ?? "—"}</td><td><button disabled={busy} onClick={() => select(t)}>Editar</button></td></tr>)}</tbody></table></div>}
+      <div style={{marginBottom:"0.75rem"}}>
+        <label>Filtrar por tipo: <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)}>
+          <option value="">Todos</option>
+          {Object.entries(tipoLabel).map(([k,l]) => <option key={k} value={k}>{l}</option>)}
+        </select></label>
+      </div>
+      {!data ? <p>Carregando tarefas…</p> : !data.work.tasks.length ? <p>Nenhuma tarefa de trabalho cadastrada. O histórico de execuções da IA continua separado.</p> : <div className="table-wrap"><table><thead><tr><th>Tarefa</th><th>Tipo</th><th>Responsável</th><th>Estado</th><th>Prazo · Brasília</th><th>Evidência informada</th><th>Ação</th></tr></thead><tbody>{data.work.tasks.filter((t) => !filterTipo || t.tipo === filterTipo).map((t) => <tr key={t.id}><td>#{t.id} · {t.title}</td><td>{t.tipo ? tipoLabel[t.tipo] : "—"}</td><td>{t.responsible}</td><td>{statusLabel[t.status]}{t.overdue ? " · Atrasada" : ""}</td><td>{brt(t.due_at)}</td><td>{t.completion_evidence ?? "—"}</td><td><button disabled={busy} onClick={() => select(t)}>Editar</button></td></tr>)}</tbody></table></div>}
     </Panel>
     {selected && <Panel title={`Editar tarefa #${selected.id}`} caption="Correção manual de uma tarefa que a Maia já criou. Não cria tarefa nova.">
       <form className="work-form" onSubmit={update}>
@@ -49,6 +58,7 @@ export function TarefasPage() {
         <label>Responsável<input required maxLength={100} value={responsible} onChange={(e) => setResponsible(e.target.value)} /></label>
         <label>Prazo · Brasília<input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></label>
         <label>Estado<select value={state} onChange={(e) => setState(e.target.value as WorkRow["status"])}>{Object.entries(statusLabel).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <label>Tipo<select value={tipo ?? ""} onChange={(e) => setTipo((e.target.value || null) as WorkRow["tipo"])}><option value="">Sem tipo</option>{Object.entries(tipoLabel).map(([k,l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         {state === "concluida" && <label>Evidência do trabalho entregue<textarea required maxLength={2000} value={evidence} onChange={(e) => setEvidence(e.target.value)} /></label>}
         <button type="submit" disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</button>
         <button type="button" onClick={() => { setSelected(null); setTitle(""); setDue(""); }}>Cancelar edição</button>
