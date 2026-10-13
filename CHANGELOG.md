@@ -8,6 +8,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Arquivo no grupo continua o plano; a Maia não promete o que não executa
+
+- **Sintoma:** o dono mandou o PDF do Ítalo no grupo "Projeto Italo Personal" e a Maia tinha prometido "quando ele mandar o PDF, leio e trago sugestões". O PDF foi descartado: o webhook só tratava texto e áudio em grupo, e mídia virava um evento vazio. Não havia plano gravado e nenhum gatilho de arquivo, então a promessa era impossível de cumprir.
+- **Decisões do dono:** arquivos de grupo ficam 24 horas (não 7 dias); o agente não deve prometer o que não tem como executar.
+- **Correção (arquivo):** `server/inbox.ts` enfileira documento, imagem e vídeo de grupo cadastrado como referência (sem baixar). `handleGroupMedia` (`server/ownerRouter.ts`) só baixa e lê se um plano ativo espera um arquivo daquele grupo e daquele número (`waitingForFile`); o arquivo fica 24 h em `data/midia` (mesma pasta e retenção da mídia do dono). O plano retoma uma vez com o conteúdo, marcado como informação de terceiro, nunca ordem. Novo gatilho `file_received` em `server/plans.ts` e `esperar: arquivo_no_grupo` em `plano_atualizar`. A leitura do arquivo foi extraída para `understandMedia` (o comportamento do dono não mudou). Sem plano esperando, nada é baixado, como antes.
+- **Correção (promessa):** `server/rules.ts` ganhou uma linha fixa no prompt (como a de permissões): só continuam sozinhos um plano com gatilho, lembretes e tarefas agendadas; fora disso a Maia diz o que o dono precisa fazer. Também manda explicar bloqueios em português natural, sem citar ferramenta. `requestCreateGroup` avisa a Maia, no resultado, quando não há plano gravado: "NADA continua sozinho depois do OK".
+- **Arquivos:** `server/plans.ts`, `server/planTools.ts`, `server/inbox.ts`, `server/inboxWorker.ts`, `server/ownerRouter.ts`, `server/media.ts`, `server/rules.ts`, `server/groups.ts`, `server/maiaImageTool.ts`, `server/codexMaiaMcp.ts`, `CLAUDE.md`, testes.
+- **Verificação:** `pnpm typecheck` e `vitest` (485 testes) passando.
+- **Pendências:** o PDF já enviado antes desta mudança não pode ser recuperado (nada foi guardado) e precisa ser reenviado com um plano esperando; teste ao vivo; a criação de grupo ainda não obriga o plano em pedidos com várias etapas.
+
 ## 2026-10-13 — Modelo econômico (Haiku) só para pedido curto e de uma ação
 
 - **Sintoma:** a Maia parecia burra em pedidos difíceis.

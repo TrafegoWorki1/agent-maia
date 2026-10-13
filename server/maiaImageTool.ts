@@ -281,7 +281,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         {
           plano: z.number().int().min(1),
           etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional().describe("Números (a partir de 1) das etapas já feitas."),
-          esperar: z.object({ tipo: z.literal("entrada_no_grupo"), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional().describe("A próxima etapa espera alguém entrar neste grupo (o número é de quem deve entrar)."),
+          esperar: z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional().describe("A próxima etapa espera alguém entrar neste grupo, ou um arquivo enviado nele (o número é de quem deve entrar ou enviar)."),
           limpar_espera: z.boolean().optional(),
           nota: z.string().max(500).optional(),
           concluir: z.boolean().optional(),

@@ -7,7 +7,8 @@ import type { Db } from "./store.ts";
 
 export type Waiting =
   | { type: "approval"; id: number }
-  | { type: "member_joined"; jid: string; number?: string };
+  | { type: "member_joined"; jid: string; number?: string }
+  | { type: "file_received"; jid: string; number?: string };
 
 export interface PlanStep {
   text: string;
@@ -31,7 +32,7 @@ export const PLAN_MAX_AGE_MS = 7 * 24 * 3600_000;
 export function matchesWaiting(waiting: Waiting | null, trigger: Waiting): boolean {
   if (!waiting || waiting.type !== trigger.type) return false;
   if (waiting.type === "approval" && trigger.type === "approval") return waiting.id === trigger.id;
-  if (waiting.type === "member_joined" && trigger.type === "member_joined") {
+  if ((waiting.type === "member_joined" && trigger.type === "member_joined") || (waiting.type === "file_received" && trigger.type === "file_received")) {
     if (waiting.jid !== trigger.jid) return false;
     return !waiting.number || !trigger.number || samePhone(waiting.number, trigger.number);
   }
@@ -41,6 +42,7 @@ export function matchesWaiting(waiting: Waiting | null, trigger: Waiting): boole
 export function describeWaiting(waiting: Waiting | null): string {
   if (!waiting) return "nada (a etapa seguinte pode seguir)";
   if (waiting.type === "approval") return `o OK do pedido de aprovação #${waiting.id}`;
+  if (waiting.type === "file_received") return `um arquivo enviado no grupo${waiting.number ? ` por +${waiting.number}` : ""}`;
   return `alguém entrar no grupo${waiting.number ? ` (+${waiting.number})` : ""}`;
 }
 
@@ -154,4 +156,10 @@ export async function cancelWaiting(db: Db, trigger: Waiting): Promise<Plan[]> {
 
 export async function setWaiting(db: Db, planId: number, waiting: Waiting): Promise<void> {
   await db.from("maia_plans").update({ waiting, updated_at: new Date().toISOString() }).eq("id", planId).eq("status", "active");
+}
+
+// Algum plano ativo espera um arquivo deste grupo (e deste número)? Só então vale baixar e ler o arquivo: o que nenhum
+// plano espera continua ignorado, como antes.
+export async function waitingForFile(db: Db, jid: string, number: string): Promise<boolean> {
+  return (await activePlans(db)).some((plan) => matchesWaiting(plan.waiting, { type: "file_received", jid, number }));
 }

@@ -37,6 +37,21 @@ describe("entrada em grupo", () => {
     expect(leave?.payload).toBe("cache_reset");
   });
 
+  it("documento num grupo cadastrado vira referência na fila, sem baixar nada", () => {
+    const groups = new Map([[JID, {}]]);
+    const body = {
+      event: "messages.upsert",
+      instance: "worki",
+      data: { key: { remoteJid: JID, fromMe: false, id: "M1", participant: "558591872784@s.whatsapp.net" }, pushName: "Ítalo", message: { documentMessage: { mimetype: "application/pdf", fileName: "produto.pdf", fileLength: 120000 } } },
+    };
+    const row = toInboxRow(body, undefined, undefined, groups, new Date());
+    expect(row?.kind).toBe("media");
+    expect(row?.sender).toBe("group");
+    const payload = JSON.parse(String(row?.payload));
+    expect(payload).toMatchObject({ jid: JID, participant: "558591872784", mediaType: "document", fileName: "produto.pdf" });
+    expect(toInboxRow(body, undefined, undefined, new Map(), new Date())?.kind).toBe("event");
+  });
+
   it("avisa o dono só para grupo cadastrado, com o nome da agenda, e não avisa o próprio dono", async () => {
     const db = {
       from(table: string) {

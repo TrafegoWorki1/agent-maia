@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cancelWaiting, claimWaiting, createPlan, matchesWaiting, resumePlans, resumePrompt, setWaiting, updatePlan, PLAN_MAX_AGE_MS } from "../server/plans.ts";
+import { cancelWaiting, claimWaiting, createPlan, describeWaiting, matchesWaiting, resumePlans, resumePrompt, setWaiting, updatePlan, waitingForFile, PLAN_MAX_AGE_MS } from "../server/plans.ts";
 import { notifyGroupJoin } from "../server/groupJoin.ts";
 import type { Db } from "../server/store.ts";
 
@@ -149,5 +149,36 @@ describe("entrada no grupo retoma o plano", () => {
     expect(await notifyGroupJoin(db, { jid: "g1@g.us", action: "add", participants: ["5585991872784"] }, notify, resume)).toBe(1);
     expect(resume).not.toHaveBeenCalled();
     expect(notify.mock.calls[0][0]).toContain("Quer que eu dê as boas-vindas?");
+  });
+});
+
+describe("arquivo enviado no grupo", () => {
+  it("o gatilho de arquivo casa pelo grupo e pelo número, e não se confunde com entrada no grupo", () => {
+    const waiting = { type: "file_received", jid: "g1@g.us", number: "5585991872784" } as const;
+    expect(matchesWaiting(waiting, { type: "file_received", jid: "g1@g.us", number: "558591872784" })).toBe(true);
+    expect(matchesWaiting(waiting, { type: "file_received", jid: "g1@g.us", number: "5585988888888" })).toBe(false);
+    expect(matchesWaiting(waiting, { type: "file_received", jid: "g2@g.us", number: "5585991872784" })).toBe(false);
+    expect(matchesWaiting(waiting, { type: "member_joined", jid: "g1@g.us", number: "5585991872784" })).toBe(false);
+    expect(describeWaiting(waiting)).toContain("arquivo enviado no grupo");
+  });
+
+  it("só vale baixar o arquivo quando um plano ativo espera um arquivo daquele grupo e daquele número", async () => {
+    const { db } = memoryDb();
+    expect(await waitingForFile(db, "g1@g.us", "5585991872784")).toBe(false);
+    const id = await createPlan(db, { title: "Projeto Italo", request: "", steps: STEPS });
+    await setWaiting(db, id, { type: "file_received", jid: "g1@g.us", number: "5585991872784" });
+    expect(await waitingForFile(db, "g1@g.us", "5585991872784")).toBe(true);
+    expect(await waitingForFile(db, "g1@g.us", "5585988888888")).toBe(false);
+    expect(await waitingForFile(db, "g2@g.us", "5585991872784")).toBe(false);
+  });
+
+  it("o arquivo retoma o plano uma vez, com o conteúdo no texto", async () => {
+    const { db } = memoryDb();
+    const id = await createPlan(db, { title: "Projeto Italo", request: "ler o PDF e sugerir melhorias", steps: STEPS });
+    await setWaiting(db, id, { type: "file_received", jid: "g1@g.us", number: "5585991872784" });
+    const resume = vi.fn(async (_p: string) => {});
+    expect(await resumePlans(db, { type: "file_received", jid: "g1@g.us", number: "5585991872784" }, "Ítalo enviou um arquivo: [conteúdo do PDF]", { arquivo: { nome: "produto.pdf" } }, resume)).toBe(1);
+    expect(resume.mock.calls[0][0]).toContain("conteúdo do PDF");
+    expect(await resumePlans(db, { type: "file_received", jid: "g1@g.us", number: "5585991872784" }, "de novo", {}, resume)).toBe(0);
   });
 });
