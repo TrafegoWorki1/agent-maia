@@ -49,7 +49,12 @@ export function groupJoinFrom(body: unknown): GroupJoin | null {
   const action = typeof data.action === "string" ? data.action : "";
   const raw = Array.isArray(data.participants) ? data.participants : [];
   const participants = raw
-    .map((p) => (typeof p === "string" ? p : typeof (p as { id?: unknown })?.id === "string" ? (p as { id: string }).id : ""))
+    .map((p) => {
+      if (typeof p === "string") return p;
+      const obj = (p ?? {}) as { id?: unknown; phoneNumber?: unknown };
+      if (typeof obj.phoneNumber === "string" && obj.phoneNumber) return obj.phoneNumber;
+      return typeof obj.id === "string" ? obj.id : "";
+    })
     .filter(Boolean)
     .map((p) => p.split("@")[0]);
   if (!jid.endsWith("@g.us") || participants.length === 0) return null;

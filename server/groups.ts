@@ -238,7 +238,10 @@ export async function fetchGroupInfo(jid: string): Promise<{ ok: true; info: Gro
 }
 
 export interface GroupParticipant {
+  // Telefone (phoneNumber da Evolution); sem ele, o id do participante.
   number: string;
+  // Identificador interno do WhatsApp (@lid), quando existe.
+  lid?: string;
   isAdmin: boolean;
 }
 
@@ -255,10 +258,15 @@ export async function fetchGroupParticipants(jid: string): Promise<{ ok: true; p
     const body = (await response.json().catch(() => null)) as { participants?: unknown[] } | unknown[] | null;
     const raw = Array.isArray(body) ? body : (body?.participants ?? []);
     const participants = (raw as Record<string, unknown>[])
-      .map((p) => ({
-        number: typeof p.id === "string" ? p.id.split("@")[0] : typeof p.jid === "string" ? p.jid.split("@")[0] : "",
-        isAdmin: p.admin === "admin" || p.admin === "superadmin" || p.isAdmin === true,
-      }))
+      .map((p) => {
+        const id = typeof p.id === "string" ? p.id : typeof p.jid === "string" ? p.jid : "";
+        const phone = typeof p.phoneNumber === "string" ? p.phoneNumber.split("@")[0] : "";
+        return {
+          number: phone || id.split("@")[0],
+          ...(id.endsWith("@lid") ? { lid: id.split("@")[0] } : {}),
+          isAdmin: p.admin === "admin" || p.admin === "superadmin" || p.isAdmin === true,
+        };
+      })
       .filter((p) => p.number);
     return { ok: true, participants };
   } catch (error) {

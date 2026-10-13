@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { classify, groupJoinFrom } from "../server/evolutionWebhook.ts";
 import { toInboxRow } from "../server/inbox.ts";
-import { notifyGroupJoin } from "../server/groupJoin.ts";
+import { notifyGroupJoin, resolveJoinNumbers } from "../server/groupJoin.ts";
 import type { Db } from "../server/store.ts";
 
 // Decisão do owner (13/10/2026): quando alguém entra num grupo cadastrado, a Maia avisa o dono (ela não dá boas-vindas sozinha).
@@ -71,6 +71,57 @@ describe("entrada em grupo", () => {
     const db = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) }) } as unknown as Db;
     const notify = vi.fn(async (_text: string) => {});
     expect(await notifyGroupJoin(db, { jid: JID, action: "add", participants: ["5585991872784"] }, notify)).toBe(0);
+    expect(notify).not.toHaveBeenCalled();
+  });
+});
+
+describe("quem entrou vem pelo identificador interno (@lid)", () => {
+  const LID = "159554305835854";
+  const participants = [{ number: "EVOLUTION_APPROVER_NUMBER", lid: LID, isAdmin: false }, { number: "EVOLUTION_OWNER_NUMBER", lid: "999", isAdmin: false }];
+  const lookup = async () => ({ ok: true as const, participants });
+
+  it("lê o telefone (phoneNumber) quando o participante vem como objeto", () => {
+    const body = { event: "GROUP_PARTICIPANTS_UPDATE", data: { id: JID, action: "add", participants: [{ id: `${LID}@lid`, phoneNumber: "EVOLUTION_APPROVER_NUMBER@s.whatsapp.net" }] } };
+    expect(groupJoinFrom(body)?.participants).toEqual(["EVOLUTION_APPROVER_NUMBER"]);
+  });
+
+  it("troca o identificador interno pelo telefone da lista de participantes do grupo", async () => {
+    expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: [LID] }, lookup, 0)).toEqual(["EVOLUTION_APPROVER_NUMBER"]);
+    expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: ["5585991872784"] }, lookup, 0)).toEqual(["5585991872784"]);
+  });
+
+  it("se não achar o telefone nem na segunda tentativa, devolve o identificador como veio", async () => {
+    const empty = async () => ({ ok: true as const, participants: [] });
+    expect(await resolveJoinNumbers({ jid: JID, action: "add", participants: [LID] }, empty, 0)).toEqual([LID]);
+  });
+
+  it("o plano que esperava o número retoma mesmo com a entrada vindo pelo identificador interno", async () => {
+    const rows: Record<string, any>[] = [{ id: 2, created_at: new Date().toISOString(), title: "Projeto", request: "", steps: [{ text: "a", done: false }], status: "active", waiting: { type: "member_joined", jid: JID, number: "EVOLUTION_APPROVER_NUMBER" }, context: {} }];
+    const db = {
+      from(table: string) {
+        const filters: ((r: any) => boolean)[] = [];
+        let patch: any = null;
+        const q: any = {
+          select: () => q,
+          update: (p: any) => { patch = p; return q; },
+          eq: (c: string, v: unknown) => { filters.push((r) => r[c] === v); return q; },
+          not: (c: string, _i: string, v: unknown) => { filters.push((r) => r[c] !== v); return q; },
+          order: () => q,
+          maybeSingle: async () => ({ data: table === "maia_groups" ? { name: "Projeto Italo Teste" } : null }),
+          then: (res: (v: unknown) => void) => {
+            if (table === "maia_plans") { const hit = rows.filter((r) => filters.every((f) => f(r))); if (patch) hit.forEach((r) => Object.assign(r, patch)); res({ data: hit, error: null }); }
+            else res({ data: table === "contacts" ? [{ number: "EVOLUTION_APPROVER_NUMBER", name: "Herickson pessoal", aliases: [] }] : [], error: null });
+          },
+        };
+        return q;
+      },
+    } as unknown as Db;
+    const notify = vi.fn(async (_t: string) => {});
+    const resume = vi.fn(async (_p: string) => {});
+    process.env.EVOLUTION_OWNER_NUMBER = "EVOLUTION_OWNER_NUMBER";
+    const result = await notifyGroupJoin(db, { jid: JID, action: "add", participants: [LID] }, notify, resume, lookup);
+    expect(result).toBe(0);
+    expect(resume).toHaveBeenCalledTimes(1);
     expect(notify).not.toHaveBeenCalled();
   });
 });
