@@ -3,7 +3,7 @@ import { loadContacts } from "./contacts.ts";
 import { cancelWaiting, resumePlans, setWaiting } from "./plans.ts";
 import { canonicalPhone } from "./evolutionWebhook.ts";
 import { addTaskEvent, createOwnerTask, recordMessage, type Db } from "./store.ts";
-import { APPROVAL_TTL_MS, approverNumbers, createApproval, decideFromText, openApprovals } from "./approvals.ts";
+import { APPROVAL_TTL_MS, approverNumbers, ownerNumbers, createApproval, decideFromText, openApprovals } from "./approvals.ts";
 
 // Grupos do WhatsApp pela Evolution. Leitura com cache de 5 minutos (como no Bryan). Criar grupo é
 // ação de escrita: pede SIM ou NÃO ao aprovador antes de executar. Só o dono envia os comandos.
@@ -366,7 +366,8 @@ Entram no grupo na criação, além da Maia, que cria e fica nele (${participant
 ${list}
 Responda OK para criar ou NÃO para recusar. Sem resposta em 10 minutos, é recusado.`;
   await recordMessage(deps.db, { channel: "whatsapp", author: "maia", text: request });
-  for (const to of await approverNumbers(deps.db)) await sendOwnerText(to, request);
+  // Pedido do próprio dono: a aprovação é dele, não de outra pessoa com permissão de aprovar.
+  for (const to of await ownerNumbers(deps.db)) await sendOwnerText(to, request);
 
   // Aviso de prazo, se este processo ainda estiver no ar. O banco continua sendo a fonte da verdade.
   setTimeout(() => void expireGroupIfPending(deps, approval.id, name, taskId), APPROVAL_TTL_MS).unref();

@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Pedido do dono é aprovado só pelo dono
+
+- **Sintoma:** os pedidos de criação de grupo feitos pelo dono iam para todos os que têm permissão de aprovar, inclusive a Gessica. O dono disse que a aprovação dele tem que ser dele, não de outra pessoa.
+- **Causa:** `requestCreateGroup` enviava o pedido para `approverNumbers` (todos com `escrita.aprovar`), sem distinguir quem pediu.
+- **Correção:** novo `ownerNumbers` (pessoa com papel `proprietario` mais o número do `.env`). O pedido do dono vai só para os números dele. Pedidos de outras pessoas, fora do escopo, continuam indo para os aprovadores.
+- **Permissões:** nenhuma regra de ninguém foi alterada. Uma remoção feita por engano na Gessica foi desfeita com a mesma linha (`escrita.aprovar`).
+- **Verificação:** `pnpm typecheck` e `vitest` (476 testes) passando.
+- **Pendência:** a Maia reconhece como dono só o número do `.env`. Se o dono responder OK pelo segundo número (2658), a resposta pode não ser reconhecida como dele; confirmar com um teste.
+
 ## 2026-10-13 — Planos de várias etapas retomam sozinhos
 
 - **Sintoma:** o dono mandou "crie o grupo Projeto Italo, pegue o link e mande a ele no privado, dê boas-vindas quando ele entrar e peça o PDF". A Maia pediu a aprovação da criação, prometeu "assim que confirmado, pego o link e mando", e parou: depois do OK nada a chamou de volta. O mesmo padrão da promessa "te aviso quando o João responder".
