@@ -23,10 +23,10 @@ Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [ ] Financeiro: fonte Google Sheets ou sistema de cobrança
 - [ ] APIs autenticadas para cada departamento; RLS por cliente
 
-**Limpeza do painel (pendente confirmação do dono)**
-- [ ] Apagar perfil "Aprovador" (`people.id = 0cfd12b8`)
-- [ ] Apagar "Hélio Embalagem" de `contacts` e `people`
-- [ ] Apagar contato `558598372658` ("Herickson maia" — número de aprovador)
+**Limpeza do painel — concluída (13/10/2026)**
+- [x] Apagar perfil "Aprovador" (`people.id = 0cfd12b8`)
+- [x] Apagar "Hélio Embalagem" de `contacts` e `people`
+- [x] Apagar contato `558598372658` ("Herickson maia" — número de aprovador)
 
 ---
 
