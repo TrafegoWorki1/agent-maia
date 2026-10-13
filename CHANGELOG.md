@@ -8,6 +8,18 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Etapa 0 Vibe Code: contratos compartilhados e novos departamentos
+
+- **Motivação:** implementação do Plano 01 + Plano 02 começa pela fundação: contratos TypeScript compartilhados entre os dois planos e reorganização da navegação do painel.
+- **`src/lib/operationalContext.ts`:** contrato TypeScript central — `OperationalArea`, `OperationalContext`, `DataProvenance`, `AREA_LABELS`, `AREA_VALUES`. Toda tarefa, plano e ação da Maia pode ter contexto organizacional opcional; nunca adivinha cliente a partir do texto.
+- **`src/lib/navigation.ts`:** 10 seções (antes 7). Adicionados **Comercial** (oportunidades, funil), **Projetos** (projetos, implementações) e **Financeiro** (receitas, custos). "Grupos e clientes" renomeado para **Clientes e CS** (clientes, grupos). Redirects de legado para `#grupos-clientes/*`.
+- **`src/features/departments/DepartmentPages.tsx`:** 6 novas páginas com estados honestos ("Não conectado", "Sem dados disponíveis") — nenhum dado simulado.
+- **`src/App.tsx`:** ícones `TrendingUp`, `Layers`, `Landmark` (lucide-react); lazy imports; novos casos no `Screen` switch.
+- **`supabase/migrations/20261013210000`:** colunas `area`, `client_id`, `project_id` opcionais em `work_tasks` (aditivo, todos nullable).
+- **Verificação:** `pnpm typecheck`, `pnpm build`, `pnpm db:validate`, `pnpm test` (495/495). Commit `d13d339`, pushed.
+
+---
+
 ## 2026-10-13 — Ferramenta `planilha_criar` (xlsx formatado via exceljs)
 
 - **Motivação:** o agente não tinha ferramenta dedicada para criar planilhas. Quando recebia um pedido de xlsx, improvisava com Python — que está bloqueado no modo operacional — resultando em datas como número serial (ex.: `46308` em vez de `13/10/2026`), fórmulas com `#ERROR!` e dezenas de linhas em branco desnecessárias.

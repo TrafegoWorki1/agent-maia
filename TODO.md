@@ -2,6 +2,34 @@
 
 Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
+## Atualizado em 13/10/2026 — Vibe Code em andamento
+
+**Etapa 0 — concluída** (commit `d13d339`)
+- [x] Contratos TypeScript: `OperationalArea`, `OperationalContext`, `DataProvenance`
+- [x] Navegação: Comercial, Projetos, Financeiro; "Clientes e CS"; redirects de legado
+- [x] Migração `20261013210000`: `area`, `client_id`, `project_id` em `work_tasks`
+- [x] Páginas com empty states honestos (sem mock data)
+
+**Etapa 1 — pendente** (Plano 01: memória, planos robustos, cancelamento, agendamentos)
+- [ ] `maia_memories`: tabela de memória declarativa durável por identidade/decisão/projeto
+- [ ] Retomada de plano multi-etapa em qualquer evento (hoje só alguns eventos)
+- [ ] Mecanismo de cancelamento/correção durante execução de plano
+- [ ] `automation_rules`: gatilhos por evento com contexto departamental opcional
+
+**Etapa 2 — pendente** (Plano 02: dados reais nos novos departamentos)
+- [ ] Clientes e CS: vincular `maia_clients` e grupos com dados reais
+- [ ] Comercial: funil e oportunidades com fonte identificada
+- [ ] Projetos: cadastro via Maia, marcos, progresso
+- [ ] Financeiro: fonte Google Sheets ou sistema de cobrança
+- [ ] APIs autenticadas para cada departamento; RLS por cliente
+
+**Limpeza do painel (pendente confirmação do dono)**
+- [ ] Apagar perfil "Aprovador" (`people.id = 0cfd12b8`)
+- [ ] Apagar "Hélio Embalagem" de `contacts` e `people`
+- [ ] Apagar contato `558598372658` ("Herickson maia" — número de aprovador)
+
+---
+
 ## Atualizado em 13/10/2026 — a fazer
 
 **Validar ao vivo (pelo WhatsApp, com o número do dono)**
