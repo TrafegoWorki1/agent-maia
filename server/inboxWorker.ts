@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
-import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia } from "./media.ts";
+import { MEDIA_DIR, MEDIA_TTL_MS, MEDIA_EXT, MAX_BYTES, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia, saveMedia } from "./media.ts";
 import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
 import { retryPendingAudio } from "./audioRetry.ts";
 import { handleApproverText } from "./groups.ts";
@@ -16,7 +16,7 @@ import { handleGroupMessage, handleMemberMessage, handleOwnerMessage, type Group
 import { recordConvMessage } from "./conversations.ts";
 import { hasRecentOutreach, upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
-import { sendOwnerText } from "./evolutionSend.ts";
+import { downloadMedia, sendFile, sendOwnerText } from "./evolutionSend.ts";
 import { handleVaultItem } from "./vault.ts";
 import { mentionsMaiaByTag } from "./groupMention.ts";
 import { runProactive } from "./proactive.ts";
@@ -185,15 +185,25 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     return;
   }
 
-  // Mídia de contato no repasse: baixa o arquivo e repassa ao dono (mesmo fluxo de membro).
+  // Mídia de contato no repasse: baixa e encaminha o arquivo ao dono.
   if (item.sender === "other" && item.kind === "media" && item.payload) {
     const ref = JSON.parse(item.payload) as MemberMediaRef;
     const digits = ref.from.replace(/\D/g, "");
     markRead(dmJid(digits), item.key_id);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_media" }, now);
     await upsertContact(db, { number: digits, name: ref.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
-    await notifyOwner(`${ref.name || `+${digits}`} enviou um arquivo (${ref.fileName || ref.mediaType})`).catch((error) => console.error("[worker] repasse mídia:", error instanceof Error ? error.message : error));
-    void handleMemberMedia(ref).catch((error) => console.error("[worker] mídia de contato:", error instanceof Error ? error.message : error));
+    const senderLabel = ref.name || `+${digits}`;
+    try {
+      const limit = MAX_BYTES[ref.mediaType];
+      const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
+      const ext: Record<string, string> = MEDIA_EXT as Record<string, string>;
+      const fileName = ref.fileName || `${ref.mediaType === "image" ? "imagem" : ref.mediaType === "video" ? "video" : "documento"}${ext[mimetype] ?? ""}`;
+      const path = saveMedia(data, fileName, Date.now(), MEMBER_MEDIA_DIR);
+      const caption = ref.caption ? `${senderLabel}: ${ref.caption}` : senderLabel;
+      await sendFile(owner, path, ref.mediaType, mimetype, caption, fileName);
+    } catch (error) {
+      await notifyOwner(`${senderLabel} enviou um arquivo (${ref.fileName || ref.mediaType}) mas não foi possível encaminhar: ${error instanceof Error ? error.message : String(error)}`).catch(() => {});
+    }
     return;
   }
 

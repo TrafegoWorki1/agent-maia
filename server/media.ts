@@ -22,6 +22,12 @@ export const MEMBER_MEDIA_TTL_MS = 7 * 24 * 3600_000;
 
 export type MediaKind = "image" | "video" | "document";
 
+export const MEDIA_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif",
+  "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm",
+  "application/pdf": ".pdf",
+};
+
 export const MAX_BYTES: Record<MediaKind, number> = {
   image: 10 * 1024 * 1024,
   document: 20 * 1024 * 1024,

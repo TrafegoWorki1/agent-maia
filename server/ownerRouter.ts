@@ -1,6 +1,6 @@
 import { downloadAudio, downloadMedia, sendOwnerText } from "./evolutionSend.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
-import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
+import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MEDIA_EXT, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
 import { savePendingAudio } from "./audioRetry.ts";
 import { sendGroupText } from "./groupTools.ts";
@@ -99,7 +99,6 @@ export async function handleOwnerAudio(ref: AudioRef): Promise<void> {
 }
 
 const MEDIA_LABEL: Record<MediaKind, string> = { image: "a imagem", video: "o vídeo", document: "o documento" };
-const MEDIA_EXT: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "application/pdf": ".pdf" };
 
 class UnsupportedMedia extends Error {}
 
