@@ -162,11 +162,15 @@ export function toInboxRow(
       const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
       return { kind: "audio", sender: "member", key_id: keyId, payload: JSON.stringify({ key: audio.key, mimetype: audio.mimetype, from: audio.from, name }) };
     }
+    // Áudio de contato no repasse: salva referência para o worker repassar ao dono.
+    if (contacted && [...contacted].some((n) => samePhone(n, audio.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "audio", sender: "other", key_id: keyId, payload: JSON.stringify({ key: audio.key, mimetype: audio.mimetype, from: audio.from, name }) };
+    }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }
 
   // Imagem, vídeo ou documento: do dono ou de membro autorizado, só a referência (o arquivo é baixado pelo worker).
-  // De outros números, nada.
   const media = mediaFrom(body);
   if (media) {
     const { key, mimetype, mediaType, fileName, caption, size } = media;
@@ -176,6 +180,11 @@ export function toInboxRow(
     if (members && [...members].some((n) => samePhone(n, media.from))) {
       const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
       return { kind: "media", sender: "member", key_id: keyId, payload: JSON.stringify({ key, mimetype, mediaType, fileName, caption, size, from: media.from, name }) };
+    }
+    // Mídia de contato no repasse: salva referência para o worker repassar ao dono.
+    if (contacted && [...contacted].some((n) => samePhone(n, media.from))) {
+      const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+      return { kind: "media", sender: "other", key_id: keyId, payload: JSON.stringify({ key, mimetype, mediaType, fileName, caption, size, from: media.from, name }) };
     }
     return { kind: "event", sender: "other", key_id: keyId, payload: null };
   }

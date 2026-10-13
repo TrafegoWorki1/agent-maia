@@ -31,7 +31,7 @@ describe("número sem o 55", () => {
 
   it("a busca na agenda acha o contato mesmo digitado sem o 55", () => {
     const agenda = [{ number: "5511988887777", name: "Herickson", aliases: [] }];
-    expect(matchContacts(agenda, "85998372658").map((c) => c.name)).toEqual(["Herickson"]);
-    expect(matchContacts(agenda, "(85) 99837-2658").map((c) => c.name)).toEqual(["Herickson"]);
+    expect(matchContacts(agenda, "11988887777").map((c) => c.name)).toEqual(["Herickson"]);
+    expect(matchContacts(agenda, "(11) 98888-7777").map((c) => c.name)).toEqual(["Herickson"]);
   });
 });

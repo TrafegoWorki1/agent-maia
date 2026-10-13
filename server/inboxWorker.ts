@@ -185,6 +185,18 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     return;
   }
 
+  // Mídia de contato no repasse: baixa o arquivo e repassa ao dono (mesmo fluxo de membro).
+  if (item.sender === "other" && item.kind === "media" && item.payload) {
+    const ref = JSON.parse(item.payload) as MemberMediaRef;
+    const digits = ref.from.replace(/\D/g, "");
+    markRead(dmJid(digits), item.key_id);
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_media" }, now);
+    await upsertContact(db, { number: digits, name: ref.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
+    await notifyOwner(`${ref.name || `+${digits}`} enviou um arquivo (${ref.fileName || ref.mediaType})`).catch((error) => console.error("[worker] repasse mídia:", error instanceof Error ? error.message : error));
+    void handleMemberMedia(ref).catch((error) => console.error("[worker] mídia de contato:", error instanceof Error ? error.message : error));
+    return;
+  }
+
   if (item.sender === "group" && item.kind === "event" && item.payload?.startsWith("{\"join\"")) {
     // Alguém entrou num grupo: invalida o cache e avisa o dono (só grupos cadastrados).
     const { join } = JSON.parse(item.payload) as { join: GroupJoin };
