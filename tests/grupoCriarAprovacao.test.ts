@@ -6,7 +6,8 @@ const sent: string[] = [];
 vi.mock("../server/evolutionSend.ts", () => ({ sendOwnerText: vi.fn(async (_to: string, text: string) => { sent.push(text); }) }));
 vi.mock("../server/approvals.ts", () => ({
   APPROVAL_TTL_MS: 600_000,
-  approverNumbers: vi.fn(async () => ["EVOLUTION_OWNER_NUMBER"]),
+  approverNumbers: vi.fn(async () => ["EVOLUTION_OWNER_NUMBER", "5585999999999"]),
+  ownerNumbers: vi.fn(async () => ["EVOLUTION_OWNER_NUMBER"]),
   createApproval: vi.fn(async () => ({ id: 9, expiresAt: "2099-01-01T00:00:00Z" })),
   decideFromText: vi.fn(),
   openApprovals: vi.fn(async () => []),
@@ -36,6 +37,7 @@ describe("pedido de criação de grupo", () => {
     expect(message).toContain("- Ítalo (+5585991872784)");
     expect(message).toContain("- +EVOLUTION_OWNER_NUMBER");
     expect(message).toContain("Responda OK para criar ou NÃO para recusar");
+    expect(sent.length).toBe(1);
     expect(reply).toContain("Ítalo (+5585991872784)");
     expect(reply).toContain("além da Maia");
   });

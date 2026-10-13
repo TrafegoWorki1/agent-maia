@@ -9,6 +9,16 @@ const POLL_MS = 1_500;
 
 // Quem aprova ações: quem tem a permissão escrita.aprovar no painel (Pessoas), ativo e com número.
 // Sem resposta do banco, usa o dono e o aprovador do .env.
+// Números do dono (pessoa com papel proprietario, mais o número do .env). Pedido feito pelo próprio dono é aprovado só por ele.
+export async function ownerNumbers(db: Db): Promise<string[]> {
+  const env = process.env.EVOLUTION_OWNER_NUMBER ? [process.env.EVOLUTION_OWNER_NUMBER] : [];
+  const people = await db.from("people").select("id").eq("role", "proprietario").eq("active", true);
+  if (people.error || !people.data || people.data.length === 0) return env;
+  const numbers = await db.from("person_numbers").select("number").in("person_id", (people.data as { id: string }[]).map((p) => p.id));
+  if (numbers.error || !numbers.data) return env;
+  return [...new Set([...env, ...(numbers.data as { number: string }[]).map((n) => n.number)])];
+}
+
 export async function approverNumbers(db: Db): Promise<string[]> {
   const perms = await db.from("person_permissions").select("person_id").eq("permission_code", "escrita.aprovar");
   if (perms.error || !perms.data) return envApprovers();
