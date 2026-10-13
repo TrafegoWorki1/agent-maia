@@ -8,6 +8,20 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Planos de várias etapas retomam sozinhos
+
+- **Sintoma:** o dono mandou "crie o grupo Projeto Italo, pegue o link e mande a ele no privado, dê boas-vindas quando ele entrar e peça o PDF". A Maia pediu a aprovação da criação, prometeu "assim que confirmado, pego o link e mando", e parou: depois do OK nada a chamou de volta. O mesmo padrão da promessa "te aviso quando o João responder".
+- **Causa:** o agente termina o trabalho ao abrir o pedido de aprovação; o OK é tratado pelo fluxo de aprovação (`handleApproverText`), que cria o grupo mas não retoma o agente. Não existia nenhum registro do plano, então as etapas seguintes não tinham quem as executasse.
+- **Correção (decisão do dono: o agente segue o plano dentro do que foi proposto, sem roteiro fixo no código):**
+  - Migração `20261013012115_maia_plans` (aplicada em produção com `supabase db push` e conferida com `db:drift`, 811 objetos iguais): tabela `maia_plans` com pedido do dono, etapas, o que o plano espera (`waiting`) e contexto. RLS ligada, acesso só pelo servidor.
+  - `server/plans.ts`: criar, atualizar, reservar e retomar planos. Cada plano é reservado antes de retomar, então um evento repetido não executa a etapa duas vezes. Plano parado há mais de 7 dias é cancelado em vez de retomar. Recusa ou expiração do OK cancelam o plano e avisam o dono.
+  - Ferramentas `plano_criar`, `plano_atualizar` e `planos_ativos` (só dono, nos dois executores, lógica em `server/planTools.ts`) e o parâmetro `plano` em `grupo_criar`: depois do OK, o grupo é criado e a Maia é chamada de volta com o pedido original, as etapas e o grupo criado, para executar só a próxima etapa.
+  - Gatilho de entrada no grupo (`server/groupJoin.ts`): se um plano esperava aquela pessoa entrar, o plano segue (boas-vindas e demais etapas) em vez de só perguntar ao dono.
+  - A mensagem de retomada diz que não é uma mensagem nova do dono e manda perguntar se faltar informação ou algo fugir do pedido.
+- **Verificação:** `pnpm typecheck`, `vitest` (476 testes, com `tests/planos.test.ts`), `db:validate` (35 migrações) e os 35 testes de banco passando.
+- **Limites (honestos):** só há dois gatilhos, o OK da criação de grupo e alguém entrar no grupo. Ainda não há gatilho para arquivo recebido (o PDF do Ítalo): mídia enviada dentro de grupo não é processada hoje. A descrição das ferramentas manda a Maia deixar essa etapa pendente e avisar o dono, sem prometer que continua sozinha. A retomada usa o mesmo executor do dono; envio de mensagem a terceiros segue a política atual de aprovação. Não testado ao vivo.
+- **Observação:** ficou na tabela um plano de teste (`id 1`, cancelado) criado na conferência.
+
 ## 2026-10-13 — Entrada em grupo cadastrado avisa o dono
 
 - **Sintoma:** a Maia não percebia quando alguém entrava no grupo (ex.: o Ítalo), então não avisava o dono para dar as boas-vindas.

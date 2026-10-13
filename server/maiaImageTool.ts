@@ -21,6 +21,7 @@ import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerG
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
 import { requestCreateGroup } from "./groups.ts";
+import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -238,6 +239,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         {
           grupo: z.string().min(2).max(100).describe("Nome do grupo novo."),
           participantes: z.array(z.string().min(10).max(20)).min(1).max(100).describe("Números com DDI e DDD."),
+          plano: z.number().int().min(1).optional().describe("Número do plano (plano_criar) a que esta criação pertence: depois do OK, o plano retoma sozinho com o grupo criado."),
         },
         async (args) => {
           if (channel !== "whatsapp") return { content: [{ type: "text", text: "A criação de grupo é feita pelo WhatsApp, com aprovação." }], isError: true };
@@ -252,11 +254,54 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
                 await sendOwnerText(process.env.EVOLUTION_OWNER_NUMBER ?? "", text);
                 await recordMessage(db, { channel: "whatsapp", author: "maia", text });
               },
-            }, args.grupo.trim(), numbers);
+            }, args.grupo.trim(), numbers, args.plano);
             return { content: [{ type: "text", text: reply }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui solicitar a criação do grupo: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
           }
+        },
+      ),
+      tool(
+        "plano_criar",
+        PLAN_CREATE_DESCRIPTION,
+        {
+          titulo: z.string().min(3).max(120),
+          pedido: z.string().max(4000).optional().describe("O pedido do dono, com as palavras dele."),
+          etapas: z.array(z.string().min(3).max(300)).min(2).max(12).describe("As etapas, na ordem, como o dono pediu."),
+        },
+        async (args) => {
+          if (!isOwner) return { content: [{ type: "text", text: "Só o owner grava planos." }], isError: true };
+          try { return { content: [{ type: "text", text: await runPlanCreate(getDb(), args, taskId) }] }; }
+          catch (error) { return { content: [{ type: "text", text: `Não gravei o plano: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
+        },
+      ),
+      tool(
+        "plano_atualizar",
+        PLAN_UPDATE_DESCRIPTION,
+        {
+          plano: z.number().int().min(1),
+          etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional().describe("Números (a partir de 1) das etapas já feitas."),
+          esperar: z.object({ tipo: z.literal("entrada_no_grupo"), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional().describe("A próxima etapa espera alguém entrar neste grupo (o número é de quem deve entrar)."),
+          limpar_espera: z.boolean().optional(),
+          nota: z.string().max(500).optional(),
+          concluir: z.boolean().optional(),
+          cancelar: z.boolean().optional(),
+        },
+        async (args) => {
+          if (!isOwner) return { content: [{ type: "text", text: "Só o owner altera planos." }], isError: true };
+          try {
+            const result = await runPlanUpdate(getDb(), args);
+            return { content: [{ type: "text", text: result.text }], ...(result.ok ? {} : { isError: true }) };
+          } catch (error) { return { content: [{ type: "text", text: `Não atualizei o plano: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
+        },
+      ),
+      tool(
+        "planos_ativos",
+        "Lista os planos ativos do dono, com as etapas e o que cada um espera. Só leitura.",
+        {},
+        async () => {
+          if (!isOwner) return { content: [{ type: "text", text: "Só o owner vê os planos." }], isError: true };
+          return { content: [{ type: "text", text: await runPlansList(getDb()) }] };
         },
       ),
       tool(
