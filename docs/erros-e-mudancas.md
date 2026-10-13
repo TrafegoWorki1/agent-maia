@@ -4,6 +4,34 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## Resumo de 12 e 13/10/2026: grupos, planos, áudio, aprovação e comportamento
+
+Detalhes, causas e verificações de cada item estão no `CHANGELOG.md` (entradas de 12 e 13/10/2026).
+
+**Grupos**
+- Responder citando uma mensagem (`citar_id` em `grupo_enviar_texto`) e apagar mensagem (`grupo_apagar_mensagem`).
+- Mensagem que é resposta a outra pessoa não ativa a Maia (a janela de conversa de 10 min deixou de valer nesse caso).
+- `grupo_criar` passou a existir no executor do Claude (antes só no Codex). O dono entra sempre no grupo criado; a aprovação lista quem entra (nome e número), além da Maia.
+- Entrada de alguém em grupo cadastrado avisa o dono (evento `GROUP_PARTICIPANTS_UPDATE` da Evolution).
+
+**Planos de várias etapas** (migração `20261013012115_maia_plans`, tabela `maia_plans`)
+- O pedido com etapas vira um plano gravado. Retoma sozinho depois do OK da criação do grupo, quando alguém entra no grupo e quando um arquivo é enviado no grupo. Arquivo de grupo só é lido se um plano esperava, e fica 24 h em `data/midia`.
+- Recusa, expiração, falha ou plano parado há mais de 7 dias cancelam o plano. Cada plano é reservado antes de retomar (evento repetido não duplica).
+- Regras do dono: seguir sempre o plano; se não puder cumprir uma etapa, dizer que não é permitido/possível e o que falta; não prometer o que o sistema não executa; sem roteiro fixo no código.
+
+**Contatos e aprovação**
+- `contato_salvar` (só agenda) separado de `membro_cadastrar` (só quando o dono pede para adicionar à equipe). Repasse da resposta a quem a Maia procurou (48 h), inclusive membro; número sem o 55 é reconhecido.
+- Pedido do dono é aprovado só pelo dono. Nenhuma permissão de ninguém foi alterada (uma remoção feita por engano foi desfeita).
+
+**Áudio**
+- O Whisper do EasyPanel travava; agora a transcrição roda no PC (`scripts/whisper_local.py`, faster-whisper `small`, 127.0.0.1:8000), iniciada pelo launcher junto com o worker. Falha avisa em até ~2 min e o áudio (dono, membro e grupo) fica 24 h e é retomado a cada 10 min.
+
+**Modelo e comportamento**
+- O Haiku só atende pedido curto e de uma ação; o resto vai ao Sonnet 4.6.
+- Teste de comportamento com o agente real e ferramentas simuladas achou e corrigiu quatro falhas (grupo sem o dono, "ferramenta", aviso de resposta, número sem 55).
+
+**Pendências (também no `TODO.md`)**: teste ao vivo do fluxo completo do Projeto Italo; obrigatoriedade do plano em pedidos com várias etapas; gatilho de arquivo/resposta no privado; formato real do evento de entrada em grupo; modelo `large-v3` no PC (falta espaço no C:); grupo duplicado "Projeto Ítalo" (com acento).
+
 ## Áudio: falha rápida e retomada (12/10/2026)
 
 - Causa: o Whisper do EasyPanel não concluía a transcrição; a Maia esperava ~8 min e depois descartava o áudio.

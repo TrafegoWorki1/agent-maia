@@ -1,6 +1,27 @@
 # Pendências atuais da Maia
 
-Atualizado em 12/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+
+## Atualizado em 13/10/2026 — a fazer
+
+**Validar ao vivo (pelo WhatsApp, com o número do dono)**
+- [ ] Fluxo completo do plano: criar grupo, OK, link ao Ítalo, entrada no grupo (boas-vindas e pedido do PDF) e leitura do PDF enviado no grupo.
+- [ ] Aviso de entrada em grupo cadastrado: o formato do evento da Evolution foi inferido da documentação; confirmar com uma entrada real.
+- [ ] Retomada de áudio pendente (dono, membro e grupo) com o Whisper local.
+- [ ] Áudio de 59 s transcrito de ponta a ponta pelo Whisper local.
+
+**Implementar**
+- [ ] Obrigar o plano em pedidos com várias etapas (hoje é só instrução ao agente).
+- [ ] Gatilho de arquivo ou resposta recebida no privado para planos.
+- [ ] Mostrar o texto ao dono antes de enviar mensagem a terceiros, se ele quiser (hoje o envio a contato salvo sai direto).
+- [ ] Modelo `large-v3` no PC: não está instalado e o disco C: tinha 0,3 GB livres.
+- [ ] Tirar o cadastro duplicado do grupo "Projeto Ítalo" (com acento), se o dono confirmar.
+- [ ] Repetir o teste de comportamento (ferramentas simuladas) sempre que o prompt ou as descrições de ferramenta mudarem.
+
+**Ações do owner**
+- [ ] Rotacionar segredos que passaram pela listagem do EasyPanel (as variáveis de todos os serviços apareceram em uma conversa).
+- [ ] Decidir sobre o Whisper da VPS (modelo `base`, mais CPU ou desligar), já que a Maia usa o do PC.
+- [ ] Corrigir o nome `SUPABASE_ACCESS_TOKKEN` no `.env` (a CLI do Supabase funciona com ele, mas é um erro de digitação).
 
 ## Atualizado em 12/10/2026 — a fazer
 
