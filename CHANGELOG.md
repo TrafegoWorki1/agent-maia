@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Modelo econômico (Haiku) só para pedido curto e de uma ação
+
+- **Sintoma:** a Maia parecia burra em pedidos difíceis.
+- **Causa:** qualquer mensagem com a palavra "resumo" era classificada como simples e ia ao Haiku, mesmo com várias etapas (ex.: "resume a conversa, depois cria o grupo e manda o link"). O restante (pedidos de ação, consultas, planos) já ia ao modelo principal, que na conta é o Sonnet 4.6.
+- **Correção:** "resumo" só é simples quando a mensagem tem até 100 caracteres e não tem sinais de várias etapas (depois, quando, em seguida, primeiro, segundo, plano, "e crie/manda/envie..."). Caso contrário, vai ao modelo principal. Cumprimentos curtos continuam no econômico.
+- **Verificação:** `pnpm typecheck` e `vitest` (480 testes, incluindo `tests/modeloEconomico.test.ts`).
+
 ## 2026-10-13 — Pedido do dono é aprovado só pelo dono
 
 - **Sintoma:** os pedidos de criação de grupo feitos pelo dono iam para todos os que têm permissão de aprovar, inclusive a Gessica. O dono disse que a aprovação dele tem que ser dele, não de outra pessoa.
