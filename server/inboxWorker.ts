@@ -12,7 +12,7 @@ import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { notifyGroupJoin } from "./groupJoin.ts";
 import type { GroupJoin } from "./evolutionWebhook.ts";
-import { handleGroupMessage, handleMemberMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
+import { handleGroupMessage, handleMemberMessage, handleOwnerMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { hasRecentOutreach, upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
@@ -71,7 +71,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordMessage(db, { channel: "whatsapp", author: "owner", text: item.payload }, now);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "handled" }, now);
     // Entra no lote da conversa: o despacho é feito pelo laço de lotes, nunca aqui.
-    const ownerAnswered = await handleApproverText({ db, notifyOwner }, item.payload).catch(() => false);
+    const ownerAnswered = await handleApproverText({ db, notifyOwner, resumePlan: (prompt) => handleOwnerMessage(prompt) }, item.payload).catch(() => false);
     if (ownerAnswered) return;
     await addOwnerText(db, item.id, item.payload);
     return;
@@ -124,7 +124,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     markRead(dmJid(process.env.EVOLUTION_APPROVER_NUMBER ?? ""), item.key_id);
     await recordMessage(db, { channel: "whatsapp", author: "approver", text: item.payload }, now);
     // Resposta de aprovação (SIM ou NÃO, com número): decidida pelo banco.
-    const handled = await handleApproverText({ db, notifyOwner }, item.payload).catch((error) => {
+    const handled = await handleApproverText({ db, notifyOwner, resumePlan: (prompt) => handleOwnerMessage(prompt) }, item.payload).catch((error) => {
       console.error("[aprovacao]", error instanceof Error ? error.message : error);
       return false;
     });
@@ -182,7 +182,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     const { join } = JSON.parse(item.payload) as { join: GroupJoin };
     resetGroupCache();
     await recordEvent(db, { event: "group-participants.update", kind: "event", sender: "group" as Sender, outcome: "join" }, now);
-    await notifyGroupJoin(db, join, notifyOwner).catch((error) => console.error("[worker] entrada no grupo:", error instanceof Error ? error.message : error));
+    await notifyGroupJoin(db, join, notifyOwner, (prompt) => handleOwnerMessage(prompt)).catch((error) => console.error("[worker] entrada no grupo:", error instanceof Error ? error.message : error));
     return;
   }
 

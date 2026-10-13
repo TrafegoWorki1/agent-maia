@@ -1,5 +1,6 @@
 import { sendOwnerText } from "./evolutionSend.ts";
 import { loadContacts } from "./contacts.ts";
+import { cancelWaiting, resumePlans, setWaiting } from "./plans.ts";
 import { canonicalPhone } from "./evolutionWebhook.ts";
 import { addTaskEvent, createOwnerTask, recordMessage, type Db } from "./store.ts";
 import { APPROVAL_TTL_MS, approverNumbers, createApproval, decideFromText, openApprovals } from "./approvals.ts";
@@ -326,6 +327,8 @@ export async function registerGroup(db: Db, jid: string, name: string, source: "
 export interface GroupDeps {
   db: Db;
   notifyOwner: (text: string) => Promise<void>;
+  // Chama a Maia de volta com o texto (continuação de um plano do dono). Sem isso, os planos só são cancelados ou ficam parados.
+  resumePlan?: (prompt: string) => Promise<unknown>;
 }
 
 interface GroupPayload {
@@ -334,7 +337,7 @@ interface GroupPayload {
 }
 
 // Pedido de criação: vira uma aprovação persistida (número, prazo e processo), não memória do processo.
-export async function requestCreateGroup(deps: GroupDeps, name: string, participants: string[]): Promise<string> {
+export async function requestCreateGroup(deps: GroupDeps, name: string, participants: string[], planId?: number): Promise<string> {
   const approver = process.env.EVOLUTION_APPROVER_NUMBER;
   if (!approver) return "Número aprovador não configurado no .env.";
   if ((await openApprovals(deps.db)).some((r) => r.kind === "grupo")) {
@@ -349,6 +352,8 @@ export async function requestCreateGroup(deps: GroupDeps, name: string, particip
     taskId,
   });
   await addTaskEvent(deps.db, taskId, "approval_requested", "whatsapp.create_group", null);
+  // Plano do dono: a etapa seguinte espera este OK e retoma sozinha quando o grupo for criado.
+  if (planId) await setWaiting(deps.db, planId, { type: "approval", id: approval.id }).catch((error) => console.error("[planos]", error instanceof Error ? error.message : error));
 
   const known = await loadContacts(deps.db).catch(() => []);
   const label = (number: string) => {
@@ -378,6 +383,13 @@ async function expireGroupIfPending(deps: GroupDeps, id: number, name: string, t
   if (updated.error || !updated.data || updated.data.length === 0) return;
   await addTaskEvent(deps.db, taskId, "approval_expired", "whatsapp.create_group", null);
   await deps.notifyOwner(`O pedido para criar o grupo "${name}" expirou sem resposta do aprovador.`);
+  await cancelPlansOf(deps, id, `o pedido para criar o grupo "${name}" expirou`);
+}
+
+// O OK não vai chegar (recusado ou expirado): os planos que o esperavam são cancelados e o dono é avisado.
+async function cancelPlansOf(deps: GroupDeps, approvalId: number, reason: string): Promise<void> {
+  const cancelled = await cancelWaiting(deps.db, { type: "approval", id: approvalId }).catch(() => []);
+  for (const plan of cancelled) await deps.notifyOwner(`Cancelei o plano #${plan.id} "${plan.title}": ${reason}.`);
 }
 
 // Resposta do aprovador (SIM ou NÃO, com número). Retorna true se a mensagem era uma resposta de aprovação.
@@ -398,12 +410,14 @@ export async function handleApproverText(deps: GroupDeps, text: string): Promise
   if (taskId) await addTaskEvent(deps.db, taskId, decision.approved ? "approval_approved" : "approval_denied", "whatsapp.create_group", null);
   if (!decision.approved) {
     await deps.notifyOwner(`Criação do grupo "${payload.name}" recusada pelo aprovador. Nenhum grupo foi criado.`);
+    await cancelPlansOf(deps, row.id, `a criação do grupo "${payload.name}" foi recusada`);
     return true;
   }
   const result = await executeCreateGroup(payload.name, payload.participants);
   if (taskId) await addTaskEvent(deps.db, taskId, result.ok ? "external_done" : "task_failed", "whatsapp.create_group", result.detail);
   if (!result.ok) {
     await deps.notifyOwner(`Não consegui criar o grupo "${payload.name}": ${result.detail}`);
+    await cancelPlansOf(deps, row.id, `não consegui criar o grupo "${payload.name}"`);
     return true;
   }
   // Conferência: a Evolution devolveu o id do grupo com o nome pedido, ou o grupo aparece na lista da instância.
@@ -416,5 +430,12 @@ export async function handleApproverText(deps: GroupDeps, text: string): Promise
   if (created) await registerGroup(deps.db, created.jid, created.subject, "criado").catch((error) => console.error("[grupos]", error instanceof Error ? error.message : error));
   if (taskId) await addTaskEvent(deps.db, taskId, confirmed ? "task_verified" : "verification_failed", "whatsapp.create_group", confirmed ? null : live.error ?? "grupo não apareceu na lista");
   await deps.notifyOwner(confirmed ? `Grupo "${payload.name}" criado e conferido na lista da instância.` : `O pedido de criação do grupo "${payload.name}" foi aceito, mas não consegui confirmar que ele existe. Confira no WhatsApp antes de pedir de novo.`);
+  // Plano do dono: retoma a etapa seguinte com o grupo recém-criado. Sem confirmação do grupo, cancela e pede conferência.
+  if (confirmed && created && deps.resumePlan) {
+    await resumePlans(deps.db, { type: "approval", id: row.id }, `o grupo "${created.subject}" foi criado e conferido (jid ${created.jid}).`, { grupo: { nome: created.subject, jid: created.jid } }, deps.resumePlan)
+      .catch((error) => console.error("[planos] retomada:", error instanceof Error ? error.message : error));
+  } else if (!confirmed) {
+    await cancelPlansOf(deps, row.id, `não consegui confirmar o grupo "${payload.name}"`);
+  }
   return true;
 }

@@ -28,6 +28,8 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__maia__contato_enviar_mensagem": (i) => `mandar uma mensagem para "${str(i, "contato") ?? "um contato"}"`,
   "mcp__maia__contato_cadastrar": () => "cadastrar um novo contato",
   "mcp__maia__membro_cadastrar": (i) => `cadastrar "${str(i, "nome") ?? "uma pessoa"}" como membro`,
+  "mcp__maia__plano_criar": (i) => `gravar o plano "${str(i, "titulo") ?? "do pedido"}"`,
+  "mcp__maia__plano_atualizar": () => "atualizar o plano",
   "mcp__maia__contato_salvar": (i) => `salvar "${str(i, "nome") ?? "um contato"}" na agenda`,
   "mcp__maia__arquivo_reenviar": () => "reenviar um arquivo recebido",
   "mcp__maia__instagram_publicar": (i) => `publicar ${str(i, "tipo") ?? (Array.isArray(i.artes) && i.artes.length > 1 ? "carrossel" : "conteúdo")} no Instagram: “${str(i, "legenda")?.slice(0, 180) ?? str(i, "caption")?.slice(0, 180) ?? "sem legenda"}${(str(i, "legenda")?.length ?? str(i, "caption")?.length ?? 0) > 180 ? "…" : ""}”${str(i, "agendar_para") ? `; agendado para ${str(i, "agendar_para")}` : ""}`,
