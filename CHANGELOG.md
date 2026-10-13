@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Aprovação de grupo mostra quem entra; sem padrão fixo de execução
+
+- **Sintoma:** o dono pediu para criar o grupo "Projeto Ítalo" e depois mandar o convite ao Ítalo no privado. O agente disse que mandaria o convite, mas o pedido de criação (#9) já levava o Ítalo e o dono como participantes, e a aprovação só dizia "2 participante(s)". O Ítalo entrou direto e o convite foi desnecessário.
+- **Causa:** o agente sabia que o grupo precisa de alguém além dele (incluiu o dono), mas também incluiu o Ítalo, contra o que ele próprio tinha anunciado, e não perguntou quem deveria entrar na criação. A mensagem de aprovação escondia a lista, então o erro passou. O pedido do dono também não dizia quem entrava primeiro.
+- **Decisão do dono:** não impor um padrão fixo de execução; o agente deve entender o pedido e perguntar quando for ambíguo.
+- **Correção:** `requestCreateGroup` (`server/groups.ts`) lista cada participante com nome da agenda e número, e avisa que a Maia entra por ser quem cria; a resposta devolvida ao agente repete a lista. A descrição de `grupo_criar` (Claude e Codex) traz só fatos (participantes entram na criação, a Maia entra sozinha, o WhatsApp exige ao menos um participante além dela) e manda perguntar ao dono quando não estiver claro quem entra, sem ditar o fluxo.
+- **Verificação:** `pnpm typecheck` e `vitest` (460 testes, com `tests/grupoCriarAprovacao.test.ts`) passando.
+- **Pendências:** a Maia não percebe quando alguém entra no grupo (as boas-vindas dependem do dono avisar); texto de mensagem enviada a terceiros ainda pode sair sem o OK do dono quando ele pede o envio.
+
 ## 2026-10-12 — grupo_criar no executor do Claude
 
 - **Sintoma:** o dono pediu para criar o grupo "Projeto Ítalo"; a Maia respondeu que não tinha a ferramenta de criar grupo no executor.

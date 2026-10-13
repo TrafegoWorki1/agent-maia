@@ -1,4 +1,6 @@
 import { sendOwnerText } from "./evolutionSend.ts";
+import { loadContacts } from "./contacts.ts";
+import { canonicalPhone } from "./evolutionWebhook.ts";
 import { addTaskEvent, createOwnerTask, recordMessage, type Db } from "./store.ts";
 import { APPROVAL_TTL_MS, approverNumbers, createApproval, decideFromText, openApprovals } from "./approvals.ts";
 
@@ -348,14 +350,22 @@ export async function requestCreateGroup(deps: GroupDeps, name: string, particip
   });
   await addTaskEvent(deps.db, taskId, "approval_requested", "whatsapp.create_group", null);
 
-  const request = `Pedido para criar o grupo "${name}" com ${participants.length} participante(s) (#${approval.id}).
+  const known = await loadContacts(deps.db).catch(() => []);
+  const label = (number: string) => {
+    const hit = known.find((c) => canonicalPhone(c.number) === canonicalPhone(number));
+    return hit?.name ? `${hit.name} (+${number})` : `+${number}`;
+  };
+  const list = participants.map((number) => `- ${label(number)}`).join("\n");
+  const request = `Pedido para criar o grupo "${name}" (#${approval.id}).
+Entram no grupo na criação, além da Maia, que cria e fica nele (${participants.length}):
+${list}
 Responda OK para criar ou NÃO para recusar. Sem resposta em 10 minutos, é recusado.`;
   await recordMessage(deps.db, { channel: "whatsapp", author: "maia", text: request });
   for (const to of await approverNumbers(deps.db)) await sendOwnerText(to, request);
 
   // Aviso de prazo, se este processo ainda estiver no ar. O banco continua sendo a fonte da verdade.
   setTimeout(() => void expireGroupIfPending(deps, approval.id, name, taskId), APPROVAL_TTL_MS).unref();
-  return `Pedido de criação do grupo "${name}" enviado ao aprovador (#${approval.id}).`;
+  return `Pedido de criação do grupo "${name}" enviado ao aprovador (#${approval.id}). Entram já na criação, além da Maia: ${participants.map(label).join(", ")}.`;
 }
 
 async function expireGroupIfPending(deps: GroupDeps, id: number, name: string, taskId: number): Promise<void> {

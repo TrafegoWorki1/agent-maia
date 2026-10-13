@@ -234,7 +234,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "grupo_criar",
-        "Cria um grupo novo no WhatsApp com os participantes informados. Só o owner pede; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution.",
+        "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos da ferramenta: os números de `participantes` entram no grupo já na criação; a Maia entra sozinha por ser quem cria; o WhatsApp exige pelo menos um participante além da Maia. Se o pedido do owner não deixar claro quem deve entrar na criação, pergunte a ele antes de chamar a ferramenta, e mostre a lista exata que você vai enviar.",
         {
           grupo: z.string().min(2).max(100).describe("Nome do grupo novo."),
           participantes: z.array(z.string().min(10).max(20)).min(1).max(100).describe("Números com DDI e DDD."),
