@@ -26,6 +26,7 @@ import { approverNumbers, createApproval, openApprovals, waitApproval } from "./
 import { accessContext } from "./accessContext.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
+import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
@@ -511,6 +512,26 @@ server.registerTool("conversas_listar", { description: "Lista as conversas (priv
 server.registerTool("contato_instancia_buscar", { description: "Procura, nos contatos salvos na instância do WhatsApp (diferente da agenda da Maia), alguém por nome ou número. Use quando contato_buscar não achar. Só leitura.", inputSchema: { busca: z.string().min(1).max(80) } }, async ({ busca }) => guarded("mcp__maia__contato_instancia_buscar", { busca }, async () => {
   const result = await findInstanceContacts(busca); if (!result.ok) throw new Error(`Não consegui consultar: ${result.error}.`);
   return result.contacts.length ? result.contacts.map((c) => `${c.name || "(sem nome)"} +${c.number}`).join("\n") : `Nenhum contato da instância para "${busca}".`;
+}));
+
+server.registerTool("planilha_criar", {
+  description: "Cria um arquivo Excel (.xlsx) formatado e envia pelo WhatsApp ao dono. Suporta múltiplas abas, cabeçalhos em negrito, linhas alternadas, formatação automática de datas (ISO 8601 → DD/MM/AAAA), valores monetários (R$) e fórmulas (começam com =). Só o dono usa esta ferramenta.",
+  inputSchema: {
+    titulo: z.string().min(1).max(100),
+    abas: z.array(z.object({
+      nome: z.string().min(1).max(31),
+      cabecalhos: z.array(z.string().max(100)).min(1).max(30),
+      linhas: z.array(z.array(z.union([z.string(), z.number(), z.null()]))).max(5000),
+    })).min(1).max(10),
+  },
+}, async ({ titulo, abas }) => guarded("mcp__maia__planilha_criar", { titulo, abas }, async () => {
+  const result = await criarPlanilha({ titulo, abas });
+  if (!result.ok) throw new Error(`Não consegui criar a planilha: ${result.error}.`);
+  const number = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+  const id = await sendFile(number, result.path, "document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", titulo, result.fileName);
+  await addTaskEvent(getDb(), taskId, "external_done", "planilha_criar", result.fileName).catch(() => {});
+  if (id) await addTaskEvent(getDb(), taskId, "task_verified", "planilha_criar", `mensagem ${id}`).catch(() => {});
+  return `Planilha "${result.fileName}" criada e enviada${id ? ` (mensagem ${id})` : ""}.`;
 }));
 
 server.registerTool("arquivo_reenviar", { description: "Reenvia ao owner, no WhatsApp dele, um arquivo (imagem, vídeo ou documento) que um membro ou contato mandou à Maia. Útil quando o owner pede o arquivo original, não só o resumo. Só o owner usa esta ferramenta.", inputSchema: { de: z.string().max(80).optional() } }, async ({ de }) => guarded("mcp__maia__arquivo_reenviar", { de }, async () => {

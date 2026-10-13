@@ -23,6 +23,7 @@ import { activateIntegration, callIntegration, listIntegrations, parseJsonObject
 import { participantsWithOwner, requestCreateGroup } from "./groups.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
+import { criarPlanilha } from "./planilha.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -1183,6 +1184,33 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: "Post atualizado." }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui editar: ${zernioErrorText(error)}.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "planilha_criar",
+        "Cria um arquivo Excel (.xlsx) formatado e envia pelo WhatsApp ao dono. Suporta múltiplas abas, cabeçalhos em negrito, linhas alternadas, formatação automática de datas (ISO 8601 → DD/MM/AAAA), valores monetários (R$) e fórmulas (começam com =). Só o dono usa esta ferramenta.",
+        {
+          titulo: z.string().min(1).max(100).describe("Nome do arquivo (sem extensão)."),
+          abas: z.array(z.object({
+            nome: z.string().min(1).max(31).describe("Nome da aba."),
+            cabecalhos: z.array(z.string().max(100)).min(1).max(30).describe("Títulos das colunas."),
+            linhas: z.array(z.array(z.union([z.string(), z.number(), z.null()]))).max(5000).describe("Linhas de dados. Datas em ISO 8601 (ex.: 2026-10-13). Fórmulas começam com = (ex.: =COUNTIF(F2:F100,\"Sim\"))."),
+          })).min(1).max(10).describe("Abas da planilha."),
+        },
+        async (args) => {
+          try {
+            const result = await criarPlanilha({ titulo: args.titulo, abas: args.abas });
+            if (!result.ok) return { content: [{ type: "text", text: `Não consegui criar a planilha: ${result.error}.` }], isError: true };
+            const number = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+            const id = await sendFile(number, result.path, "document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", args.titulo, result.fileName);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "planilha_criar", result.fileName).catch(() => {});
+              if (id) await addTaskEvent(getDb(), taskId, "task_verified", "planilha_criar", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `Planilha "${result.fileName}" criada e enviada${id ? ` (mensagem ${id})` : ""}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui criar a planilha: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
         },
       ),
