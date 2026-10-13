@@ -5,7 +5,8 @@ Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 ## Atualizado em 13/10/2026 — a fazer
 
 **Validar ao vivo (pelo WhatsApp, com o número do dono)**
-- [ ] Fluxo completo do plano: criar grupo, OK, link ao Ítalo, entrada no grupo (boas-vindas e pedido do PDF) e leitura do PDF enviado no grupo.
+- [x] PDF enviado no grupo lido e plano concluído (validado em 13/10/2026, plano #2).
+- [ ] Entrada de alguém no grupo retomando o plano sozinha (com o @lid resolvido): repetir com um grupo novo.
 - [ ] Aviso de entrada em grupo cadastrado: o formato do evento da Evolution foi inferido da documentação; confirmar com uma entrada real.
 - [ ] Retomada de áudio pendente (dono, membro e grupo) com o Whisper local.
 - [ ] Áudio de 59 s transcrito de ponta a ponta pelo Whisper local.
