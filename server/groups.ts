@@ -1,7 +1,7 @@
 import { sendOwnerText } from "./evolutionSend.ts";
 import { loadContacts } from "./contacts.ts";
 import { cancelWaiting, resumePlans, setWaiting } from "./plans.ts";
-import { canonicalPhone } from "./evolutionWebhook.ts";
+import { canonicalPhone, samePhone, withCountryCode } from "./evolutionWebhook.ts";
 import { addTaskEvent, createOwnerTask, recordMessage, type Db } from "./store.ts";
 import { APPROVAL_TTL_MS, approverNumbers, ownerNumbers, createApproval, decideFromText, openApprovals } from "./approvals.ts";
 
@@ -322,6 +322,15 @@ export function groupExists(groups: { subject: string }[], name: string): boolea
 export async function registerGroup(db: Db, jid: string, name: string, source: "criado" | "cadastrado"): Promise<void> {
   const { error } = await db.from("maia_groups").upsert({ jid, name, source, active: true }, { onConflict: "jid" });
   if (error) throw new Error(`cadastrar grupo: ${error.message}`);
+}
+
+// O dono entra em todo grupo que a Maia cria para ele (ele pediu, e o WhatsApp exige ao menos uma pessoa além dela).
+// Os demais números são os que o pedido citou, sem duplicar o dono, com ou sem o nono dígito.
+export function participantsWithOwner(participants: string[], owner = process.env.EVOLUTION_OWNER_NUMBER): string[] {
+  const clean = participants.map((p) => withCountryCode(p)).filter((n) => n.length >= 12 && n.length <= 13);
+  const ownerNumber = owner ? withCountryCode(owner) : "";
+  const rest = clean.filter((n, i) => clean.findIndex((m) => samePhone(m, n)) === i && !(ownerNumber && samePhone(n, ownerNumber)));
+  return ownerNumber ? [ownerNumber, ...rest] : rest;
 }
 
 export interface GroupDeps {

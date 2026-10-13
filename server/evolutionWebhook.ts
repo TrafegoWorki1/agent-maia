@@ -95,6 +95,12 @@ export function canonicalPhone(value: string): string {
   return digits;
 }
 
+// Número brasileiro digitado sem o 55 (DDD + número, 10 ou 11 dígitos) ganha o DDI. Outros tamanhos ficam como estão.
+export function withCountryCode(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return (digits.length === 10 || digits.length === 11) && !digits.startsWith("55") ? `55${digits}` : digits;
+}
+
 export function samePhone(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) return false;
   const left = canonicalPhone(a);

@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Teste de comportamento do agente e correções
+
+- **Método:** rodei o agente de verdade (Claude CLI, mesmo prompt de sistema e mesmas descrições de ferramenta) com o servidor real de ferramentas, trocando só os efeitos por respostas simuladas. Nada foi enviado, criado ou gravado. Cinco cenários: Projeto Italo com várias etapas, grupo sem participantes, número sem o 55, renomear grupo (função inexistente) e mensagem com aviso de resposta.
+- **Achados antes da correção:** (1) o agente gravou o plano mas criou o grupo só com o Ítalo, sem o dono, contra o pedido de mandar o link depois, e disse "grupo criado com o Italo já dentro"; (2) ao renomear grupo, disse "não tenho essa ferramenta"; (3) ao pedir "me avisa quando ele responder", disse que não conseguia monitorar, embora o repasse automático exista (a regra de não prometer o fez prometer de menos); (4) um número sem o 55 não era achado na agenda.
+- **Correções:** o dono entra automaticamente em todo grupo criado pela Maia (`participantsWithOwner`); `participantes` passa a ser opcional e só traz outras pessoas que entram na criação (quem será convidado por link não entra). Número DDD + número sem o 55 ganha o DDI na agenda e no cadastro (`withCountryCode`). O prompt lista o repasse automático ao dono (até 48 h) como mecanismo real, manda confiar no resultado de uma ação que diz que algo acontece sozinho e proíbe a palavra "ferramenta" ao falar com o dono ("ainda não consigo renomear grupos").
+- **Depois da correção (mesmos cenários):** Projeto Italo: plano gravado, contato salvo, grupo só com o dono, link depois; renomear grupo: "Ainda não consigo renomear grupos", com o caminho manual; aviso de resposta: "a resposta chega automaticamente pra você"; grupo sem participantes: pergunta quem entra, oferecendo criar só com o dono; número sem o 55: pede só o nome.
+- **Verificação:** `pnpm typecheck` e `vitest` (491 testes, com `tests/comportamentoTestado.test.ts`).
+- **Limites do teste:** as ferramentas são simuladas, então não valida a entrega real nem as aprovações; cenários de um turno só (a retomada do plano depois do OK não foi exercitada com o agente). Um agente é probabilístico: o resultado de um cenário pode variar entre execuções.
+
 ## 2026-10-13 — Seguir o plano sempre; se não puder, dizer o que falta
 
 - **Decisão do dono:** a Maia segue sempre o plano. Quando não conseguir cumprir uma etapa, deve afirmar que não é permitido (ou possível) e dizer o que é preciso para ter acesso, em vez de improvisar ou prometer.
