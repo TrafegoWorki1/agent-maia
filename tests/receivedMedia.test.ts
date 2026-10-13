@@ -68,8 +68,8 @@ describe("gravação e busca no banco", () => {
 
 describe("matchReceivedMedia (função pura)", () => {
   const rows: ReceivedMediaRow[] = [
-    { id: 1, conv: "dm:1", fromNumber: "5585911112222", fromName: "Jéssica", mediaType: "image", fileName: "a.jpg", caption: "", path: "p1", mimetype: "image/jpeg", receivedAt: "2026-10-09T10:00:00Z" },
-    { id: 2, conv: "dm:2", fromNumber: "5585955556666", fromName: "Jefferson", mediaType: "document", fileName: "b.pdf", caption: "", path: "p2", mimetype: "application/pdf", receivedAt: "2026-10-09T11:00:00Z" },
+    { id: 1, conv: "dm:1", fromNumber: "5585911112222", fromName: "Jéssica", mediaType: "image", fileName: "a.jpg", caption: "", path: "p1", mimetype: "image/jpeg", receivedAt: "2026-10-09T10:00:00Z", storageUrl: null },
+    { id: 2, conv: "dm:2", fromNumber: "5585955556666", fromName: "Jefferson", mediaType: "document", fileName: "b.pdf", caption: "", path: "p2", mimetype: "application/pdf", receivedAt: "2026-10-09T11:00:00Z", storageUrl: null },
   ];
   it("sem query, pega o primeiro (o mais recente, pela ordenação do banco)", () => {
     expect(matchReceivedMedia(rows)?.id).toBe(1);

@@ -13,6 +13,7 @@ export interface ReceivedMediaInput {
   caption: string;
   path: string;
   mimetype: string;
+  storageUrl?: string;
 }
 
 export async function recordReceivedMedia(db: Db, input: ReceivedMediaInput): Promise<void> {
@@ -25,6 +26,7 @@ export async function recordReceivedMedia(db: Db, input: ReceivedMediaInput): Pr
     caption: input.caption.slice(0, 1000),
     path: input.path,
     mimetype: input.mimetype,
+    ...(input.storageUrl ? { storage_url: input.storageUrl } : {}),
   });
   if (error) throw new Error(`mídia recebida: ${error.message}`);
 }
@@ -40,6 +42,7 @@ export interface ReceivedMediaRow {
   path: string;
   mimetype: string;
   receivedAt: string;
+  storageUrl: string | null;
 }
 
 function toRow(r: Record<string, unknown>): ReceivedMediaRow {
@@ -54,6 +57,7 @@ function toRow(r: Record<string, unknown>): ReceivedMediaRow {
     path: String(r.path),
     mimetype: String(r.mimetype),
     receivedAt: String(r.received_at),
+    storageUrl: typeof r.storage_url === "string" ? r.storage_url : null,
   };
 }
 

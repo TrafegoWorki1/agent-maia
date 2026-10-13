@@ -10,6 +10,7 @@ import { canConverse, resolveRequester } from "./access.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { loadGroupScope, scopeIncludesMessage } from "./groupScope.ts";
 import { recordReceivedMedia } from "./receivedMedia.ts";
+import { uploadReceivedMedia } from "./mediaStorage.ts";
 import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
 import { parseGroupIntent, requestCreateGroup } from "./groups.ts";
 import { getDb, recordMessage } from "./store.ts";
@@ -316,7 +317,12 @@ export async function handleMemberMedia(ref: MemberMediaRef): Promise<void> {
     const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
     const name = ref.fileName || `${kind === "image" ? "imagem" : kind === "video" ? "video" : "documento"}${MEDIA_EXT[mimetype] ?? ""}`;
     const path = saveMedia(data, name, Date.now(), MEMBER_MEDIA_DIR);
-    await recordReceivedMedia(getDb(), { conv: `dm:${digits}`, fromNumber: digits, fromName: requesterName, mediaType: kind, fileName: ref.fileName, caption: ref.caption, path, mimetype }).catch((error) => console.error("[midia-membro] registro:", error instanceof Error ? error.message : error));
+    const conv = `dm:${digits}`;
+    const storageUrl = await uploadReceivedMedia(data, name, mimetype, conv).catch((err) => {
+      console.error("[midia-membro] storage upload:", err instanceof Error ? err.message : err);
+      return undefined;
+    });
+    await recordReceivedMedia(getDb(), { conv, fromNumber: digits, fromName: requesterName, mediaType: kind, fileName: ref.fileName, caption: ref.caption, path, mimetype, storageUrl }).catch((error) => console.error("[midia-membro] registro:", error instanceof Error ? error.message : error));
     const base = { mediaType: kind, fileName: ref.fileName, caption: ref.caption, path, sender: requesterName } as const;
     let prompt: string;
     if (kind === "image") {

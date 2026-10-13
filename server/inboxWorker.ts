@@ -17,6 +17,8 @@ import { recordConvMessage } from "./conversations.ts";
 import { hasRecentOutreach, upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
 import { downloadMedia, sendFile, sendOwnerText } from "./evolutionSend.ts";
+import { uploadReceivedMedia } from "./mediaStorage.ts";
+import { recordReceivedMedia } from "./receivedMedia.ts";
 import { handleVaultItem } from "./vault.ts";
 import { mentionsMaiaByTag } from "./groupMention.ts";
 import { runProactive } from "./proactive.ts";
@@ -193,12 +195,19 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_media" }, now);
     await upsertContact(db, { number: digits, name: ref.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
     const senderLabel = ref.name || `+${digits}`;
+    const conv = `dm:${digits}`;
     try {
       const limit = MAX_BYTES[ref.mediaType];
       const { data, mimetype } = await downloadMedia(ref.key, ref.mimetype, limit);
       const ext: Record<string, string> = MEDIA_EXT as Record<string, string>;
       const fileName = ref.fileName || `${ref.mediaType === "image" ? "imagem" : ref.mediaType === "video" ? "video" : "documento"}${ext[mimetype] ?? ""}`;
       const path = saveMedia(data, fileName, Date.now(), MEMBER_MEDIA_DIR);
+      // Sobe para o Storage antes de encaminhar: cópia durável que sobrevive reinicializações do worker.
+      const storageUrl = await uploadReceivedMedia(data, fileName, mimetype, conv).catch((err) => {
+        console.error("[worker] storage upload:", err instanceof Error ? err.message : err);
+        return undefined;
+      });
+      await recordReceivedMedia(db, { conv, fromNumber: digits, fromName: ref.name, mediaType: ref.mediaType, fileName, caption: ref.caption ?? "", path, mimetype, storageUrl }).catch((err) => console.error("[worker] received_media:", err instanceof Error ? err.message : err));
       const caption = ref.caption ? `${senderLabel}: ${ref.caption}` : senderLabel;
       await sendFile(owner, path, ref.mediaType, mimetype, caption, fileName);
     } catch (error) {
