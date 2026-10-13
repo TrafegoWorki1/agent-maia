@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Entrada em grupo pelo identificador interno (@lid) retoma o plano
+
+- **Sintoma (teste ao vivo, grupo "Projeto Italo Teste", plano #2):** o plano foi gravado, o OK criou o grupo e a Maia mandou o link sozinha. Mas quando a pessoa entrou, o plano não retomou: a Maia só perguntou "Quer que eu dê as boas-vindas?". Depois da sua resposta "Sim", ela fez as boas-vindas à mão e prometeu "leio o PDF, sem precisar me avisar", mas o plano continuava esperando a **entrada**, não o arquivo; o PDF enviado pelo número 2658 foi ignorado.
+- **Causa:** a Evolution informou quem entrou pelo identificador interno do WhatsApp (`...@lid`, 15 dígitos), não pelo telefone. O plano esperava o telefone, então não casou. A lista de participantes da Evolution traz os dois (`id` @lid e `phoneNumber`), mas o código lia só o `id`. Isso também fazia `mencionar_todos` descartar essas pessoas (um @lid não passa no filtro de 12 a 13 dígitos).
+- **Correção:** `fetchGroupParticipants` agora usa `phoneNumber` como número e guarda o `lid`; `groupJoinFrom` lê `phoneNumber` quando o participante vem como objeto; `resolveJoinNumbers` (`server/groupJoin.ts`) troca um identificador interno pelo telefone da lista de participantes do grupo (duas tentativas, 2 s entre elas). Se mesmo assim não casar com o plano, o aviso ao dono cita o plano que esperava uma entrada ("responda Sim e eu sigo o plano").
+- **Verificação:** `pnpm typecheck` e `vitest` (495 testes, com os casos do identificador interno em `tests/grupoEntrada.test.ts`).
+- **Observação:** o formato real foi conferido lendo a lista de participantes na Evolution (campos `id`, `phoneNumber`, `admin`, `name`, `imgUrl`). O evento do webhook em si ainda não foi capturado; a correção cobre tanto o telefone no evento quanto só o identificador.
+- **Pendências:** repetir o teste ao vivo (entrada e PDF); a promessa "sem precisar me avisar" no caminho manual só é verdadeira se o plano estiver esperando o arquivo.
+
 ## 2026-10-13 — Teste de comportamento do agente e correções
 
 - **Método:** rodei o agente de verdade (Claude CLI, mesmo prompt de sistema e mesmas descrições de ferramenta) com o servidor real de ferramentas, trocando só os efeitos por respostas simuladas. Nada foi enviado, criado ou gravado. Cinco cenários: Projeto Italo com várias etapas, grupo sem participantes, número sem o 55, renomear grupo (função inexistente) e mensagem com aviso de resposta.
