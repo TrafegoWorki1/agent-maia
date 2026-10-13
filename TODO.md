@@ -15,6 +15,8 @@ Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [ ] Obrigar o plano em pedidos com várias etapas (hoje é só instrução ao agente).
 - [ ] Gatilho de arquivo ou resposta recebida no privado para planos.
 - [ ] Mostrar o texto ao dono antes de enviar mensagem a terceiros, se ele quiser (hoje o envio a contato salvo sai direto).
+- [ ] Envio a contato: usar o número da agenda que casa com o nome pedido (não número de pedidos antigos) e recusar número do próprio dono sem confirmação.
+- [ ] Enviar ao Ítalo (•••2784) o link do grupo "Projeto Italo Teste 2" — só com o OK do dono.
 - [ ] Modelo `large-v3` no PC: não está instalado e o disco C: tinha 0,3 GB livres.
 - [ ] Tirar o cadastro duplicado do grupo "Projeto Ítalo" (com acento), se o dono confirmar.
 - [ ] Repetir o teste de comportamento (ferramentas simuladas) sempre que o prompt ou as descrições de ferramenta mudarem.

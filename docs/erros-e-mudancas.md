@@ -4,6 +4,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-13 — Link de convite enviado ao número errado (dono em vez do Ítalo)
+
+- **Sintoma:** no teste "Projeto Italo Teste 2", o pedido dizia "manda para o Ítalo" e o contato "Ítalo" existia na agenda com o número certo. A Maia mandou o link de convite ao número 2658, que é o segundo número do próprio dono (contato "Herickson maia"). O plano #3 ficou esperando esse número entrar no grupo, o que dispararia as boas-vindas quando o próprio dono entrasse.
+- **Causa provável:** o contexto do pedido novo incluiu o pedido antigo "Projeto Italo Personal", que dizia "manda para o Herickson 85998372658". O agente usou esse número em vez do que estava na agenda para "Ítalo". Não houve checagem de que o destinatário é o dono.
+- **Correção feita agora:** plano #3 cancelado no banco, com nota explicando o erro. O link não foi reenviado ao Ítalo: enviar a uma pessoa de fora precisa do OK do dono.
+- **Correção pendente (ainda não implementada):** (1) ao enviar mensagem a um contato, usar o número da agenda que casa com o nome pedido, e não números de pedidos anteriores; (2) recusar envio para número do próprio dono, salvo confirmação explícita.
+- **Também observado:** depois de o dono aprovar a criação do grupo, a Maia mandou um segundo aviso "aguardando aprovação", que confunde. Não foi corrigido.
+
 ## Resumo de 12 e 13/10/2026: grupos, planos, áudio, aprovação e comportamento
 
 Detalhes, causas e verificações de cada item estão no `CHANGELOG.md` (entradas de 12 e 13/10/2026).
