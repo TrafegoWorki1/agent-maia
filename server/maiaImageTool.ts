@@ -15,11 +15,12 @@ import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { organizationTools } from "./organization.ts";
-import { addTaskEvent, getDb } from "./store.ts";
+import { addTaskEvent, getDb, recordMessage } from "./store.ts";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
+import { requestCreateGroup } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
@@ -228,6 +229,33 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text", text: `Texto enviado no grupo "${group.group.subject}" e aceito pelo WhatsApp (mensagem ${id}).` }] };
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui enviar: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha; confira o grupo.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "grupo_criar",
+        "Cria um grupo novo no WhatsApp com os participantes informados. Só o owner pede; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution.",
+        {
+          grupo: z.string().min(2).max(100).describe("Nome do grupo novo."),
+          participantes: z.array(z.string().min(10).max(20)).min(1).max(100).describe("Números com DDI e DDD."),
+        },
+        async (args) => {
+          if (channel !== "whatsapp") return { content: [{ type: "text", text: "A criação de grupo é feita pelo WhatsApp, com aprovação." }], isError: true };
+          if (!isOwner) return { content: [{ type: "text", text: "Só o owner pode pedir a criação de grupo." }], isError: true };
+          const numbers = [...new Set(args.participantes.map((item) => item.replace(/\D/g, "")).filter((number) => number.length >= 12 && number.length <= 13))];
+          if (numbers.length !== args.participantes.length) return { content: [{ type: "text", text: "Informe todos os participantes com DDI e DDD (12 ou 13 dígitos)." }], isError: true };
+          const db = getDb();
+          try {
+            const reply = await requestCreateGroup({
+              db,
+              notifyOwner: async (text) => {
+                await sendOwnerText(process.env.EVOLUTION_OWNER_NUMBER ?? "", text);
+                await recordMessage(db, { channel: "whatsapp", author: "maia", text });
+              },
+            }, args.grupo.trim(), numbers);
+            return { content: [{ type: "text", text: reply }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui solicitar a criação do grupo: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
           }
         },
       ),

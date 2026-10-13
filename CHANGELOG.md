@@ -8,6 +8,13 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-12 — grupo_criar no executor do Claude
+
+- **Sintoma:** o dono pediu para criar o grupo "Projeto Ítalo"; a Maia respondeu que não tinha a ferramenta de criar grupo no executor.
+- **Causa:** `grupo_criar` existia só na ponte do Codex (`server/codexMaiaMcp.ts`). O executor principal (Claude, `server/maiaImageTool.ts`) não tinha a ferramenta, o que quebra a regra do `CLAUDE.md` de manter as ferramentas nos dois executores.
+- **Correção:** `grupo_criar` adicionada ao `maiaImageTool.ts` com o mesmo fluxo do Codex: só o owner, só pelo WhatsApp, e a criação aguarda o OK do aprovador (`requestCreateGroup`) antes de sair para a Evolution.
+- **Verificação:** `pnpm typecheck` e `vitest` (459 testes, incluindo o de paridade) passando.
+
 ## 2026-10-12 — Transcrição de áudio pelo Whisper local (no PC)
 
 - **Decisão do dono:** usar o Whisper do próprio PC em vez do servidor da VPS. O áudio fica na máquina do dono; nada sai para fora.
