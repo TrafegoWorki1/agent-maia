@@ -10,6 +10,8 @@ import { markMessagesRead } from "./chats.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
+import { notifyGroupJoin } from "./groupJoin.ts";
+import type { GroupJoin } from "./evolutionWebhook.ts";
 import { handleGroupMessage, handleMemberMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { hasRecentOutreach, upsertContact } from "./contacts.ts";
@@ -172,6 +174,15 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: reply.name, text: reply.text, keyId: item.key_id, at: now }).catch(() => {});
     await upsertContact(db, { number: digits, name: reply.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
     await notifyOwner(`${reply.name || `+${digits}`} respondeu: ${reply.text.slice(0, 500)}`).catch((error) => console.error("[worker] repasse:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "group" && item.kind === "event" && item.payload?.startsWith("{\"join\"")) {
+    // Alguém entrou num grupo: invalida o cache e avisa o dono (só grupos cadastrados).
+    const { join } = JSON.parse(item.payload) as { join: GroupJoin };
+    resetGroupCache();
+    await recordEvent(db, { event: "group-participants.update", kind: "event", sender: "group" as Sender, outcome: "join" }, now);
+    await notifyGroupJoin(db, join, notifyOwner).catch((error) => console.error("[worker] entrada no grupo:", error instanceof Error ? error.message : error));
     return;
   }
 
