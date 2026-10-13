@@ -120,6 +120,7 @@ describe("plano de várias etapas", () => {
   it("o texto da retomada manda a Maia seguir a próxima etapa e perguntar se faltar algo", () => {
     const text = resumePrompt({ id: 4, created_at: "", title: "T", request: "p", steps: [{ text: "a", done: true }, { text: "b", done: false }], status: "active", waiting: null, context: {} }, "algo aconteceu");
     expect(text).toContain("PRÓXIMA etapa pendente");
+    expect(text).toContain("não é permitido ou possível agora e o que é preciso para conseguir");
     expect(text).toContain("pergunte a ele em vez de supor");
     expect(text).toContain("Não é uma mensagem nova do dono");
   });

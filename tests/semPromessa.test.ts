@@ -14,4 +14,12 @@ describe("prompt da Maia", () => {
     expect(prompt).toContain("plano gravado (plano_criar) com gatilho");
     expect(prompt).toContain("sem citar nomes de ferramenta");
   });
+
+  it("manda seguir o plano e, se não puder cumprir uma etapa, dizer que não é permitido e o que falta para ter acesso", async () => {
+    const db = { from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: null, error: { message: "sem banco" } }) }) }) } as unknown as Db;
+    const prompt = await buildSystemPrompt(db);
+    expect(prompt).toContain("Siga sempre o plano que o dono aprovou");
+    expect(prompt).toContain("não é permitido ou possível para você agora");
+    expect(prompt).toContain("qual permissão, quem precisa aprovar");
+  });
 });

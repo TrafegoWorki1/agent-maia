@@ -58,7 +58,7 @@ export function resumePrompt(plan: Plan, happened: string): string {
     plan.request ? `Pedido original do dono: "${plan.request}"` : "",
     `Etapas:\n${formatSteps(plan.steps)}${context}`,
     `O que acabou de acontecer: ${happened}`,
-    "Execute a PRÓXIMA etapa pendente, dentro do que o dono pediu. Ao terminar, marque o que foi feito com plano_atualizar (e, se a próxima etapa depender de um evento, diga o que esperar). Se faltar informação ou algo fugir do que o dono pediu, pergunte a ele em vez de supor. Responda ao dono em poucas linhas.",
+    "Siga o plano: execute a PRÓXIMA etapa pendente, dentro do que o dono pediu, sem pular etapa nem trocar por outro caminho. Ao terminar, marque o que foi feito com plano_atualizar (e, se a próxima etapa depender de um evento, diga o que esperar). Se você NÃO conseguir cumprir a etapa (sem permissão, sem acesso, sem como fazer), diga ao dono com clareza que isso não é permitido ou possível agora e o que é preciso para conseguir (qual permissão, quem aprova, o que ele precisa enviar ou avisar). Se faltar informação ou algo fugir do que o dono pediu, pergunte a ele em vez de supor. Responda ao dono em poucas linhas.",
   ].filter(Boolean).join("\n");
 }
 

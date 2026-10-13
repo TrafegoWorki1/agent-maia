@@ -8,6 +8,12 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Seguir o plano sempre; se não puder, dizer o que falta
+
+- **Decisão do dono:** a Maia segue sempre o plano. Quando não conseguir cumprir uma etapa, deve afirmar que não é permitido (ou possível) e dizer o que é preciso para ter acesso, em vez de improvisar ou prometer.
+- **Mudança:** linha fixa no prompt (`server/rules.ts`) e no texto de retomada do plano (`server/plans.ts`): seguir o plano na ordem, sem pular etapa nem trocar de caminho; se não puder, dizer com clareza que não é permitido e exatamente o que falta (qual permissão, quem aprova, o que o dono precisa enviar ou avisar). Testes em `tests/semPromessa.test.ts` e `tests/planos.test.ts`.
+- **Limite:** é instrução ao agente, não uma trava no código; a obrigatoriedade do plano em pedidos com várias etapas segue pendente.
+
 ## 2026-10-13 — Arquivo no grupo continua o plano; a Maia não promete o que não executa
 
 - **Sintoma:** o dono mandou o PDF do Ítalo no grupo "Projeto Italo Personal" e a Maia tinha prometido "quando ele mandar o PDF, leio e trago sugestões". O PDF foi descartado: o webhook só tratava texto e áudio em grupo, e mídia virava um evento vazio. Não havia plano gravado e nenhum gatilho de arquivo, então a promessa era impossível de cumprir.
