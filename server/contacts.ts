@@ -1,4 +1,4 @@
-import { canonicalPhone } from "./evolutionWebhook.ts";
+import { canonicalPhone, withCountryCode } from "./evolutionWebhook.ts";
 import type { Db } from "./store.ts";
 
 // Agenda de contatos da Maia. Preenche sozinha com quem fala nos grupos cadastrados; o dono corrige nome e apelido.
@@ -29,7 +29,7 @@ export async function upsertContact(db: Db, input: { number: string; name: strin
 
 // Casa "Jéssica", "jessica" ou um número com os contatos. Nome parcial vale se for único.
 export function matchContacts(all: Contact[], query: string): Contact[] {
-  const digits = query.replace(/\D/g, "");
+  const digits = withCountryCode(query);
   if (digits.length >= 10) return all.filter((c) => canonicalPhone(c.number) === canonicalPhone(digits));
   const q = norm(query);
   if (!q) return [];
@@ -53,8 +53,8 @@ export async function resolveContact(db: Db, query: string): Promise<{ ok: true;
 
 // Contato avulso: só entra na agenda (permite à Maia enviar e receber o repasse), sem Pessoa, papel nem permissão.
 export async function saveContact(db: Db, input: { name: string; number: string }): Promise<{ ok: true; created: boolean } | { ok: false; error: string }> {
-  const number = input.number.replace(/\D/g, "");
-  if (number.length < 12 || number.length > 13) return { ok: false, error: "número inválido (use DDI+DDD+número)" };
+  const number = withCountryCode(input.number);
+  if (number.length < 12 || number.length > 13) return { ok: false, error: "número inválido (use DDD + número)" };
   const name = input.name.trim().slice(0, 60);
   if (!name) return { ok: false, error: "falta o nome" };
   const existing = (await loadContacts(db)).find((c) => canonicalPhone(c.number) === canonicalPhone(number));

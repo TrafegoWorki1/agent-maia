@@ -20,10 +20,11 @@ import { findReceivedMedia } from "./receivedMedia.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
-import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
+import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, participantsWithOwner, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
+import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
 import { organizationTools } from "./organization.ts";
 import { decideAccess, ownerRequester, type Requester } from "./access.ts";
@@ -279,11 +280,11 @@ server.registerTool("grupo_cadastrar", { description: "Cadastra um grupo existen
 // Criar grupo não passa pelo guard genérico: ele usa o mesmo fluxo persistido
 // do roteador do owner, que cria uma aprovação do tipo "grupo" e só chama a
 // Evolution depois do OK. Assim o processo não fica aguardando 10 min no SDK.
-server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos da ferramenta: os números de `participantes` entram no grupo já na criação; a Maia entra sozinha por ser quem cria; o WhatsApp exige pelo menos um participante além da Maia. Se o pedido do owner não deixar claro quem deve entrar na criação, pergunte a ele antes de chamar a ferramenta, e mostre a lista exata que você vai enviar.", inputSchema: { grupo: z.string().min(2).max(100), participantes: z.array(z.string().min(10).max(20)).min(1).max(100), plano: z.number().int().min(1).optional() } }, async ({ grupo, participantes, plano }) => {
+server.registerTool("grupo_criar", { description: "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos: o dono entra sempre no grupo, automaticamente; a Maia entra por ser quem cria; os números de `participantes` são OUTRAS pessoas que já entram na criação. Quem o dono vai convidar depois, por link, não entra em `participantes`. Se o pedido não deixar claro quem mais deve entrar, não coloque ninguém por conta própria.", inputSchema: { grupo: z.string().min(2).max(100), participantes: z.array(z.string().min(10).max(20)).max(100), plano: z.number().int().min(1).optional() } }, async ({ grupo, participantes, plano }) => {
   if (channel !== "whatsapp") return result("A criação de grupo é feita pelo WhatsApp, com aprovação.", true);
   if (requester().role !== "owner") return result("Só o owner pode solicitar a criação de grupo.", true);
-  const numbers = [...new Set(participantes.map((item) => item.replace(/\D/g, "")).filter((number) => number.length >= 12 && number.length <= 13))];
-  if (numbers.length !== participantes.length) return result("Informe todos os participantes com DDI e DDD (12 ou 13 dígitos).", true);
+  const numbers = participantsWithOwner(participantes);
+  if (numbers.length < 1 || participantes.some((item) => withCountryCode(item).length < 12 || withCountryCode(item).length > 13)) return result("Algum número está incompleto: informe DDD + número de cada pessoa.", true);
   const db = getDb();
   try {
     const reply = await requestCreateGroup({

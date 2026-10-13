@@ -20,7 +20,8 @@ import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
-import { requestCreateGroup } from "./groups.ts";
+import { participantsWithOwner, requestCreateGroup } from "./groups.ts";
+import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
@@ -235,17 +236,17 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "grupo_criar",
-        "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos da ferramenta: os números de `participantes` entram no grupo já na criação; a Maia entra sozinha por ser quem cria; o WhatsApp exige pelo menos um participante além da Maia. Se o pedido do owner não deixar claro quem deve entrar na criação, pergunte a ele antes de chamar a ferramenta, e mostre a lista exata que você vai enviar.",
+        "Cria um grupo novo no WhatsApp. Só o owner pode pedir; a criação sempre aguarda o OK do aprovador antes de sair para a Evolution. Fatos: o dono entra sempre no grupo, automaticamente; a Maia entra por ser quem cria; os números de `participantes` são OUTRAS pessoas que já entram na criação. Quem o dono vai convidar depois, por link, não entra em `participantes`. Se o pedido não deixar claro quem mais deve entrar, não coloque ninguém por conta própria.",
         {
           grupo: z.string().min(2).max(100).describe("Nome do grupo novo."),
-          participantes: z.array(z.string().min(10).max(20)).min(1).max(100).describe("Números com DDI e DDD."),
+          participantes: z.array(z.string().min(10).max(20)).max(100).describe("OUTRAS pessoas que já entram na criação (DDD + número, o 55 é opcional). Pode ficar vazio: o dono sempre entra sozinho. Quem o dono vai convidar depois, por link, não entra aqui."),
           plano: z.number().int().min(1).optional().describe("Número do plano (plano_criar) a que esta criação pertence: depois do OK, o plano retoma sozinho com o grupo criado."),
         },
         async (args) => {
           if (channel !== "whatsapp") return { content: [{ type: "text", text: "A criação de grupo é feita pelo WhatsApp, com aprovação." }], isError: true };
           if (!isOwner) return { content: [{ type: "text", text: "Só o owner pode pedir a criação de grupo." }], isError: true };
-          const numbers = [...new Set(args.participantes.map((item) => item.replace(/\D/g, "")).filter((number) => number.length >= 12 && number.length <= 13))];
-          if (numbers.length !== args.participantes.length) return { content: [{ type: "text", text: "Informe todos os participantes com DDI e DDD (12 ou 13 dígitos)." }], isError: true };
+          const numbers = participantsWithOwner(args.participantes);
+          if (numbers.length < 1 || args.participantes.some((item) => withCountryCode(item).length < 12 || withCountryCode(item).length > 13)) return { content: [{ type: "text", text: "Algum número está incompleto: informe DDD + número de cada pessoa." }], isError: true };
           const db = getDb();
           try {
             const reply = await requestCreateGroup({
