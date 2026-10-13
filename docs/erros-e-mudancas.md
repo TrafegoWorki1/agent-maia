@@ -12,6 +12,13 @@ As entradas são históricas e refletem a data indicada; não são regras ativas
 - **Correção pendente (ainda não implementada):** (1) ao enviar mensagem a um contato, usar o número da agenda que casa com o nome pedido, e não números de pedidos anteriores; (2) recusar envio para número do próprio dono, salvo confirmação explícita.
 - **Também observado:** depois de o dono aprovar a criação do grupo, a Maia mandou um segundo aviso "aguardando aprovação", que confunde. Não foi corrigido.
 
+## 2026-10-13 — Ferramenta `planilha_criar` (xlsx via exceljs)
+
+- Agente não tinha ferramenta de xlsx; improvisava com Python (bloqueado), gerando datas como número serial e fórmulas com `#ERROR!`.
+- Adicionado `server/planilha.ts` + ferramenta `mcp__maia__planilha_criar` (Claude e Codex). Dependência `exceljs 4.4.0`.
+- Formatação automática: datas ISO → DD/MM/AAAA; fórmulas com `=`; moeda (R$); percentual; cabeçalho estilizado; linhas alternadas; freeze; largura automática.
+- Commit `7f3e739`. Reiniciar o worker para ativar.
+
 ## Resumo de 12 e 13/10/2026: grupos, planos, áudio, aprovação e comportamento
 
 Detalhes, causas e verificações de cada item estão no `CHANGELOG.md` (entradas de 12 e 13/10/2026).

@@ -8,6 +8,22 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Ferramenta `planilha_criar` (xlsx formatado via exceljs)
+
+- **Motivação:** o agente não tinha ferramenta dedicada para criar planilhas. Quando recebia um pedido de xlsx, improvisava com Python — que está bloqueado no modo operacional — resultando em datas como número serial (ex.: `46308` em vez de `13/10/2026`), fórmulas com `#ERROR!` e dezenas de linhas em branco desnecessárias.
+- **O que foi feito:** adicionado `server/planilha.ts` com geração nativa via `exceljs 4.4.0` (Node.js puro, sem Bash). Ferramenta `mcp__maia__planilha_criar` registrada em `maiaImageTool.ts` e `codexMaiaMcp.ts` (paridade Claude/Codex). Dependência instalada via pnpm.
+- **Formatação automática:**
+  - Strings ISO 8601 → `Date` com `numFmt DD/MM/AAAA` (nunca mais número serial).
+  - Strings começando com `=` → fórmula Excel nativa (`=COUNTIF(...)` funciona).
+  - Colunas cujo cabeçalho contém "valor", "r$", "total", "fixo", "comissão" → `"R$" #,##0.00`.
+  - Colunas cujo cabeçalho contém "%" ou "taxa" → `0.00%`.
+- **Estilo:** cabeçalho azul escuro (#1A1A2E) com texto branco, negrito; linhas alternadas (azul claro); bordas finas em todas as células; freeze da linha de cabeçalho; largura automática (máx. 55).
+- **Entrega:** o arquivo é salvo em `data/midia/` e enviado via `sendFile()` como documento ao número do owner.
+- **Verificação:** `pnpm typecheck` sem erros. Commit `7f3e739`, pushed para GitHub.
+- **Pendências:** teste ao vivo com um pedido real pelo WhatsApp após reiniciar o worker.
+
+---
+
 ## 2026-10-13 — Link de convite enviado ao número errado (dono em vez do Ítalo)
 
 - **Sintoma:** no teste "Projeto Italo Teste 2", o pedido dizia "manda para o Ítalo" e o contato "Ítalo" existia na agenda com o número certo. A Maia mandou o link de convite ao número 2658, que é o segundo número do próprio dono (contato "Herickson maia"). O plano #3 ficou esperando esse número entrar no grupo, o que dispararia as boas-vindas quando o próprio dono entrasse.
