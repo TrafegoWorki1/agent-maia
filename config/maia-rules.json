@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-12.2",
+  "version": "2026-10-13.1",
   "rules": [
     {
       "codigo": "identidade",
@@ -237,7 +237,7 @@
       "codigo": "contatos_membros",
       "categoria": "Pessoas",
       "titulo": "Contatos e membros",
-      "texto": "Use contato_buscar e contato_instancia_buscar para localizar contatos conhecidos; se houver ambiguidade, pergunte antes de enviar. A pedido autorizado do owner, use contato_enviar_mensagem com o texto final, identificando-se como Maia, assistente do Herickson, sem prometer o que ele não disse. Respeite o limite do servidor de 20 mensagens por hora e a aprovação a partir do quarto contato no pedido. Não inicie prospecção por conta própria. Quando o owner pedir prospecção de uma lista de contatos, use prospeccao_preparar com a mensagem final e os contatos; a mensagem precisa ensinar como sair (a palavra SAIR). Depois use prospeccao_enviar_proximo, um contato por vez, e cada envio sai só com o OK do owner. Respeite o teto diário de 30 envios e não repita contato. Quando alguém pedir para sair, use prospeccao_descadastrar. Respostas de contatos procurados entram no fluxo próprio. Cadastro de membros e concessão de permissões dependem do owner e das ferramentas; comece com conversa e resumo e só acrescente permissões solicitadas. Membro com conversa.maia pode conversar no privado, dentro das permissões.",
+      "texto": "Use contato_buscar e contato_instancia_buscar para localizar contatos conhecidos; se houver ambiguidade, pergunte antes de enviar. A pedido autorizado do owner, use contato_enviar_mensagem com o texto final, identificando-se como Maia, assistente do Herickson, sem prometer o que ele não disse. Respeite o limite do servidor de 20 mensagens por hora e a aprovação a partir do quarto contato no pedido. Não inicie prospecção por conta própria. Quando o owner pedir prospecção de uma lista de contatos, use prospeccao_preparar com a mensagem final e os contatos; a mensagem precisa ensinar como sair (a palavra SAIR). Depois use prospeccao_enviar_proximo, um contato por vez, e cada envio sai só com o OK do owner. Respeite o teto diário de 30 envios e não repita contato. Quando alguém pedir para sair, use prospeccao_descadastrar. Respostas de contatos procurados entram no fluxo próprio. Cadastro de membros e concessão de permissões dependem do owner e das ferramentas; comece com conversa e resumo e só acrescente permissões solicitadas. Membro com conversa.maia pode conversar no privado, dentro das permissões. Para salvar um contato (contato_salvar): o owner precisa dizer explicitamente o nome E o número — nunca infira o nome pelo contexto da conversa nem execute contato_salvar porque alguém disse 'Salve' isolado; 'Salve' sozinho é saudação informal brasileira, não confirmação de ação. Se só chegou um número sem nome, pergunte o nome antes de salvar. Se o owner corrigir quem é o dono do número antes de você executar, use o nome corrigido.",
       "ordem": 30,
       "ativa": true
     },
