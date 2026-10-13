@@ -5,7 +5,7 @@ import { MEDIA_DIR, MEDIA_TTL_MS, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOl
 import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
 import { retryPendingAudio } from "./audioRetry.ts";
 import { handleApproverText } from "./groups.ts";
-import { handleGroupAudio, handleMemberAudio, handleMemberMedia, resumeGroupAudio, resumeMemberAudio, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
+import { handleGroupAudio, handleGroupMedia, handleMemberAudio, handleMemberMedia, resumeGroupAudio, resumeMemberAudio, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type GroupMediaRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
 import { markMessagesRead } from "./chats.ts";
 import { addOwnerText, recoverBatches, runBatchDispatcher } from "./batching.ts";
 import { startKnowledgeSync } from "./knowledgeSync.ts";
@@ -151,6 +151,14 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
       return;
     }
     void handleGroupMessage(request).catch((error) => console.error("[worker] grupo:", error instanceof Error ? error.message : error));
+    return;
+  }
+
+  if (item.sender === "group" && item.kind === "media" && item.payload) {
+    // Arquivo em grupo cadastrado: só é lido se um plano do dono esperava (server/ownerRouter.ts, handleGroupMedia).
+    const ref = JSON.parse(item.payload) as GroupMediaRef;
+    await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "media" }, now);
+    void handleGroupMedia(ref).catch((error) => console.error("[worker] mídia de grupo:", error instanceof Error ? error.message : error));
     return;
   }
 

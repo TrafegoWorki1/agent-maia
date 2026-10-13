@@ -395,7 +395,7 @@ server.registerTool("plano_criar", { description: PLAN_CREATE_DESCRIPTION, input
   return runPlanCreate(getDb(), args, taskId);
 }));
 
-server.registerTool("plano_atualizar", { description: PLAN_UPDATE_DESCRIPTION, inputSchema: { plano: z.number().int().min(1), etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional(), esperar: z.object({ tipo: z.literal("entrada_no_grupo"), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional(), limpar_espera: z.boolean().optional(), nota: z.string().max(500).optional(), concluir: z.boolean().optional(), cancelar: z.boolean().optional() } }, async (args) => guarded("mcp__maia__plano_atualizar", args, async () => {
+server.registerTool("plano_atualizar", { description: PLAN_UPDATE_DESCRIPTION, inputSchema: { plano: z.number().int().min(1), etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional(), esperar: z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional(), limpar_espera: z.boolean().optional(), nota: z.string().max(500).optional(), concluir: z.boolean().optional(), cancelar: z.boolean().optional() } }, async (args) => guarded("mcp__maia__plano_atualizar", args, async () => {
   if (requester().role !== "owner") throw new Error("Só o owner altera planos.");
   const result = await runPlanUpdate(getDb(), args);
   if (!result.ok) throw new Error(result.text);

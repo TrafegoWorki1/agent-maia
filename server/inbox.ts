@@ -99,6 +99,14 @@ export function toInboxRow(
         const textWithCtx = withQuoted(text, quotedTextFrom(body));
         return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, text: textWithCtx, addressed }) };
       }
+      // Imagem, vídeo ou documento em grupo cadastrado: só a referência vai para a fila (nada é baixado aqui). O worker só
+      // baixa e lê se algum plano do dono esperava um arquivo deste grupo (server/plans.ts, waitingForFile).
+      const media = mediaFrom(body);
+      if (media) {
+        const { key: mediaKey, mimetype, mediaType, fileName, caption, size } = media;
+        const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
+        return { kind: "media", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, participant: participant.split("@")[0], name, key: mediaKey, mimetype, mediaType, fileName, caption, size }) };
+      }
       // Áudio em grupo cadastrado: não tem texto ainda, então "chamar pelo nome" só é sabido após a transcrição
       // (feita pelo worker, server/ownerRouter.ts). Aqui já decidimos o resto de addressedToMaia (menção, resposta
       // à Maia, ou continuação da conversa em andamento) — o worker soma isso com CALLS_MAIA no texto transcrito.

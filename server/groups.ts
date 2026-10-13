@@ -371,7 +371,10 @@ Responda OK para criar ou NÃO para recusar. Sem resposta em 10 minutos, é recu
 
   // Aviso de prazo, se este processo ainda estiver no ar. O banco continua sendo a fonte da verdade.
   setTimeout(() => void expireGroupIfPending(deps, approval.id, name, taskId), APPROVAL_TTL_MS).unref();
-  return `Pedido de criação do grupo "${name}" enviado ao aprovador (#${approval.id}). Entram já na criação, além da Maia: ${participants.map(label).join(", ")}.`;
+  const next = planId
+    ? ` Depois do OK, o plano #${planId} continua sozinho com a etapa seguinte.`
+    : " Atenção: sem um plano gravado, NADA continua sozinho depois do OK. Não prometa as etapas seguintes; diga ao dono que, depois do OK, ele precisa te avisar para você continuar.";
+  return `Pedido de criação do grupo "${name}" enviado ao aprovador (#${approval.id}). Entram já na criação, além da Maia: ${participants.map(label).join(", ")}.${next}`;
 }
 
 async function expireGroupIfPending(deps: GroupDeps, id: number, name: string, taskId: number): Promise<void> {
