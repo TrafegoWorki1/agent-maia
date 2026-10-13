@@ -30,13 +30,39 @@ export function tokenFromRequest(queryToken: string | null, headerToken: string 
 
 // Triagem: decide o caminho do evento. Eventos sem caminho conhecido viram "unknown"
 // e são registrados, nunca descartados em silêncio.
+// A Evolution envia o nome com ponto ("group-participants.update") ou em maiúsculas com _ (GROUP_PARTICIPANTS_UPDATE).
+const GROUP_PARTICIPANTS = /^group[-_.]participants[-_.]update$/i;
+
+export interface GroupJoin {
+  jid: string;
+  action: string;
+  participants: string[];
+}
+
+// Quem entrou (action "add") em um grupo. Só o número, sem @. Qualquer outro formato de evento devolve null.
+export function groupJoinFrom(body: unknown): GroupJoin | null {
+  if (!body || typeof body !== "object") return null;
+  const v = body as Record<string, unknown>;
+  if (!GROUP_PARTICIPANTS.test(String(v.event ?? ""))) return null;
+  const data = (v.data ?? {}) as Record<string, unknown>;
+  const jid = typeof data.id === "string" ? data.id : typeof data.groupJid === "string" ? data.groupJid : "";
+  const action = typeof data.action === "string" ? data.action : "";
+  const raw = Array.isArray(data.participants) ? data.participants : [];
+  const participants = raw
+    .map((p) => (typeof p === "string" ? p : typeof (p as { id?: unknown })?.id === "string" ? (p as { id: string }).id : ""))
+    .filter(Boolean)
+    .map((p) => p.split("@")[0]);
+  if (!jid.endsWith("@g.us") || participants.length === 0) return null;
+  return { jid, action, participants };
+}
+
 export function classify(body: Record<string, unknown>): EventKind {
   const event = String(body.event ?? "");
   const data = (body.data ?? {}) as Record<string, unknown>;
   if (event === "connection.update") return "connection";
   // Grupo cadastrado criado/alterado por fora da Maia (foto, nome, participantes): invalida o cache local
   // (server/groups.ts) em vez de esperar os 15 min de TTL ou ficar perguntando de novo e bater no rate-overlimit.
-  if (event === "groups.upsert" || event === "groups.update" || event === "group-participants.update") return "group_change";
+  if (/^groups?[-_.](upsert|update)$/i.test(event) || GROUP_PARTICIPANTS.test(event)) return "group_change";
   if (event === "messages.upsert") {
     const message = (data.message ?? {}) as Record<string, unknown>;
     if (message.pollUpdateMessage) return "poll_vote";

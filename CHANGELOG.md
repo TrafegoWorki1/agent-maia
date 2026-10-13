@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-13 — Entrada em grupo cadastrado avisa o dono
+
+- **Sintoma:** a Maia não percebia quando alguém entrava no grupo (ex.: o Ítalo), então não avisava o dono para dar as boas-vindas.
+- **Causa:** o webhook reconhecia `group-participants.update` só com o nome exato em minúsculas com ponto, e tratava qualquer evento de grupo apenas como reset de cache. A Evolution envia o evento de participantes com a ação `add` (entrou) e `remove` (saiu).
+- **Correção:** `classify` aceita o nome com ponto e o em maiúsculas com `_`; `groupJoinFrom` extrai grupo, ação e números; uma entrada (`add`) vira evento na fila com o join; o worker invalida o cache e, se o grupo estiver cadastrado, avisa o dono com o nome da agenda: "Fulano (+número) entrou no grupo X. Quer que eu dê as boas-vindas?". O dono não é avisado de si mesmo, e a Maia não dá boas-vindas sem perguntar.
+- **Arquivos:** `server/evolutionWebhook.ts`, `server/inbox.ts`, `server/groupJoin.ts`, `server/inboxWorker.ts`, `tests/grupoEntrada.test.ts`.
+- **Verificação:** `pnpm typecheck` e `vitest` (466 testes) passando.
+- **Atenção:** o formato exato do payload da Evolution (`data.id`, `data.action`, `data.participants`) foi inferido da documentação, não de um evento real capturado. Confirmar com um teste ao vivo (adicionar alguém a um grupo cadastrado) antes de considerar fechado. Eventos repetidos da Evolution não são deduplicados, porque o evento não tem `key_id`.
+
 ## 2026-10-13 — Aprovação de grupo mostra quem entra; sem padrão fixo de execução
 
 - **Sintoma:** o dono pediu para criar o grupo "Projeto Ítalo" e depois mandar o convite ao Ítalo no privado. O agente disse que mandaria o convite, mas o pedido de criação (#9) já levava o Ítalo e o dono como participantes, e a aprovação só dizia "2 participante(s)". O Ítalo entrou direto e o convite foi desnecessário.

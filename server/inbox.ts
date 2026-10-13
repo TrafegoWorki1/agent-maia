@@ -1,4 +1,4 @@
-import { audioFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, withQuoted } from "./evolutionWebhook.ts";
+import { audioFrom, groupJoinFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, withQuoted } from "./evolutionWebhook.ts";
 
 // Triagem do webhook: transforma um evento da Evolution numa linha da fila `inbox` do Supabase.
 // Função pura (sem banco, sem rede), usada pela rota da Vercel. O worker do PC lê essas linhas depois.
@@ -74,7 +74,12 @@ export function toInboxRow(
 
   // Grupo mudou por fora da Maia (foto, nome, participantes): o worker invalida o cache de grupos ao vivo
   // (server/groups.ts, resetGroupCache), em vez de só expirar por TTL ou reconsultar e bater no rate-overlimit.
-  if (event.kind === "group_change") return { kind: "event", sender: "group", key_id: null, payload: "cache_reset" };
+  if (event.kind === "group_change") {
+    // Entrada de participante em grupo: o worker avisa o dono se o grupo for cadastrado (server/groupJoin.ts).
+    const join = groupJoinFrom(body);
+    if (join && join.action === "add") return { kind: "event", sender: "group", key_id: null, payload: JSON.stringify({ join }) };
+    return { kind: "event", sender: "group", key_id: null, payload: "cache_reset" };
+  }
   if (event.kind !== "message") return { kind: "event", sender: "none", key_id: keyId, payload: null };
 
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
