@@ -8,6 +8,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-15 — Trabalhos criativos retomáveis
+
+- **Sintoma/causa:** pedidos de imagem eram executados de forma síncrona dentro do turno do agente; séries longas podiam exceder o timeout e perder progresso, sem checkpoint separado por arte.
+- **Implementação:** pedidos explícitos passam a criar um job idempotente por tarefa e itens individuais. O worker local gera uma imagem de cada vez, guarda checkpoint em diretório determinístico e retoma uma arte pronta sem regenerar. Ferramentas antigas `gerar_imagem` também enfileiram um job de um item.
+- **Segurança/entrega:** trabalhos e briefings ficam em tabelas com RLS, acessíveis apenas por `service_role`; o endpoint do painel não devolve briefing nem caminho local completo. O worker envia rascunhos só ao owner, nunca publica automaticamente. Se o resultado de um envio for incerto, não repete às cegas.
+- **Painel/docs:** a página de tarefas mostra estado global e progresso por arte. Procedimento, limites de retenção, recuperação e rollback estão em `docs/trabalhos-criativos-retomaveis.md`.
+- **Banco/rollout:** `20261015140811_maia_resumable_creative_jobs.sql` foi aplicada no projeto Agent Maia; RLS, privilégios e RPCs foram verificados. O código está no PR #17; após merge/publicação, ainda é preciso atualizar e reiniciar o worker local.
+- **Validação:** `pnpm test` passou com 520+ testes Vitest e 40 testes PostgreSQL locais; `pnpm build` e `pnpm db:guard` passaram. Nenhuma geração ou mensagem real foi executada no smoke test.
+
+---
+
 ## 2026-10-15 — Confiabilidade e verificação de envios WhatsApp
 
 - **Repetição:** o controle de acesso compara destino e HMAC-SHA-256 (chave `EVOLUTION_API_KEY`) do texto na janela de 24 horas; não persiste conteúdo claro. Duplicatas exigem aprovação explícita do owner, inclusive no grupo. Falha ao consultar histórico aborta antes do envio. A regra vigente proíbe retry automático quando o estado é incerto.
