@@ -1,5 +1,5 @@
 import { describe,it,expect,vi } from "vitest";
-import { runCodexText, clientCodexEnvironment } from "../server/ai/providers/codex.ts";
+import { buildCodexPrompt, runCodexText, clientCodexEnvironment } from "../server/ai/providers/codex.ts";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,6 +17,12 @@ vi.mock("@openai/codex-sdk",()=>({ Codex:class {
   }
 } }));
 describe("SDK delega autorização somente à ponte Maia",()=>{
+  it("instrui o Codex a enfileirar geração de imagem e a não bloquear pela geração longa",()=>{
+    const prompt=buildCodexPrompt({ rules:"Regras",context:"",request:"Crie cinco Stories" });
+    expect(prompt).toContain("trabalho_arte_enfileirar");
+    expect(prompt).toContain("não chame gerar_imagem para cada item");
+    expect(prompt).toContain("nunca publica automaticamente");
+  });
   it("o ambiente do cliente copia somente login e elimina a herança de conectores e memória",()=>{
     const folder = mkdtempSync(join(tmpdir(),"maia-codex-test-"));
     const source=join(folder,"source"),run=join(folder,"run");mkdirSync(source);mkdirSync(run);

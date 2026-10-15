@@ -25,6 +25,7 @@ import { runProactive } from "./proactive.ts";
 import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
 import { applyDeliveryUpdates, type DeliveryUpdate } from "./outboundReceipts.ts";
+import { recoverStaleCreativeItems, runCreativeQueueOnce } from "./creativeJobs.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -315,7 +316,25 @@ async function main(): Promise<void> {
   setInterval(() => runDueActions(db, notifyOwner).catch((error) => console.error("[agendados]", error instanceof Error ? error.message : error)), 30_000);
   const interrupted = await recoverStaleTasks(db, "whatsapp");
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
+  const creativeRecovered = await recoverStaleCreativeItems(db);
+  if (creativeRecovered > 0) console.warn(`[worker] ${creativeRecovered} item(ns) criativos recuperados ou pausados para revisão`);
+  let recoveringCreative = false;
+  setInterval(() => {
+    if (recoveringCreative) return;
+    recoveringCreative = true;
+    void recoverStaleCreativeItems(db).catch((error) => console.error("[trabalhos criativos] recuperação:", error instanceof Error ? error.message : error)).finally(() => { recoveringCreative = false; });
+  }, 60_000);
   console.log(`[worker] iniciado em ${new Date().toISOString()}, aguardando a fila`);
+  let creativeBusy = false;
+  const creativeTick = async () => {
+    if (creativeBusy) return;
+    creativeBusy = true;
+    try { await runCreativeQueueOnce(db); }
+    catch (error) { console.error("[trabalhos criativos]", error instanceof Error ? error.message : error); }
+    finally { creativeBusy = false; }
+  };
+  void creativeTick();
+  setInterval(() => void creativeTick(), 5_000);
   let delivering = false;
   const deliveries = async () => {
     if (delivering) return;

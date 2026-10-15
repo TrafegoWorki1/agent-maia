@@ -15,6 +15,7 @@ const data: WorkspaceData = {
   effectiveness: { sample: 0, targetSample: 20, sufficient: false, relevance: null, resolution: null, partial: 0, candidates: [], reviews: [], sampleScope: "", deliveries: [] },
   memories: [{ id: 4, created_at: "2026-10-14T12:00:00Z", updated_at: "2026-10-14T12:00:00Z", title: "Enviar proposta", detail: "Revisar antes do envio", kind: "compromisso", status: "active", due_at: null, source_task_id: 18, created_by: "maia", completed_at: null, revision: 1 }],
   receipts: [],
+  creativeJobs: [],
 };
 
 describe("painel de memória sincronizada", () => {

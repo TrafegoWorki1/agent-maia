@@ -6,11 +6,14 @@ export interface ReviewRow { task_id: number; relevant: boolean; resolution: str
 export interface Candidate { id: number; summary: string; status: string; created_at: string; request: string | null; response: string; events: { type: string; operation: string | null; detail: string | null }[] }
 export interface MemoryRow { id: number; created_at: string; updated_at: string; title: string; detail: string; kind: "compromisso" | "contexto" | "preferencia"; status: "active" | "completed" | "archived"; due_at: string | null; source_task_id: number | null; created_by: "maia" | "owner"; completed_at: string | null; revision: number }
 export interface OutboundReceiptRow { messageId: string; destination: string; status: "accepted" | "delivered" | "read" | "played" | "failed"; updatedAt: string }
+export interface CreativeItemRow { seq: number; format: "feed" | "story" | "quadrado"; status: "queued" | "generating" | "artifact_ready" | "preview_sending" | "ready_for_review" | "failed" | "uncertain"; artifact_name: string | null; error: string | null }
+export interface CreativeJobRow { id: number; title: string; status: "queued" | "running" | "review" | "partial" | "uncertain"; created_at: string; updated_at: string; source_task_id: number; items: CreativeItemRow[] }
 export interface WorkspaceData {
   work: { tasks: WorkRow[]; reminders: ReminderRow[]; limit: number };
   effectiveness: { sample: number; targetSample: number; sufficient: boolean; relevance: number | null; resolution: number | null; partial: number; candidates: Candidate[]; reviews: ReviewRow[]; sampleScope: string; deliveries: { task_id: number; status: string; error: string | null }[] };
   memories: MemoryRow[];
   receipts: OutboundReceiptRow[];
+  creativeJobs: CreativeJobRow[];
 }
 export async function workspaceRequest(action?: string, input?: unknown): Promise<WorkspaceData> {
   const session = await supabase?.auth.getSession();

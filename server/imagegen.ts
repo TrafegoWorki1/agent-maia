@@ -90,7 +90,17 @@ function findResult(folder: string): string | null {
   return null;
 }
 
-export async function createImage(input: { briefing: string; format: ImageFormat; refs: string[] }): Promise<ImageResult> {
+function outputFolder(outputKey: string): string | null {
+  if (!/^job-\d+-item-\d+$/.test(outputKey)) return null;
+  return join(PEDIDOS, "retomaveis", outputKey);
+}
+
+export function existingImageForOutputKey(outputKey: string): string | null {
+  const folder = outputFolder(outputKey);
+  return folder && existsSync(folder) ? findResult(folder) : null;
+}
+
+export async function createImage(input: { briefing: string; format: ImageFormat; refs: string[]; outputKey?: string }): Promise<ImageResult> {
   const briefing = input.briefing.trim();
   if (!briefing || briefing.length > MAX_BRIEFING) return { ok: false, error: `briefing vazio ou com mais de ${MAX_BRIEFING} caracteres`, uncertain: false };
   if (!(input.format in FORMATS)) return { ok: false, error: "formato inválido (use feed, story ou quadrado)", uncertain: false };
@@ -99,8 +109,13 @@ export async function createImage(input: { briefing: string; format: ImageFormat
 
   mkdirSync(FOTOS, { recursive: true });
   mkdirSync(REFERENCIAS, { recursive: true });
-  const folder = join(PEDIDOS, `${new Date().toISOString().slice(0, 10)}-${randomBytes(3).toString("hex")}`);
+  const folder = input.outputKey
+    ? outputFolder(input.outputKey)
+    : join(PEDIDOS, `${new Date().toISOString().slice(0, 10)}-${randomBytes(3).toString("hex")}`);
+  if (!folder) return { ok: false, error: "chave de saída de arte inválida", uncertain: false };
   mkdirSync(folder, { recursive: true });
+  const prior = findResult(folder);
+  if (prior) return { ok: true, path: prior };
 
   const args = [
     "exec",
