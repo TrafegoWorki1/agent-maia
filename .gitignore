@@ -16,3 +16,4 @@ coverage/
 logs/
 db-drift-report.md
 supabase/.temp/
+.vercel/
