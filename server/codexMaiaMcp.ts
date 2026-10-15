@@ -21,6 +21,7 @@ import { findReceivedMedia } from "./receivedMedia.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
+import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, participantsWithOwner, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
@@ -268,7 +269,7 @@ server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo
   const id = await sendGroupText(found.group.jid, texto, mentions.numbers, ghost, citar_id);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
   await addTaskEvent(getDb(), taskId, "group_message_sent", "grupo_enviar_texto", `jid=${found.group.jid}; mensagem ${id}`).catch((error) => console.error("[grupo] falha ao registrar envio direto:", error instanceof Error ? error.message : error));
-  await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
+  await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true, keyId: id }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;
 }));
 
@@ -278,6 +279,21 @@ server.registerTool("grupo_enviar_enquete", { description: "Cria uma enquete em 
   const id = await sendGroupPoll(found.group.jid, pergunta, opcoes, respostas_permitidas ?? 1);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_enquete", found.group.subject, `mensagem ${id}`);
   return `Enquete enviada no grupo "${found.group.subject}" (mensagem ${id}).`;
+}));
+
+server.registerTool("mensagem_status", { description: "Consulta evidência de envio, entrega ou leitura de mensagem enviada pela Maia. Somente no privado do owner; aceite não significa entrega nem leitura.", inputSchema: { tipo: z.enum(["contato", "grupo"]), destino: z.string().min(1).max(100), message_id: z.string().min(1).max(300).optional() } }, async ({ tipo, destino, message_id }) => guarded("mcp__maia__mensagem_status", { tipo, destino, message_id }, async () => {
+  let recipient: string;
+  let label: string;
+  if (tipo === "grupo") {
+    const found = await resolveGroup(destino); if (!found.ok) throw new Error(`Não consegui identificar o grupo: ${found.error}.`);
+    recipient = found.group.jid; label = `grupo ${found.group.subject}`;
+  } else {
+    const found = await resolveContact(getDb(), destino); if (!found.ok) throw new Error(`Não consegui identificar o contato: ${found.error}.`);
+    recipient = found.contact.number; label = found.contact.name || "contato";
+  }
+  const receipts = await recentOutboundReceipts(getDb(), recipient, message_id);
+  if (!receipts.length) return `Não encontrei recibo confiável para ${label}. Isso não comprova que a mensagem não foi enviada; pode não haver ID registrado ou o evento de status pode não estar habilitado na Evolution.`;
+  return receipts.map((r) => `${r.messageId}: ${summarizeReceipt(r.status)} (atualizado em ${r.updatedAt})`).join("\n");
 }));
 
 server.registerTool("contato_enviar_mensagem", { description: "Envia mensagem privada a um contato cadastrado. Pode pedir aprovação conforme a política.", inputSchema: { contato: z.string().min(1).max(80), texto: z.string().min(1).max(2000) } }, async ({ contato, texto }) => guarded("mcp__maia__contato_enviar_mensagem", { contato, texto }, async () => {

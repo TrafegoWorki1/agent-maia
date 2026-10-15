@@ -55,6 +55,7 @@ export interface AccessContext {
   groupRegistered?: boolean; // para ferramentas de grupo: o grupo está em maia_groups?
   dmInTask?: number; // mensagens diretas já enviadas nesta tarefa
   targetGroupJid?: string;
+  duplicateSend?: boolean;
 }
 
 export interface AccessDecision {
@@ -86,8 +87,10 @@ function readPermission(toolName: string): string | null {
 export function decideAccess(toolName: string, who: Requester, ctx: AccessContext, readOnly: boolean): AccessDecision {
   const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
   if (scopeDenial) return { decision: "deny", reason: scopeDenial };
+  if (toolName === "mcp__maia__mensagem_status" && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "status de mensagens privadas só pode ser consultado pelo owner no privado" };
   if (/^mcp__maia__(grupos_clientes_listar|grupo_cliente_classificar)$/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "cadastro de clientes e acessos exclusivo do owner no privado" };
   if (requiresApproval(toolName)) return { decision: "approve", reason: "ação pública ou de risco" };
+  if (ctx.duplicateSend) return { decision: "approve", reason: "mensagem idêntica enviada ao mesmo destino nas últimas 24 horas; reenvio exige OK explícito do owner" };
   if (ctx.webTainted && !readOnly) return { decision: "approve", reason: "a tarefa usou busca na web; a ação pede OK mesmo para o dono" };
   const isGroupSend = GROUP_SEND.test(toolName);
   if (isGroupSend && !ctx.groupRegistered) return { decision: "approve", reason: "grupo não cadastrado" };

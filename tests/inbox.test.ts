@@ -155,6 +155,21 @@ describe("triagem do webhook para a fila", () => {
     expect(toInboxRow(update, OWNER, APPROVER)?.key_id).toBeNull();
   });
 
+  it("MESSAGES_UPDATE guarda somente ID, destino e estado de leitura conhecido", () => {
+    const update = { event: "messages.update", instance: "wt_test", data: { key: { id: "OUT-1", remoteJid: "5511999999999@s.whatsapp.net" }, update: { status: "READ" }, message: { conversation: "texto privado" } } };
+    const row = toInboxRow(update, OWNER, APPROVER)!;
+    expect(row).toMatchObject({ kind: "event", sender: "none" });
+    expect(row.key_id).toMatch(/^receipt:[a-f0-9]{64}$/);
+    expect(JSON.parse(row.payload!)).toEqual({ type: "delivery_status", updates: [{ messageId: "OUT-1", recipient: "5511999999999@s.whatsapp.net", status: "read" }] });
+    expect(row.payload).not.toContain("texto privado");
+    expect(toInboxRow(update, OWNER, APPROVER)?.key_id).toBe(row.key_id);
+  });
+
+  it("status em formato numérico desconhecido não é inferido como entregue/lido", () => {
+    const update = { event: "MESSAGES_UPDATE", instance: "wt_test", data: { key: { id: "OUT-2" }, update: { status: 1 } } };
+    expect(toInboxRow(update, OWNER, APPROVER)).toMatchObject({ kind: "event", sender: "none", payload: null });
+  });
+
   it("evento de conexão vira evento sem chave", () => {
     expect(toInboxRow({ event: "connection.update", instance: "wt_test", data: { state: "open" } }, OWNER, APPROVER)).toEqual({
       kind: "event",

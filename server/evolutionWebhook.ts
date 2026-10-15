@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 // Evento recebido da Evolution API. Só guardamos o tipo, a instância e o horário:
 // o conteúdo das mensagens não é armazenado (minimização de dados pessoais).
-export type EventKind = "connection" | "poll_vote" | "message" | "group_change" | "unknown";
+export type EventKind = "connection" | "poll_vote" | "message" | "group_change" | "delivery_status" | "unknown";
 
 export interface WebhookEvent {
   receivedAt: string;
@@ -65,6 +65,7 @@ export function classify(body: Record<string, unknown>): EventKind {
   const event = String(body.event ?? "");
   const data = (body.data ?? {}) as Record<string, unknown>;
   if (event === "connection.update") return "connection";
+  if (/^messages[-_.]update$/i.test(event)) return "delivery_status";
   // Grupo cadastrado criado/alterado por fora da Maia (foto, nome, participantes): invalida o cache local
   // (server/groups.ts) em vez de esperar os 15 min de TTL ou ficar perguntando de novo e bater no rate-overlimit.
   if (/^groups?[-_.](upsert|update)$/i.test(event) || GROUP_PARTICIPANTS.test(event)) return "group_change";

@@ -1,5 +1,6 @@
 import { fetchGroupParticipants, fetchLiveGroups, type LiveGroup } from "./groups.ts";
 import { addTaskEvent, getDb, type Db } from "./store.ts";
+import { recordAcceptedOutbound } from "./outboundReceipts.ts";
 
 // Ações da Maia em grupos do WhatsApp (decisão do owner, 2026-10-09): mandar texto com menção, enquete, ler enquetes
 // e agendar texto ou enquete. Enviar e agendar passam pela aprovação (OK ou NÃO). Ler é livre.
@@ -125,7 +126,8 @@ const messageId = (json: unknown): string | null => {
 // `mentions` aparecem como @número no texto. `ghost` entram só no campo mentioned: a pessoa é avisada, mas o texto não mostra
 // nada (menção fantasma, usada para marcar todos do grupo sem encher a mensagem).
 export async function sendGroupText(jid: string, text: string, mentions: string[], ghost: string[] = [], quotedKeyId?: string): Promise<string> {
-  const body: Record<string, unknown> = { number: jid, text: withMentionTags(text, mentions) };
+  const sentText = withMentionTags(text, mentions);
+  const body: Record<string, unknown> = { number: jid, text: sentText };
   const notified = [...new Set([...mentions, ...ghost])];
   if (notified.length) body.mentioned = notified;
   // Citar uma mensagem específica: a Evolution monta o reply quando o key.id é passado em quoted.key.id.
@@ -133,6 +135,8 @@ export async function sendGroupText(jid: string, text: string, mentions: string[
   const { status, json } = await post("/message/sendText", body);
   const id = messageId(json);
   if (status < 200 || status >= 300 || !id) throw new Error(`a Evolution não confirmou o envio do texto (HTTP ${status})`);
+  try { await recordAcceptedOutbound(getDb(), id, jid, sentText); }
+  catch (error) { console.error("[grupo] falha ao registrar recibo aceito:", error instanceof Error ? error.message : error); }
   return id;
 }
 

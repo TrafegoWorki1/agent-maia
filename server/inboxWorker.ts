@@ -24,6 +24,7 @@ import { mentionsMaiaByTag } from "./groupMention.ts";
 import { runProactive } from "./proactive.ts";
 import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
+import { applyDeliveryUpdates, type DeliveryUpdate } from "./outboundReceipts.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -61,6 +62,17 @@ async function relayIfContacted(db: Db, number: string, name: string, what: stri
 // Processa um item. Retorna o resultado registrado em events (sem o texto de terceiros).
 export async function processItem(db: Db, item: InboxItem, now = new Date()): Promise<void> {
   const owner = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+
+  if (item.kind === "event" && item.payload) {
+    let event: unknown;
+    try { event = JSON.parse(item.payload); } catch { event = null; }
+    if (event && typeof event === "object" && (event as { type?: unknown }).type === "delivery_status") {
+      const updates = (event as { updates?: unknown }).updates;
+      const count = await applyDeliveryUpdates(db, Array.isArray(updates) ? updates as DeliveryUpdate[] : []);
+      await recordEvent(db, { event: "messages.update", kind: "event", sender: "none", outcome: `receipt_updates:${count}` }, now);
+      return;
+    }
+  }
 
   // Cofre de segredos: `cofre NOME | valor` nunca chega à IA nem ao histórico (server/vault.ts).
   if (item.kind === "text" && item.payload && (await handleVaultItem(db, item, notifyOwner))) {
@@ -344,6 +356,9 @@ async function main(): Promise<void> {
         if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia (dono 24 h / membros 7 dias) apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
+        const receiptsPurged = await db.rpc("purge_outbound_receipts");
+        if (receiptsPurged.error) console.error("[worker] limpeza dos recibos:", receiptsPurged.error.message);
+        else if (receiptsPurged.data) console.log(`[worker] ${receiptsPurged.data} recibo(s) de envio com mais de 30 dias removido(s)`);
         const adsMediaPurged = await purgeTempAdMedia(db).catch((error) => { console.error("[worker] limpeza do bucket de anúncios:", error instanceof Error ? error.message : error); return 0; });
         if (adsMediaPurged > 0) console.log(`[worker] ${adsMediaPurged} arquivo(s) temporário(s) de anúncio apagado(s) do Supabase`);
       }

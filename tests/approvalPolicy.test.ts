@@ -62,6 +62,16 @@ describe("dono tem autonomia no que é interno e privado", () => {
     expect(decideAccess("mcp__maia__contato_enviar_mensagem", owner, { dmInTask: 2 }, false).decision).toBe("allow");
     expect(decideAccess("mcp__maia__contato_enviar_mensagem", owner, { dmInTask: 3 }, false).decision).toBe("approve");
   });
+  it("reenvio exato recente pede OK mesmo para o owner e antes de enviar", () => {
+    const result = decideAccess("mcp__maia__contato_enviar_mensagem", owner, { duplicateSend: true }, false);
+    expect(result.decision).toBe("approve");
+    expect(result.reason).toContain("OK explícito");
+  });
+  it("consulta de recibos é exclusiva do owner no privado", () => {
+    expect(decideAccess("mcp__maia__mensagem_status", owner, {}, true).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__mensagem_status", member(), {}, true).decision).toBe("deny");
+    expect(decideAccess("mcp__maia__mensagem_status", { ...owner, groupScope: { jid: "120363@g.us", participant: "5511" } as never }, {}, true).decision).toBe("deny");
+  });
 });
 
 describe("membro só faz o que a permissão cobre", () => {

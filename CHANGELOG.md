@@ -8,6 +8,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-15 — Confiabilidade e verificação de envios WhatsApp
+
+- **Repetição:** o controle de acesso compara destino e HMAC-SHA-256 (chave `EVOLUTION_API_KEY`) do texto na janela de 24 horas; não persiste conteúdo claro. Duplicatas exigem aprovação explícita do owner, inclusive no grupo. Falha ao consultar histórico aborta antes do envio. A regra vigente proíbe retry automático quando o estado é incerto.
+- **Recibos:** IDs aceitos em helpers compartilhados de envio são registrados; `MESSAGES_UPDATE` é convertido em metadados mínimos e processado sem invocar IA. Estados aceitos seguem códigos Baileys explícitos; callbacks duplicados são deduplicados e updates atrasados não rebaixam leitura.
+- **Agente e painel:** ferramenta owner-only `mensagem_status` nos executores Claude e Codex; workspace autenticado e página de tarefas exibem os 50 status mais recentes sem conteúdo da mensagem ou telefone completo.
+- **Banco/configuração:** migration aditiva `20261015123609_outbound_message_receipts.sql`, migration versionada da regra e atualização das verificações essenciais. Recibos técnicos são expurgados após 30 dias pelo worker. A instância Evolution precisa emitir `MESSAGES_UPDATE` (com `webhook_by_events=false` para a rota atual); o worker local precisa ser atualizado e reiniciado.
+- **Validação:** pendente até executar typecheck, testes, validação de migrations e build após esta alteração. Migration ainda não aplicada em produção; nenhum envio real foi realizado nos testes.
+- **Rollout:** abrir PR, aguardar checks, pedir autorização específica para migration, aplicar antes do merge/deploy; então habilitar evento Evolution e fazer smoke test com destino de teste.
+
+---
+
 ## 2026-10-15 — Evitar resposta duplicada em grupos do WhatsApp
 
 - **Sintoma:** em um pedido no grupo, a Maia publicava texto pela ferramenta `grupo_enviar_texto` e também enviava a resposta final automática ao mesmo grupo.
