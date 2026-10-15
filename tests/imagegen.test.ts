@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, isRealImage, resolveRefs } from "../server/imagegen.ts";
+import { buildPrompt, existingImageForOutputKey, isRealImage, resolveRefs } from "../server/imagegen.ts";
 
 describe("pedido de arte", () => {
   it("recusa nomes com caminho ou caracteres estranhos", () => {
     expect(resolveRefs(["../segredo.png"]).ok).toBe(false);
     expect(resolveRefs(["foto com espaco.png"]).ok).toBe(false);
     expect(resolveRefs(["a/b.png"]).ok).toBe(false);
+  });
+
+  it("recusa chave de saída que tente escapar do diretório persistente", () => {
+    expect(existingImageForOutputKey("../../outside")).toBeNull();
   });
 
   it("recusa referência que não existe na pasta de fotos ou de referências", () => {

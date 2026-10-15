@@ -23,7 +23,7 @@
     "knowledge:sync": "node scripts/sync-knowledge.ts",
     "db:validate": "node scripts/db/validate.ts",
     "db:drift": "node scripts/db/drift.ts",
-    "db:guard": "node scripts/db/guard.ts",
+    "db:guard": "node --experimental-strip-types scripts/db/guard.ts",
     "db:new": "node scripts/db/new.ts"
   },
   "dependencies": {

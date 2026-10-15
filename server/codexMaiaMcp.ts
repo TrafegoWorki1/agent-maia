@@ -15,8 +15,8 @@ import { proposeOwnerPreference } from "./ownerPreferences.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { workTools } from "./workTasks.ts";
-import { createImage, FORMATS } from "./imagegen.ts";
-import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { createCreativeJob } from "./creativeJobs.ts";
+import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
@@ -245,15 +245,19 @@ server.registerTool("preferencia_propor", { description: "Propõe uma preferênc
   }
 });
 
-server.registerTool("gerar_imagem", { description: "Cria uma arte para feed, story ou quadrado, somente quando a mensagem atual do owner pede explicitamente criação.", inputSchema: { briefing: z.string().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() } }, async ({ briefing, formato, referencias }) => {
+server.registerTool("gerar_imagem", { description: "Compatibilidade: enfileira uma arte única como trabalho retomável. Para séries, use trabalho_arte_enfileirar com um item por arte. Nunca bloqueie a resposta esperando a geração da imagem.", inputSchema: { briefing: z.string().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() } }, async ({ briefing, formato, referencias }) => {
   if (process.env.MAIA_CODEX_IMAGE_ALLOWED !== "1") return result("A mensagem atual não pediu a criação de uma imagem. Não gere a arte; responda ao pedido recebido e, se fizer sentido, pergunte se o owner quer que você crie.", true);
   return guarded("mcp__maia__gerar_imagem", { briefing, formato, referencias }, async () => {
-  const image = await createImage({ briefing, format: formato, refs: referencias ?? [] });
-  if (!image.ok) throw new Error(image.error);
-  if (channel === "painel") return `Arte criada em: ${image.path}`;
-  const id = await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", image.path, `Arte ${FORMATS[formato]}`);
-  await recordActionEvidence(getDb(), taskId, "enviar_arte", null, id ? `mensagem ${id}` : null);
-  return id ? "Arte criada e envio aceito pelo WhatsApp, com ID da mensagem." : "Arte criada; a Evolution aceitou o envio, mas não devolveu um ID para conferência.";
+  const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: `Arte ${formato}`, items: [{ briefing, format: formato, refs: referencias ?? [] }] });
+  return `Trabalho criativo #${id} enfileirado. O rascunho será enviado ao owner para revisão; nada será publicado automaticamente.`;
+  });
+});
+
+server.registerTool("trabalho_arte_enfileirar", { description: "Enfileira um ou vários pedidos de arte como trabalho retomável. Use para todas as criações de imagem, incluindo séries de Stories. A ferramenta grava um item por arte e responde imediatamente; o worker gera cada imagem separadamente, preserva checkpoints e envia os rascunhos só em privado ao owner. Nunca publica automaticamente.", inputSchema: { titulo: z.string().trim().min(1).max(160), itens: z.array(z.object({ briefing: z.string().trim().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() })).min(1).max(10) } }, async ({ titulo, itens }) => {
+  if (requester().role !== "owner" || process.env.MAIA_CODEX_IMAGE_ALLOWED !== "1") return result("Só o owner pode enfileirar arte, e apenas quando a mensagem atual pedir explicitamente criação.", true);
+  return guarded("mcp__maia__trabalho_arte_enfileirar", { titulo, itens }, async () => {
+    const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: titulo, items: itens.map((item) => ({ briefing: item.briefing, format: item.formato, refs: item.referencias ?? [] })) });
+    return `Trabalho criativo #${id} enfileirado com ${itens.length} arte(s). O worker enviará cada rascunho ao owner para revisão; nada será publicado automaticamente.`;
   });
 });
 

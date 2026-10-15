@@ -141,6 +141,40 @@ describe("recibos de mensagens de saída", () => {
   });
 });
 
+describe("trabalhos criativos retomáveis", () => {
+  it("cria o lote uma vez, reserva cada arte uma vez e retoma do checkpoint", async () => {
+    const task = (await q("insert into tasks(channel,summary,status) values('whatsapp','Job criativo teste','em_andamento') returning id"))[0];
+    const items = JSON.stringify([
+      { briefing: "Story 1", format: "story", refs: [] },
+      { briefing: "Story 2", format: "story", refs: [] },
+    ]);
+    const jobId = (await q("select create_creative_job($1,'Stories teste',$2::jsonb) as id", [task.id, items]))[0].id;
+    assert.equal((await q("select create_creative_job($1,'Stories repetidos',$2::jsonb) as id", [task.id, items]))[0].id, jobId);
+    assert.equal((await q("select count(*)::int as n from creative_job_items where job_id=$1", [jobId]))[0].n, 2);
+
+    const first = (await q("select * from claim_next_creative_item()"))[0];
+    assert.deepEqual([first.seq, first.prior_status, first.source_task_id], [1, "queued", task.id]);
+    assert.equal((await q("select * from claim_next_creative_item()")).length, 0);
+
+    await q("update creative_job_items set status='artifact_ready',artifact_path='/arte/story-1.png' where id=$1", [first.id]);
+    const resumed = (await q("select * from claim_next_creative_item()"))[0];
+    assert.deepEqual([resumed.seq, resumed.prior_status, resumed.artifact_path], [1, "artifact_ready", "/arte/story-1.png"]);
+    assert.equal((await q("select status from creative_job_items where id=$1", [first.id]))[0].status, "preview_sending");
+    await q("update creative_job_items set status='ready_for_review',message_id='draft-msg-1' where id=$1", [first.id]);
+    const second = (await q("select * from claim_next_creative_item()"))[0];
+    assert.deepEqual([second.seq, second.prior_status], [2, "queued"]);
+  });
+
+  it("protege conteúdo e RPCs de criação contra roles públicas", async () => {
+    for (const table of ["creative_jobs", "creative_job_items"]) {
+      assert.equal((await q("select relrowsecurity from pg_class where oid=$1::regclass", [`public.${table}`]))[0].relrowsecurity, true);
+      assert.equal((await q("select has_table_privilege('anon',$1,'select') as allowed", [`public.${table}`]))[0].allowed, false);
+      assert.equal((await q("select has_table_privilege('service_role',$1,'select') as allowed", [`public.${table}`]))[0].allowed, true);
+    }
+    assert.equal((await q("select has_function_privilege('authenticated','create_creative_job(bigint,text,jsonb)','execute') as allowed"))[0].allowed, false);
+  });
+});
+
 describe("plano de eficácia: trabalho, lembretes e entrega", () => {
   it("cria histórico e lembrete de prazo na mesma transação; não duplica claim", async () => {
     const t = (await q("insert into work_tasks(title,responsible,due_at,request_key) values('Validar fluxo','Owner',now() - interval '1 minute','test:work') returning id,revision"))[0];

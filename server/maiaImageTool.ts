@@ -10,7 +10,7 @@ import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts"
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
-import { createImage, FORMATS } from "./imagegen.ts";
+import { createCreativeJob } from "./creativeJobs.ts";
 import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPreferences.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
@@ -31,11 +31,12 @@ import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, r
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
 export const IMAGE_TOOL = "mcp__maia__gerar_imagem";
+export const CREATIVE_JOB_TOOL = "mcp__maia__trabalho_arte_enfileirar";
 export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -58,6 +59,24 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
     name: "maia",
     version: "1.0.0",
     tools: [
+      tool(
+        "trabalho_arte_enfileirar",
+        "Enfileira uma ou várias artes como trabalho retomável. Use esta ferramenta para pedidos de criação de imagem, especialmente séries e Stories. Cada arte é processada separadamente pelo worker; cada resultado é guardado e enviado em privado ao owner para revisão. Nunca publica automaticamente.",
+        {
+          titulo: z.string().trim().min(1).max(160),
+          itens: z.array(z.object({ briefing: z.string().trim().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() })).min(1).max(10),
+        },
+        async ({ titulo, itens }) => {
+          if (!allowImageGeneration || !isOwner) return { content: [{ type: "text" as const, text: "Só o owner pode enfileirar arte, e apenas quando a mensagem atual pedir explicitamente criação." }], isError: true };
+          if (!taskId) return { content: [{ type: "text" as const, text: "Não consegui associar o trabalho criativo a uma tarefa rastreável." }], isError: true };
+          try {
+            const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: titulo, items: itens.map((item) => ({ briefing: item.briefing, format: item.formato, refs: item.referencias ?? [] })) });
+            return { content: [{ type: "text" as const, text: `Trabalho criativo #${id} enfileirado com ${itens.length} arte(s). O worker enviará cada rascunho ao owner para revisão; nada será publicado automaticamente.` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Não consegui enfileirar o trabalho criativo." }], isError: true };
+          }
+        },
+      ),
       ...organizationTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
         catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no cadastro." }], isError: true }; }
@@ -94,7 +113,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "gerar_imagem",
-        "Cria uma arte a partir de um briefing, com o formato feed (4:5), story (9:16) ou quadrado (1:1). Use quando o dono pedir uma imagem ou arte.",
+        "Compatibilidade: enfileira uma arte única como trabalho retomável. Para séries, use trabalho_arte_enfileirar com um item por imagem. A resposta regressa logo; nunca espere aqui pela geração.",
         {
           briefing: z.string().min(1).max(2000).describe("Descrição da arte: tema, texto, cores e clima. Em português."),
           formato: z.enum(["feed", "story", "quadrado"]).describe("Formato da arte."),
@@ -104,24 +123,13 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           if (!allowImageGeneration) {
             return { content: [{ type: "text", text: "A mensagem atual não pediu a criação de uma imagem. Não gere a arte; responda ao pedido recebido e, se fizer sentido, pergunte se o owner quer que você crie." }], isError: true };
           }
-          const result = await createImage({ briefing: args.briefing, format: args.formato, refs: args.referencias ?? [] });
-          if (!result.ok) {
-            const note = result.uncertain ? " Não repita automaticamente: confira a pasta de pedidos antes." : "";
-            return { content: [{ type: "text", text: `Não consegui criar a arte: ${result.error}.${note}` }], isError: true };
-          }
-          if (channel === "painel") {
-            return { content: [{ type: "text", text: `Arte criada em: ${result.path}` }] };
-          }
           try {
-            const messageId = await sendOwnerImage(process.env.EVOLUTION_OWNER_NUMBER ?? "", result.path, `Arte ${FORMATS[args.formato]}`);
-            if (taskId) {
-              await addTaskEvent(getDb(), taskId, "external_done", "enviar_arte", null).catch(() => {});
-              if (messageId) await addTaskEvent(getDb(), taskId, "task_verified", "enviar_arte", `mensagem ${messageId}`).catch(() => {});
-            }
-            return { content: [{ type: "text", text: `Arte criada e enviada no WhatsApp. Arquivo: ${relative(ARTE_ROOT, result.path).split("\\").join("/")}` }] };
+            if (!taskId) throw new Error("Não consegui associar o trabalho criativo a uma tarefa rastreável.");
+            const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: `Arte ${args.formato}`, items: [{ briefing: args.briefing, format: args.formato, refs: args.referencias ?? [] }] });
+            return { content: [{ type: "text" as const, text: `Trabalho criativo #${id} enfileirado. O worker enviará o rascunho ao owner para revisão; nada será publicado automaticamente.` }] };
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
-            return { content: [{ type: "text", text: `Arte criada em ${result.path}, mas não consegui enviar no WhatsApp: ${reason}` }] };
+            return { content: [{ type: "text" as const, text: `Não consegui enfileirar o trabalho criativo: ${reason}` }], isError: true };
           }
         },
       ),
