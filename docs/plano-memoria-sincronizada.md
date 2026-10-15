@@ -15,8 +15,9 @@ Evitar que a Maia deixe de considerar uma conversa recente ou um combinado que e
 
 ## Rollout seguro
 
-- Esta entrega prepara código e migração, mas não aplica DDL ao Supabase de produção nem publica o deploy.
-- Aplicar primeiro a migração autorizada; confirmar sua versão no Supabase; só então publicar o código que usa a tabela.
+- A migração `20261015005000_maia_owner_memory.sql` foi aplicada em produção após aprovação do owner. Workflow `38664184391` concluiu a aplicação e o `db:drift`; a tabela e o RLS foram conferidos por leitura.
+- O ledger tinha quatro versões remotas com timestamps distintos dos quatro arquivos locais homônimos. Após confirmar os efeitos no schema e o hash da regra, a reconciliação autorizada foi executada pelo workflow `38664093265`; o dry-run subsequente listou somente a migration de memória.
+- O código de agente e painel está no PR #14, com CI e preview aprovados. Integrar o PR para publicar o código somente depois da migration — essa ordem já foi cumprida — e realizar smoke test do agente privado e da tela do painel.
 - Em caso de falha de leitura da memória durável, o agente deve continuar usando o histórico recente e o painel deve mostrar erro, sem apagar ou sobrescrever dados.
 
 ## Critérios de aceite
@@ -27,3 +28,4 @@ Evitar que a Maia deixe de considerar uma conversa recente ou um combinado que e
 - O painel lista e atualiza os mesmos registros do backend; conflitos de revisão não sobrescrevem silenciosamente.
 - Usuários sem papel de owner não recebem as memórias pelo agente nem pelo endpoint do painel.
 - Migrações são reproduzíveis em banco temporário; verificações e testes passam.
+- A solução evita cortes no contexto e preserva combinados novos, mas não recria mensagens antigas que já tenham sido removidas de `messages` ou `inbox`.
