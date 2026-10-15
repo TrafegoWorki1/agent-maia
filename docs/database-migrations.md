@@ -28,6 +28,10 @@ A atualização do conhecimento usa `replace_knowledge_document`, RPC exclusiva 
 
 Preferências persistentes do owner são um mecanismo separado, não um editor de `maia_rules`. A migração `20261011012443_maia_owner_preferences_v1.sql` cria propostas e preferências com RLS, bloqueia `anon`/`authenticated` e concede execução da RPC de ativação ao `service_role`. O owner confirma uma proposta pendente em até 10 minutos; a função ativa o texto atomicamente e substitui o valor anterior do mesmo escopo. A Maia não recebe acesso a SQL livre. **Exceção pontual de 11/10/2026:** o owner autorizou a aplicação direta via MCP porque os segredos do ambiente GitHub `production` não estavam configurados; o Supabase registrou a versão `20261011012443` e o arquivo local foi alinhado a esse histórico. A exceção não altera a regra padrão: futuras migrações devem usar o workflow aprovado abaixo ou `supabase db push`, antes de publicar código dependente.
 
+Memória conversacional durável vive em `owner_memories` (migração `20261015005000_maia_owner_memory.sql`): compromissos, contexto e preferências explicitamente registrados, com origem, prazo, estado e revisão otimista. RLS é habilitado sem acesso de cliente direto; agente e painel usam endpoints/server com `service_role`, e o endpoint do painel valida owner. A migração deve ser aplicada antes do deploy que a consome. Não aplique diretamente em produção por MCP/SQL Editor; siga o fluxo aprovado abaixo.
+
+Se `supabase db push --dry-run` informar versões remotas não encontradas localmente, **pare**: não rode `db pull` ou `migration repair` por tentativa. Compare versões, nomes e efeitos do SQL no schema real somente por leitura; alinhe o ledger apenas com autorização explícita do owner e pelo workflow protegido. O workflow aceita `reconciliar_historico=true` somente para as quatro versões específicas já verificadas neste incidente; a opção padrão continua `false`.
+
 | Comando | O que faz |
 |---|---|
 | `pnpm db:new nome_em_snake_case` | Cria `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com o cabeçalho padrão |

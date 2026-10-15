@@ -9,31 +9,28 @@ describe("contexto da conversa", () => {
     const rows = [row(5, "owner", "criar grupo Operacional Worki digital"), row(4, "maia", "Qual o nome exato?"), row(1, "owner", "Operacional Worki digital")];
     expect(pickContext(rows, "Operacional Worki digital", NOW)).toBe("Dono: criar grupo Operacional Worki digital\nMaia: Qual o nome exato?");
   });
-
   it("não repete a mensagem atual", () => {
-    const rows = [row(1, "owner", "tarefa revisar campanha")];
-    expect(pickContext(rows, "tarefa revisar campanha", NOW)).toBe("");
+    expect(pickContext([row(1, "owner", "tarefa revisar campanha")], "tarefa revisar campanha", NOW)).toBe("");
   });
-
-  it("ignora mensagens fora da janela de 12 horas e de terceiros", () => {
-    const rows = [row(13 * 60, "owner", "antiga"), row(2, "terceiro", "não entra"), row(3, "maia", "recente")];
+  it("ignora mensagens fora da janela de 24 horas e de terceiros", () => {
+    const rows = [row(25 * 60, "owner", "antiga"), row(2, "terceiro", "não entra"), row(3, "maia", "recente")];
     expect(pickContext(rows, "agora", NOW)).toBe("Maia: recente");
   });
-
-  // Regressão real (10/10/2026): o dono mandou 5 posts longos; a Maia só viu o início do primeiro porque
-  // cada linha era cortada em 400 caracteres e só entravam 8 linhas dos últimos 30 minutos. Diagnóstico
-  // da própria Maia (sem acesso de escrita) corrigido aqui: 4000 caracteres, 14 linhas, 2 horas.
-  it("não corta uma resposta longa da Maia (ex.: rascunho que o Ok do dono confirma)", () => {
+  it("não corta resposta longa da Maia que o owner confirma depois", () => {
     const longo = "a".repeat(3500);
-    const rows = [row(1, "maia", longo)];
-    expect(pickContext(rows, "Ok", NOW)).toBe(`Maia: ${longo}`);
+    expect(pickContext([row(1, "maia", longo)], "Ok", NOW)).toBe(`Maia: ${longo}`);
   });
-
-  it("mantém até 14 linhas recentes, não só 8", () => {
-    const rows = Array.from({ length: 16 }, (_, i) => row(16 - i, "owner", `msg${i}`));
+  it("preserva até 48 linhas recentes para conversas com várias trocas", () => {
+    const rows = Array.from({ length: 52 }, (_, i) => row(52 - i, "owner", `msg${i}`));
     const picked = pickContext(rows, "atual", NOW).split("\n");
-    expect(picked).toHaveLength(14);
-    expect(picked[0]).toBe("Dono: msg2");
-    expect(picked[13]).toBe("Dono: msg15");
+    expect(picked).toHaveLength(48);
+    expect(picked[0]).toBe("Dono: msg4");
+    expect(picked[47]).toBe("Dono: msg51");
+  });
+  it("respeita o orçamento total quando muitas linhas são longas", () => {
+    const rows = Array.from({ length: 48 }, (_, i) => row(48 - i, "maia", `m${i} ${"x".repeat(3000)}`));
+    const picked = pickContext(rows, "atual", NOW);
+    expect(picked.length).toBeLessThanOrEqual(28_000);
+    expect(picked.split("\n").length).toBeGreaterThan(1);
   });
 });

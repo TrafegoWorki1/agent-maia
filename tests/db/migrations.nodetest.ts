@@ -178,6 +178,14 @@ describe("migrações reconstroem o banco do zero", () => {
   it("estruturas essenciais, funções RPC, constraints e RLS estão presentes", async () => {
     assert.deepEqual(checkEssentials(await local.snapshot()), []);
   });
+  it("memória do owner tem RLS e só service_role acessa diretamente", async () => {
+    assert.equal((await q("select relrowsecurity from pg_class where oid='public.owner_memories'::regclass"))[0].relrowsecurity, true);
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await q("select has_table_privilege($1,'public.owner_memories','select') as allowed", [role]))[0].allowed, false);
+    }
+    assert.equal((await q("select has_table_privilege('service_role','public.owner_memories','select') as allowed"))[0].allowed, true);
+    assert.equal((await q("select has_table_privilege('service_role','public.owner_memories','update') as allowed"))[0].allowed, true);
+  });
 
   it("o código só usa tabelas e funções que as migrações criam", async () => {
     const rows = await local.snapshot();

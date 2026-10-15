@@ -7,7 +7,7 @@ export const sections = [
   { id: "clientes-cs", label: "Clientes e CS", icon: "groups", pages: [{ id: "clientes", label: "Clientes" }, { id: "grupos", label: "Grupos do WhatsApp" }] },
   { id: "financeiro", label: "Financeiro", icon: "financeiro", pages: [{ id: "receitas", label: "Receitas" }, { id: "custos", label: "Custos e despesas" }] },
   { id: "acessos", label: "Equipe e acessos", icon: "access", pages: [{ id: "pessoas", label: "Acessos" }, { id: "grupos-acesso", label: "Grupos de acesso" }] },
-  { id: "agente-maia", label: "Agente Maia", icon: "agent", pages: [{ id: "regras", label: "Regras ativas" }, { id: "manual", label: "Continuidade" }] },
+  { id: "agente-maia", label: "Agente Maia", icon: "agent", pages: [{ id: "regras", label: "Regras ativas" }, { id: "memoria", label: "Memória e combinados" }, { id: "manual", label: "Continuidade" }] },
   { id: "sistema", label: "Sistema e integrações", icon: "system", pages: [{ id: "conexoes", label: "Conexões e fontes" }, { id: "modelos", label: "Executor e roteamento" }] },
 ] as const;
 
@@ -18,7 +18,6 @@ export function routeHash(route: PanelRoute): string { return `#${route.section}
 
 export function parseRoute(hash: string, owner = true): PanelRoute {
   const raw = hash.replace(/^#/, "");
-  // Legacy redirects
   const value = raw === "operacao" ? "manual"
     : raw === "agente" || raw === "agente-maia/agente" ? "regras"
     : raw === "grupos-clientes/grupos" ? "clientes-cs/grupos"

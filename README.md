@@ -16,6 +16,8 @@ Em Grupos e clientes, cadastre o cliente e associe os grupos reais do WhatsApp. 
 
 O contexto dos grupos de clientes não recebe o histórico privado do proprietário nem conversas de outros grupos. Ferramentas que consultam dados gerais da operação ficam bloqueadas nesse contexto. As permissões são conferidas novamente antes de executar ferramentas, após aprovação e antes de cada parte da resposta, inclusive na retomada da fila. Ao mudar o cliente ou os acessos de um grupo, pedidos anteriores precisam ser refeitos. Documentos de clientes continuam fora da busca do projeto.
 
+No contexto privado do owner, o agente inclui até 48 falas recentes dentro de 24 horas, limitado por orçamento de caracteres, e as memórias ativas de `owner_memories`. A Maia pode buscar e registrar compromissos explícitos; o owner também pode revisar, concluir ou arquivar registros em **Agente Maia > Memória e combinados**. Memória é contexto, não prova de execução nem autorização. A tabela é acessível somente pelo backend e a rota do painel valida a sessão do owner. Consulte [o plano de memória sincronizada](docs/plano-memoria-sincronizada.md) e o [procedimento de migrações](docs/database-migrations.md) antes do rollout.
+
 As estruturas estão nas migrações `20261011185724_maia_client_groups_access.sql` e `20261012014613_maia_response_deliveries_requester.sql`. O histórico remoto foi consultado para reconciliar a primeira; a coluna de entrega pertence somente à segunda. O painel informa quando falta estrutura e impede salvar nesses casos.
 
 ## Execução
