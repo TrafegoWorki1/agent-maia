@@ -6,6 +6,7 @@ import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evol
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact, saveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
+import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
@@ -235,7 +236,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           }
           try {
             const id = await sendGroupText(group.group.jid, args.texto, mentions.numbers, ghost, args.citar_id);
-            await recordConvMessage(getDb(), { conv: group.group.jid, name: "Maia", text: args.texto, fromMaia: true }).catch(() => {});
+            await recordConvMessage(getDb(), { conv: group.group.jid, name: "Maia", text: args.texto, fromMaia: true, keyId: id }).catch(() => {});
             if (taskId) {
               await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});
               await addTaskEvent(getDb(), taskId, "task_verified", "grupo_enviar_texto", `mensagem ${id}`).catch(() => {});
@@ -607,6 +608,29 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         },
       ),
       tool(
+        "mensagem_status",
+        "Consulta evidência de envio, entrega ou leitura de mensagem enviada pela Maia. Só use no privado do owner; aceite pelo WhatsApp não significa entrega nem leitura. Informe tipo, destino e, se disponível, o ID da mensagem.",
+        { tipo: z.enum(["contato", "grupo"]), destino: z.string().min(1).max(100), message_id: z.string().min(1).max(300).optional() },
+        async (args) => {
+          if (!allowOwnerMemory) return { content: [{ type: "text", text: "Consulta de recibos disponível somente no privado do owner." }], isError: true };
+          const db = getDb();
+          let recipient: string;
+          let label: string;
+          if (args.tipo === "grupo") {
+            const found = await resolveGroup(args.destino);
+            if (!found.ok) return { content: [{ type: "text", text: `Não consegui identificar o grupo: ${found.error}.` }], isError: true };
+            recipient = found.group.jid; label = `grupo ${found.group.subject}`;
+          } else {
+            const found = await resolveContact(db, args.destino);
+            if (!found.ok) return { content: [{ type: "text", text: `Não consegui identificar o contato: ${found.error}.` }], isError: true };
+            recipient = found.contact.number; label = found.contact.name || "contato";
+          }
+          const receipts = await recentOutboundReceipts(db, recipient, args.message_id);
+          if (!receipts.length) return { content: [{ type: "text", text: `Não encontrei recibo confiável para ${label}. Isso não comprova que a mensagem não foi enviada; pode não haver ID registrado ou o evento de status pode não estar habilitado na Evolution.` }] };
+          return { content: [{ type: "text", text: receipts.map((r) => `${r.messageId}: ${summarizeReceipt(r.status)} (atualizado em ${r.updatedAt})`).join("\n") }] };
+        },
+      ),
+      tool(
         "contato_enviar_mensagem",
         "Manda uma mensagem de texto no privado de um contato (WhatsApp). O contato precisa estar na agenda; se houver dúvida de quem é, pergunte antes. O texto sai em nome da Maia, assistente do Herickson. Se o owner pediu, envie sem pedir confirmação.",
         {
@@ -619,9 +643,6 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           const db = getDb();
           const found = await resolveContact(db, args.contato);
           if (!found.ok) return { content: [{ type: "text", text: `Não enviei: ${found.error}.` }], isError: true };
-          const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-          const { data: dup } = await db.from("outreach").select("id").eq("number", found.contact.number).eq("text", args.texto).gte("at", since).limit(1);
-          if (dup && dup.length > 0) return { content: [{ type: "text", text: "Não enviei: essa mesma mensagem já foi enviada a esse contato nas últimas 24 h." }], isError: true };
           const { count } = await db.from("outreach").select("id", { count: "exact", head: true }).gte("at", new Date(Date.now() - 3600_000).toISOString());
           if ((count ?? 0) >= 20) return { content: [{ type: "text", text: "Não enviei: limite de 20 mensagens diretas por hora atingido." }], isError: true };
           try {

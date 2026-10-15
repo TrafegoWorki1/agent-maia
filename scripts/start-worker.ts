@@ -70,7 +70,7 @@ process.on("SIGTERM", () => stop(0, "SIGTERM"));
 // O worker reinicia sozinho se cair (até 5 vezes seguidas).
 let workerRestarts = 0;
 function startWorker(): void {
-  const worker = spawn(process.execPath, [here("../server/inboxWorker.ts")], { stdio: ["ignore", "pipe", "pipe"] });
+  const worker = spawn(process.execPath, [...process.execArgv, here("../server/inboxWorker.ts")], { stdio: ["ignore", "pipe", "pipe"] });
   children.push(worker);
   capture(worker, "worker");
   worker.on("exit", (code, signal) => {

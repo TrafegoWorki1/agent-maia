@@ -1,5 +1,6 @@
 import { sendTextChecked } from "./evolutionSend.ts";
 import type { Db } from "./store.ts";
+import { recordAcceptedOutbound } from "./outboundReceipts.ts";
 
 // Prospecção pedida pelo dono (Fase 4): uma lista de contatos e uma mensagem final. Cada envio é uma ação aprovada
 // (OK do dono a cada contato). Limites: teto diário, sem repetir contato, descadastro obrigatório na mensagem e checagem
@@ -150,7 +151,8 @@ export async function sendNextProspect(db: Db, lote: number): Promise<{ ok: true
   }
   const now = new Date().toISOString();
   await db.from("maia_prospects").update({ status: "sent", sent_at: now }).eq("id", next.id);
-  await db.from("outreach").insert({ number: String(next.number), name: String(next.name ?? ""), text: String(batch.text), at: now });
+  await db.from("outreach").insert({ number: String(next.number), name: String(next.name ?? ""), text: String(batch.text), task_id: null, key_id: messageId, at: now });
+  await recordAcceptedOutbound(db, messageId, String(next.number)).catch((error) => console.error("[prospecção] falha ao registrar recibo:", error instanceof Error ? error.message : error));
 
   const { count: pending } = await db.from("maia_prospects").select("id", { count: "exact", head: true }).eq("batch_id", lote).eq("status", "pending");
   const sentNow = (sentToday ?? 0) + 1;

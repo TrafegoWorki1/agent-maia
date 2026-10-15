@@ -4,6 +4,7 @@ import { recordConvMessage } from "./conversations.ts";
 import { samePhone } from "./evolutionWebhook.ts";
 import type { Requester } from "./access.ts";
 import { refreshGroupRequester } from "./groupAuthorization.ts";
+import { recordAcceptedOutbound } from "./outboundReceipts.ts";
 
 export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string, who?: Requester) {
   const requester = who?.groupScope ? { ...who, permissions:[...who.permissions] } : null;
@@ -29,6 +30,7 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
       }
       const id = await sendTextChecked(item.recipient, item.text);
       accepted = true;
+      await recordAcceptedOutbound(db, id, item.recipient).catch((error) => console.error("[entrega] falha ao registrar recibo aceito:", error instanceof Error ? error.message : error));
       const saved = await db.from("response_deliveries").update({ status: "sent", message_id: id, finished_at: new Date().toISOString() }).eq("id", item.id);
       if (saved.error) throw new Error(saved.error.message);
       await addTaskEvent(db, item.task_id, "delivery_accepted", "whatsapp.reply", `parte ${item.part}; mensagem ${id}`);

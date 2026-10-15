@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../server/outboundReceipts.ts", () => ({ recordAcceptedOutbound: vi.fn().mockResolvedValue(undefined) }));
 import { everyMemberNumbers, sendGroupText, withMentionTags } from "../server/groupTools.ts";
 
 // Menção a todos: marca cada participante com número válido do grupo (a Evolution não tem um "@todos" próprio).

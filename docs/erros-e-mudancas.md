@@ -4,6 +4,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-15 — Aprovação de repetição e recibos de envio
+
+- **Mudança em preparação:** verificação server-side de texto idêntico ao mesmo destino nas últimas 24 h; pede OK explícito antes do reenvio. Se a consulta falhar, o agente não envia.
+- **Evidência:** novo registro de ID/estado em `outbound_receipts` e processamento de `MESSAGES_UPDATE`; deduplicação usa HMAC-SHA-256 com a chave de ambiente, não texto claro. Status numéricos vêm da enumeração oficial Baileys, e pendente/desconhecido não vira entrega.
+- **Painel:** estados aceito/entregue/lido, data e ID técnico, sem conteúdo ou número completo.
+- **Ainda necessário para ativar:** aprovação/aplicação da migration, checks do PR, habilitar o evento no webhook Evolution e atualizar/reiniciar o worker local. Até então, não se deve afirmar que a instância real envia callbacks de status.
+- Detalhes: `docs/confiabilidade-envio-whatsapp.md`.
+
 ## 2026-10-15 — Mensagem duplicada em grupo do WhatsApp
 
 - **Sintoma:** cada uma de duas solicitações gerou duas mensagens parecidas no grupo.

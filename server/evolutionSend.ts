@@ -1,3 +1,6 @@
+import { getDb } from "./store.ts";
+import { recordAcceptedOutbound } from "./outboundReceipts.ts";
+
 // Envia texto pela instância da Evolution. Só é usado para responder ao dono autorizado.
 export async function sendOwnerText(number: string, text: string): Promise<void> {
   for (const part of splitReply(text)) await sendTextChecked(number, part);
@@ -126,5 +129,7 @@ export async function sendTextChecked(number: string, text: string): Promise<str
   const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
   const id = typeof body?.key?.id === "string" ? body.key.id : null;
   if (!response.ok || !id) throw new DeliveryError(`Evolution sendText falhou: HTTP ${response.status}; ${deliveryDiagnostic(body)}${response.ok ? "; sem ID, resultado incerto" : ""}`, response.ok || response.status >= 500 || response.status === 408);
+  try { await recordAcceptedOutbound(getDb(), id, number, text); }
+  catch (error) { console.error("[envio] falha ao registrar recibo aceito:", error instanceof Error ? error.message : error); }
   return id;
 }

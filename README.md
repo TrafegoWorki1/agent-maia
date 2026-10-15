@@ -6,6 +6,8 @@ Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo Wha
 
 Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel publicado usa autenticação do proprietário e RLS.
 
+O registro de recibos distingue aceite pela Evolution de entrega/leitura; o painel de tarefas mostra os status recebidos. Reenvios de texto idêntico ao mesmo destino em até 24 h exigem OK do owner. Para ativar callbacks, configure `MESSAGES_UPDATE` na Evolution e atualize/reinicie o worker local conforme [confiabilidade dos envios WhatsApp](docs/confiabilidade-envio-whatsapp.md); instalar apenas a Vercel não atualiza o worker local.
+
 Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
 ## Organização do painel

@@ -8,6 +8,7 @@ import { workspaceRequest, type WorkspaceData, type WorkRow } from "../../lib/wo
 const statusLabel = { pendente: "Pendente", em_andamento: "Em andamento", concluida: "Concluída" };
 const tipoLabel: Record<string, string> = { melhoria: "Melhoria", bug: "Bug", conteudo: "Conteúdo", operacional: "Operacional", outro: "Outro" };
 const reminderLabel: Record<string,string> = { pending: "Agendado", sending: "Em envio", sent: "Aceito pelo WhatsApp", failed: "Falhou", uncertain: "Incerto · não repetido", cancelled: "Cancelado" };
+const receiptLabel: Record<string,string> = { accepted: "Aceito pelo serviço · entrega não confirmada", delivered: "Entregue", read: "Lida", played: "Reproduzida", failed: "Falha informada" };
 const brt = (v: string | null) => v ? new Date(v).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Sem prazo";
 const iso = (v: string) => v ? `${v}:00-03:00` : null;
 
@@ -71,6 +72,9 @@ export function TarefasPage() {
         <button type="button" onClick={() => setEditReminderId(null)}>Cancelar edição</button>
       </form>}
       {!data?.work.reminders.length ? <p>Nenhum lembrete agendado ainda.</p> : <div className="table-wrap"><table><thead><tr><th>Tarefa</th><th>Horário · Brasília</th><th>Estado</th><th>Diagnóstico / ID</th><th>Ações</th></tr></thead><tbody>{data.work.reminders.map((r) => <tr key={r.id}><td>#{r.work_task_id} · {r.kind === "prazo" ? "Prazo" : "Manual"}</td><td>{brt(r.run_at)}</td><td>{reminderLabel[r.status] ?? r.status}</td><td>{r.error ?? r.message_id ?? "—"}</td><td>{r.status === "pending" && <><button disabled={busy} onClick={() => { setEditReminderId(r.id); setReminderTime(new Date(Date.parse(r.run_at) - 3 * 3600000).toISOString().slice(0,16)); }}>Reagendar</button><button disabled={busy} onClick={() => void mutate("edit_reminder",{ id:r.id,cancelar:true })}>Cancelar</button></>}</td></tr>)}</tbody></table></div>}
+    </Panel>
+    <Panel title="Mensagens recentes no WhatsApp" caption="Status reportados pela Evolution. Aceite não significa entrega; entrega/leitura só aparecem quando chega um recibo. O painel não exibe o conteúdo nem o número do destinatário.">
+      {!data?.receipts.length ? <p>Nenhum recibo de saída registrado ainda.</p> : <div className="table-wrap"><table><thead><tr><th>Destino</th><th>Estado comprovado</th><th>Atualizado · Brasília</th><th>ID da mensagem</th></tr></thead><tbody>{data.receipts.map((r) => <tr key={r.messageId}><td>{r.destination}</td><td>{receiptLabel[r.status] ?? "Estado não classificado"}</td><td>{brt(r.updatedAt)}</td><td>{r.messageId}</td></tr>)}</tbody></table></div>}
     </Panel>
     <Panel title="Relevância e resolução" caption="Acompanhamento das entregas, sem avaliação manual: a amostra vem do que a própria Maia registra.">
       {data?.effectiveness.deliveries.filter((d) => d.status === "failed" || d.status === "uncertain").map((d,i) => <p role="alert" key={`${d.task_id}:${i}`}>Entrega #{d.task_id}: {d.status === "uncertain" ? "incerta — confira no WhatsApp, sem repetição" : "rejeitada"} · {d.error} {d.status === "failed" && <button disabled={busy} onClick={() => void mutate("retry_delivery",{ task_id:d.task_id })}>Reenviar somente a resposta</button>}</p>)}

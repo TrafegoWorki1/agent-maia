@@ -121,6 +121,26 @@ describe("regras alinhadas e conhecimento atômico", () => {
   });
 });
 
+describe("recibos de mensagens de saída", () => {
+  it("preserva o estado mais forte quando callbacks chegam fora de ordem", async () => {
+    await q("select record_outbound_receipt('receipt-test-1','5511999999999','accepted')");
+    await q("select record_outbound_receipt('receipt-test-1','5511999999999','read')");
+    await q("select record_outbound_receipt('receipt-test-1','5511999999999','delivered')");
+    await q("select record_outbound_receipt('receipt-test-1','5511999999999','accepted')");
+    await q("select record_outbound_receipt('receipt-test-1','5511999999999','failed')");
+    const row = (await q("select recipient,status from outbound_receipts where message_id='receipt-test-1'"))[0];
+    assert.deepEqual(row, { recipient: "5511999999999", status: "read" });
+    await rejects(q("select record_outbound_receipt('receipt-test-1','5511999999999','unknown')"), /Estado de recibo inválido/i);
+    await rejects(q("insert into outbound_receipts(message_id,recipient,status) values('receipt-test-1','5511999999999','accepted')"), /unique/i);
+  });
+  it("remove somente recibos técnicos com mais de 30 dias", async () => {
+    await q("insert into outbound_receipts(message_id,recipient,status,created_at) values('receipt-old','5511999999999','read',now()-interval '31 days'),('receipt-new','5511999999999','accepted',now())");
+    await q("select purge_outbound_receipts()");
+    assert.equal((await q("select message_id from outbound_receipts where message_id='receipt-old'")).length,0);
+    assert.equal((await q("select message_id from outbound_receipts where message_id='receipt-new'")).length,1);
+  });
+});
+
 describe("plano de eficácia: trabalho, lembretes e entrega", () => {
   it("cria histórico e lembrete de prazo na mesma transação; não duplica claim", async () => {
     const t = (await q("insert into work_tasks(title,responsible,due_at,request_key) values('Validar fluxo','Owner',now() - interval '1 minute','test:work') returning id,revision"))[0];

@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { audioFrom, groupJoinFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, withQuoted } from "./evolutionWebhook.ts";
+import { normalizeOutboundStatus, type DeliveryUpdate } from "./outboundReceipts.ts";
 
 // Triagem do webhook: transforma um evento da Evolution numa linha da fila `inbox` do Supabase.
 // Função pura (sem banco, sem rede), usada pela rota da Vercel. O worker do PC lê essas linhas depois.
@@ -19,6 +21,29 @@ export interface InboxRow {
 // Exportada para o worker: áudio em grupo não tem texto antes de transcrever, então a chamada pelo nome só
 // é checada depois (server/ownerRouter.ts, handleGroupAudio).
 export const CALLS_MAIA = /(^|[^\p{L}])maia([^\p{L}]|$)/iu;
+
+function outboundDeliveryUpdates(body: Record<string, unknown>): DeliveryUpdate[] {
+  const rawData = body.data;
+  const entries: Record<string, unknown>[] = [];
+  if (Array.isArray(rawData)) {
+    for (const value of rawData) if (value && typeof value === "object") entries.push(value as Record<string, unknown>);
+  } else if (rawData && typeof rawData === "object") entries.push(rawData as Record<string, unknown>);
+  const updates: DeliveryUpdate[] = [];
+  for (const entry of entries) {
+    const statuses = Array.isArray(entry.statuses) ? entry.statuses : [entry];
+    for (const raw of statuses) {
+      if (!raw || typeof raw !== "object") continue;
+      const value = raw as Record<string, unknown>;
+      const key = (value.key && typeof value.key === "object" ? value.key : {}) as Record<string, unknown>;
+      const patch = (value.update && typeof value.update === "object" ? value.update : {}) as Record<string, unknown>;
+      const id = typeof key.id === "string" ? key.id : typeof value.id === "string" ? value.id : "";
+      const status = normalizeOutboundStatus(patch.status ?? value.status);
+      const recipient = typeof key.remoteJid === "string" ? key.remoteJid : typeof value.recipient_id === "string" ? value.recipient_id : null;
+      if (id && status) updates.push({ messageId: id, recipient, status });
+    }
+  }
+  return updates;
+}
 
 const REGISTER_GROUP = /(cadastr|atend|registr)\w*\s+(este|esse|neste|nesse|o)?\s*grupo|passa\s+a\s+atender/i;
 
@@ -71,6 +96,13 @@ export function toInboxRow(
   const key = (data.key ?? {}) as Record<string, unknown>;
   // Só mensagens novas têm dedupe; atualizações de status reusam o mesmo key.id e não entram aqui.
   const keyId = event.event === "messages.upsert" && typeof key.id === "string" ? key.id : null;
+
+  if (event.kind === "delivery_status") {
+    const updates = outboundDeliveryUpdates(body as Record<string, unknown>);
+    const sorted = updates.sort((a,b) => a.messageId.localeCompare(b.messageId) || a.status.localeCompare(b.status));
+    const keyId = sorted.length ? `receipt:${createHash("sha256").update(JSON.stringify(sorted)).digest("hex")}` : null;
+    return { kind: "event", sender: "none", key_id: keyId, payload: sorted.length ? JSON.stringify({ type: "delivery_status", updates: sorted }) : null };
+  }
 
   // Grupo mudou por fora da Maia (foto, nome, participantes): o worker invalida o cache de grupos ao vivo
   // (server/groups.ts, resetGroupCache), em vez de só expirar por TTL ou reconsultar e bater no rate-overlimit.

@@ -3,7 +3,8 @@
 // Falha de verdade (asserção) falha de novo na segunda tentativa, então nada é escondido.
 import { spawnSync } from "node:child_process";
 
-const args = ["--test", "tests/db/migrations.nodetest.ts"];
+// Preserve flags such as --experimental-strip-types used to start this script.
+const args = [...process.execArgv, "--test", "tests/db/migrations.nodetest.ts"];
 for (let attempt = 1; attempt <= 2; attempt += 1) {
   const result = spawnSync(process.execPath, args, { stdio: "inherit" });
   if (result.status === 0) process.exit(0);

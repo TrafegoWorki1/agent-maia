@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("../server/outboundReceipts.ts", () => ({ recordAcceptedOutbound: vi.fn().mockResolvedValue(undefined) }));
 import { typingDelayMs, sendTextChecked } from "../server/evolutionSend.ts";
 
 describe("simulação de digitação (delay repassado ao sendText)", () => {

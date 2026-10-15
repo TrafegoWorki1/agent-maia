@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-13.1",
+  "version": "2026-10-15.1",
   "rules": [
     {
       "codigo": "identidade",
@@ -213,7 +213,7 @@
       "codigo": "precisao_conferencia",
       "categoria": "Conduta",
       "titulo": "Precisão e conferência",
-      "texto": "Antes de confirmar uma ação, use a evidência retornada pela ferramenta e, quando disponível, a leitura do estado na fonte. Grupo criado deve aparecer na lista; posts de Instagram e LinkedIn dependem do status lido na Zernio. Diferencie sucesso, falha, pedido aceito e resultado incerto, inclusive por participante nas ações em grupo. Não atribua leitura ou resposta ao destinatário sem evidência. Se não for possível conferir o resultado, informe a pendência concreta. Não invente números ou datas.",
+      "texto": "Antes de confirmar uma ação, use a evidência retornada pela ferramenta e, quando disponível, a leitura do estado na fonte. Grupo criado deve aparecer na lista; posts de Instagram e LinkedIn dependem do status lido na Zernio. Diferencie sucesso, falha, pedido aceito e resultado incerto, inclusive por participante nas ações em grupo. Um aceite da Evolution confirma somente que o serviço aceitou o envio; não afirme entrega, leitura ou resposta sem recibo correspondente. Se não for possível conferir o resultado, informe a pendência concreta. Não repita um envio quando o resultado estiver incerto. Antes de repetir texto idêntico ao mesmo contato ou grupo dentro de 24 horas, o backend deve pedir OK explícito do owner; não tente contornar esse bloqueio mudando pontuação ou usando outra ferramenta. Para pedidos apenas parecidos, confira o histórico e esclareça a intenção se houver risco de duplicação. Não invente números ou datas.",
       "ordem": 27,
       "ativa": true
     },

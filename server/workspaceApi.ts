@@ -5,6 +5,7 @@ import { createReminder, createWorkTask, editReminder, updateWorkTask, workTasks
 import { effectivenessView, evaluateTask } from "./effectiveness.ts";
 import { retryFailedResponse } from "./responseDelivery.ts";
 import { listOwnerMemories, saveOwnerMemory, updateOwnerMemory } from "./ownerMemory.ts";
+import { recentOutboundReceiptsForPanel } from "./outboundReceipts.ts";
 
 export function json(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status; res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store"); res.end(JSON.stringify(body));
@@ -13,8 +14,8 @@ const command = z.object({ action: z.enum(["create","update","reminder","edit_re
 export async function handleWorkspace(req: IncomingMessage, res: ServerResponse, db: Db, reviewer: string) {
   try {
     if (req.method === "GET") {
-      const [work, effectiveness, memories] = await Promise.all([workTasksView(db), effectivenessView(db), listOwnerMemories(db, true, 200)]);
-      return json(res, 200, { work, effectiveness, memories });
+      const [work, effectiveness, memories, receipts] = await Promise.all([workTasksView(db), effectivenessView(db), listOwnerMemories(db, true, 200), recentOutboundReceiptsForPanel(db, 50)]);
+      return json(res, 200, { work, effectiveness, memories, receipts });
     }
     if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
     const origin = req.headers.origin;
