@@ -30,6 +30,8 @@ Preferências persistentes do owner são um mecanismo separado, não um editor d
 
 Memória conversacional durável vive em `owner_memories` (migração `20261015005000_maia_owner_memory.sql`): compromissos, contexto e preferências explicitamente registrados, com origem, prazo, estado e revisão otimista. RLS é habilitado sem acesso de cliente direto; agente e painel usam endpoints/server com `service_role`, e o endpoint do painel valida owner. A migração deve ser aplicada antes do deploy que a consome. Não aplique diretamente em produção por MCP/SQL Editor; siga o fluxo aprovado abaixo.
 
+Se `supabase db push --dry-run` informar versões remotas não encontradas localmente, **pare**: não rode `db pull` ou `migration repair` por tentativa. Compare versões, nomes e efeitos do SQL no schema real somente por leitura; alinhe o ledger apenas com autorização explícita do owner e pelo workflow protegido. O workflow aceita `reconciliar_historico=true` somente para as quatro versões específicas já verificadas neste incidente; a opção padrão continua `false`.
+
 | Comando | O que faz |
 |---|---|
 | `pnpm db:new nome_em_snake_case` | Cria `supabase/migrations/AAAAMMDDHHMMSS_nome.sql` com o cabeçalho padrão |

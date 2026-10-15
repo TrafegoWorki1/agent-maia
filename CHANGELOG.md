@@ -17,7 +17,8 @@ bug, qual era o sintoma e a causa.
 - **Documentação/plano:** README e guia de migrações atualizados; plano detalhado em `docs/plano-memoria-sincronizada.md`.
 - **Segurança/rollout:** a migração não foi aplicada em produção nem houve deploy. Aplicar a migração antes de publicar o código que a consulta.
 - **Validação:** `pnpm typecheck` e `pnpm build` passaram; `node --experimental-strip-types scripts/db/validate.ts` aplicou as 40 migrações em banco temporário; `NODE_OPTIONS=--experimental-strip-types pnpm test` passou (501 testes Vitest + 36 testes de banco). O sandbox está em Node 22.13, que exige essa opção experimental para executar scripts `.ts` nativos; sem ela, os scripts padrão falham antes de iniciar.
-- **Pendente:** teste ao vivo após aprovação/aplicação da migração e deploy. Nada foi aplicado no Supabase de produção.
+- **Ledger:** o primeiro dry-run de produção bloqueou por quatro versões remotas desconhecidas localmente. A inspeção somente leitura confirmou os quatro efeitos no schema e o hash da regra; o workflow recebeu uma opção explícita, desligada por padrão, para reconciliar só essas versões, com tentativa de rollback do ledger se a segunda etapa falhar. Nenhum metadado ou schema remoto foi alterado ainda.
+- **Pendente:** executar a reconciliação autorizada após os checks atualizados, repetir o dry-run e só então aplicar a migration; teste ao vivo após deploy.
 
 ---
 

@@ -13,6 +13,10 @@ on:
         description: "Aplicar de verdade? (false = só simulação)"
         type: boolean
         default: false
+      reconciliar_historico:
+        description: "Reconciliar as quatro versões divergentes já verificadas? (altera somente o ledger de migrações)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +46,24 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+      - name: Reconciliar histórico divergente (aprovado pelo owner)
+        if: ${{ inputs.reconciliar_historico }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Correspondência verificada por nome, schema remoto e hash da regra; altera somente schema_migrations.
+          remote_versions="20261013224420 20261013224832 20261013232551 20261013232602"
+          local_versions="20261013194340 20261013200000 20261013200945 20261013210000"
+          supabase migration repair --status reverted $remote_versions
+          if ! supabase migration repair --status applied $local_versions; then
+            echo "A segunda etapa falhou; tentando restaurar o ledger original."
+            supabase migration repair --status reverted $local_versions || true
+            supabase migration repair --status applied $remote_versions || true
+            exit 1
+          fi
+          supabase migration list
       - name: Simulação (lista o que seria aplicado)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
