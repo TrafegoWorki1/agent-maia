@@ -8,6 +8,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-15 — Evitar resposta duplicada em grupos do WhatsApp
+
+- **Sintoma:** em um pedido no grupo, a Maia publicava texto pela ferramenta `grupo_enviar_texto` e também enviava a resposta final automática ao mesmo grupo.
+- **Causa:** a ferramenta enviava diretamente, mas `handleGroupMessage` sempre entregava o texto final pelo outbox, sem verificar se a mesma tarefa já havia escrito naquele grupo.
+- **Correção:** Claude e Codex registram evento de sucesso associado à tarefa e ao JID do destino. O handler suprime a segunda resposta apenas para o mesmo grupo; preserva respostas para grupos diferentes. Se a verificação falhar, não envia outro texto potencialmente duplicado e marca a tarefa como incerta.
+- **Validação:** `pnpm typecheck` e `pnpm build` passaram; `NODE_OPTIONS=--experimental-strip-types pnpm test` passou com 507 testes Vitest e 36 testes de banco. Testes de regressão cobrem resposta já enviada, envio a outro grupo, caminho de erro e falha de consulta.
+- **Rollout:** a branch precisa ser integrada e o worker local atualizado/reiniciado para ativar a correção; nenhuma mensagem real foi enviada nos testes.
+
+---
+
 ## 2026-10-15 — Memória sincronizada entre agente e painel
 
 - **Motivação:** as conversas eram persistidas, mas o prompt só levava 14 falas selecionadas das 60 últimas, de modo que conversas movimentadas podiam desaparecer do contexto sem serem apagadas do banco.

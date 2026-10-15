@@ -69,6 +69,22 @@ export async function addTaskEvent(db: Db, taskId: number, type: string, operati
   unwrap(await db.from("task_events").insert({ task_id: taskId, at: now.toISOString(), type, operation, detail }));
 }
 
+// Uma ferramenta pode já ter publicado a resposta no grupo antes de o modelo
+// retornar seu texto final. O marcador inclui o JID para não suprimir respostas
+// quando a ferramenta enviou a mensagem a outro grupo.
+export async function taskSentTextToGroup(db: Db, taskId: number, jid: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("task_events")
+    .select("id")
+    .eq("task_id", taskId)
+    .eq("type", "group_message_sent")
+    .eq("operation", "grupo_enviar_texto")
+    .like("detail", `jid=${jid};%`)
+    .limit(1);
+  if (error) throw new Error(`Verificação de envio ao grupo: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
 // Reinício: tarefas que estavam em andamento não são reexecutadas. Viram "incerta" para revisão.
 export async function recoverStaleTasks(db: Db, channel: Channel, now = new Date()): Promise<number> {
   const stale = unwrap(

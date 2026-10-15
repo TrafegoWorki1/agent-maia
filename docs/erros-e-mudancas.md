@@ -4,6 +4,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-15 — Mensagem duplicada em grupo do WhatsApp
+
+- **Sintoma:** cada uma de duas solicitações gerou duas mensagens parecidas no grupo.
+- **Causa comprovada:** em cada tarefa, a Maia enviou uma mensagem com `grupo_enviar_texto`; depois, o fluxo sempre entregou também o texto final da execução ao mesmo grupo.
+- **Correção:** gravar evento `group_message_sent` com o JID e a tarefa, e pular a entrega final (ou aviso de falha) quando o mesmo grupo já recebeu texto nessa tarefa. A verificação falha de forma conservadora, marcando a tarefa incerta em vez de arriscar outra mensagem. Claude e Codex usam o mesmo comportamento.
+- **Validação:** `pnpm typecheck`, `pnpm build` e `NODE_OPTIONS=--experimental-strip-types pnpm test` passaram (507 testes Vitest + 36 de banco). Não se enviaram mensagens reais para testar.
+- **Ativação:** requer integrar a correção e atualizar/reiniciar o worker local.
+
 ## 2026-10-13 — Link de convite enviado ao número errado (dono em vez do Ítalo)
 
 - **Sintoma:** no teste "Projeto Italo Teste 2", o pedido dizia "manda para o Ítalo" e o contato "Ítalo" existia na agenda com o número certo. A Maia mandou o link de convite ao número 2658, que é o segundo número do próprio dono (contato "Herickson maia"). O plano #3 ficou esperando esse número entrar no grupo, o que dispararia as boas-vindas quando o próprio dono entrasse.
