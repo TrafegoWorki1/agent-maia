@@ -37,13 +37,13 @@ async function whatsappStatus(): Promise<WhatsAppStatus> {
   const apikey = process.env.EVOLUTION_API_KEY;
   if (!url || !instance || !apikey) return { state: null, error: "Evolution não configurada no .env" };
   try {
-    const response = await fetch(`${url}/instance/connectionState/${instance}`, {
+    const response = await fetch(`${url.replace(/\/+$/, "")}/instance/connectionState/${encodeURIComponent(instance)}`, {
       headers: { apikey },
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) return { state: null, error: `Evolution respondeu HTTP ${response.status}` };
-    const data = (await response.json()) as { instance?: { state?: string } };
-    return { state: data.instance?.state ?? "desconhecido", error: null };
+    const data = (await response.json()) as { instance?: { state?: string }; state?: string };
+    return { state: data.instance?.state ?? data.state ?? "desconhecido", error: null };
   } catch (error) {
     return { state: null, error: error instanceof Error ? error.message : "falha ao consultar a Evolution" };
   }
