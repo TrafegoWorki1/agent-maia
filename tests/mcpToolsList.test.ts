@@ -24,6 +24,26 @@ describe("listagem MCP das ferramentas da Maia", () => {
     await maia.instance.close();
   });
 
+  it("expõe memória só quando o chamador habilita contexto privado do owner", async () => {
+    const privateServer = createImageServer("whatsapp", undefined, false, true, false, true);
+    const groupServer = createImageServer("whatsapp", undefined, false, true, false, false);
+    const list = async (server: ReturnType<typeof createImageServer>) => {
+      const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+      await server.instance.connect(serverSide as never);
+      const client = new Client({ name: "teste", version: "1.0.0" });
+      await client.connect(clientSide);
+      const names = (await client.listTools()).tools.map((tool) => tool.name);
+      await client.close(); await server.instance.close();
+      return names;
+    };
+    const privateNames = await list(privateServer);
+    const groupNames = await list(groupServer);
+    expect(privateNames).toContain("memoria_buscar");
+    expect(privateNames).toContain("memoria_registrar");
+    expect(groupNames).not.toContain("memoria_buscar");
+    expect(groupNames).not.toContain("memoria_registrar");
+  });
+
   it("nenhuma ferramenta usa z.record no esquema (nem no servidor do Claude, nem na ponte do Codex)", () => {
     for (const file of ["server/maiaImageTool.ts", "server/codexMaiaMcp.ts"]) {
       expect(readFileSync(file, "utf8"), file).not.toMatch(/z\.record\(/);

@@ -8,6 +8,19 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-15 — Memória sincronizada entre agente e painel
+
+- **Motivação:** as conversas eram persistidas, mas o prompt só levava 14 falas selecionadas das 60 últimas, de modo que conversas movimentadas podiam desaparecer do contexto sem serem apagadas do banco.
+- **Contexto:** janela privada ampliada para 24 h; seleção de até 48 falas com orçamento total de 28 mil caracteres e 160 linhas carregadas. Memórias ativas são carregadas independentemente do histórico recente.
+- **Banco/agente:** migração aditiva `20261015005000_maia_owner_memory.sql` cria `owner_memories`, com revisão, status, prazo, origem e RLS. Claude e Codex recebem ferramentas owner-only para busca e registro de compromissos explícitos; memória não confirma execução.
+- **Painel:** nova página **Agente Maia > Memória e combinados**, conectada ao endpoint de workspace autenticado para listar, criar, concluir, arquivar e reativar registros na mesma tabela.
+- **Documentação/plano:** README e guia de migrações atualizados; plano detalhado em `docs/plano-memoria-sincronizada.md`.
+- **Segurança/rollout:** a migração não foi aplicada em produção nem houve deploy. Aplicar a migração antes de publicar o código que a consulta.
+- **Validação:** `pnpm typecheck` e `pnpm build` passaram; `node --experimental-strip-types scripts/db/validate.ts` aplicou as 40 migrações em banco temporário; `NODE_OPTIONS=--experimental-strip-types pnpm test` passou (501 testes Vitest + 36 testes de banco). O sandbox está em Node 22.13, que exige essa opção experimental para executar scripts `.ts` nativos; sem ela, os scripts padrão falham antes de iniciar.
+- **Pendente:** teste ao vivo após aprovação/aplicação da migração e deploy. Nada foi aplicado no Supabase de produção.
+
+---
+
 ## 2026-10-13 — Etapa 0 Vibe Code: contratos compartilhados e novos departamentos
 
 - **Motivação:** implementação do Plano 01 + Plano 02 começa pela fundação: contratos TypeScript compartilhados entre os dois planos e reorganização da navegação do painel.

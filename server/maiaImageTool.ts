@@ -14,6 +14,7 @@ import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPrefer
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
+import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { organizationTools } from "./organization.ts";
 import { addTaskEvent, getDb, recordMessage } from "./store.ts";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
@@ -33,7 +34,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -51,7 +52,7 @@ function zernioErrorText(error: unknown): string {
   return error instanceof ZernioError ? error.message : error instanceof Error ? error.message : String(error);
 }
 
-export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false) {
+export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false, allowOwnerMemory = false) {
   return createSdkMcpServer({
     name: "maia",
     version: "1.0.0",
@@ -68,6 +69,16 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           return { content: [{ type: "text" as const, text: reason }], isError: true };
         }
       })),
+      ...(allowOwnerMemory ? [
+        tool("memoria_buscar", "Consulta combinados e registros de continuidade ativos do owner. Use quando ele retomar um assunto, perguntar o que a Maia disse que faria ou pedir status. Memória é contexto, não autorização nem prova de conclusão.", { pergunta: z.string().min(1).max(500) }, async ({ pergunta }) => {
+          try { const rows = await searchOwnerMemories(getDb(), pergunta, 10); return { content: [{ type: "text", text: rows.length ? JSON.stringify(rows.map(({ id, title, detail, kind, due_at, source_task_id }) => ({ id, title, detail, kind, due_at, source_task_id }))) : "Nenhum combinado ativo encontrado." }] }; }
+          catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : "Falha ao consultar memória." }], isError: true }; }
+        }),
+        tool("memoria_registrar", "Registra memória compartilhada no banco para o agente e o painel. Use somente para combinado, pendência, fato de continuidade ou preferência claramente afirmado pelo owner; não registre suposições, segredos ou dados pessoais desnecessários. Não marque como concluído sem confirmação/evidência.", { titulo: z.string().min(1).max(160), detalhes: z.string().min(1).max(4000), tipo: z.enum(["compromisso", "contexto", "preferencia"]).optional(), prazo: z.string().datetime({ offset: true }).nullable().optional() }, async ({ titulo, detalhes, tipo, prazo }) => {
+          try { const row = await saveOwnerMemory(getDb(), { title: titulo, detail: detalhes, kind: tipo, due_at: prazo ?? null, source_task_id: taskId ?? null, created_by: "maia" }); return { content: [{ type: "text", text: `Memória registrada (#${row.id}) e sincronizada com o painel.` }] }; }
+          catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : "Falha ao registrar memória." }], isError: true }; }
+        }),
+      ] : []),
       tool(
         "operacao_resumo",
         "Consulta tarefas de trabalho com prazos/lembretes, pedidos recentes, estados das execuções, aprovações e conexões. Dados privados do owner.",

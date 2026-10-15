@@ -13,6 +13,7 @@ import { getPostStatus, recentArts, instagramPerformance, listInstagramAccounts,
 import { recordActionEvidence } from "./actionEvidence.ts";
 import { proposeOwnerPreference } from "./ownerPreferences.ts";
 import { operationalSummary } from "./operationalSummary.ts";
+import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { workTools } from "./workTasks.ts";
 import { createImage, FORMATS } from "./imagegen.ts";
 import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
@@ -115,6 +116,21 @@ for (const t of workTools) {
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args, taskId))));
 }
 server.registerTool("operacao_resumo", { description: "Consulta tarefas de trabalho com prazos/lembretes, pedidos, aprovações e conexões. Dados privados do owner.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));
+
+server.registerTool("memoria_buscar", { description: "Consulta compromissos e memória ativa do owner quando ele retoma um assunto. Memória não é autorização nem prova de conclusão.", inputSchema: { pergunta: z.string().min(1).max(500) } }, async ({ pergunta }) => {
+  if (requester().role !== "owner" || inGroup) return result("Memória privada disponível somente ao owner em conversa privada.", true);
+  return guarded("mcp__maia__memoria_buscar", { pergunta }, async () => {
+    const rows = await searchOwnerMemories(getDb(), pergunta, 10);
+    return rows.length ? JSON.stringify(rows.map(({ id, title, detail, kind, due_at, source_task_id }) => ({ id, title, detail, kind, due_at, source_task_id }))) : "Nenhum combinado ativo encontrado.";
+  });
+});
+server.registerTool("memoria_registrar", { description: "Registra no banco compartilhado com o painel um compromisso, fato de continuidade ou preferência explicitamente afirmado pelo owner. Não salvar suposições, segredos ou dados pessoais desnecessários; não registrar conclusão sem confirmação/evidência.", inputSchema: { titulo: z.string().min(1).max(160), detalhes: z.string().min(1).max(4000), tipo: z.enum(["compromisso", "contexto", "preferencia"]).optional(), prazo: z.string().datetime({ offset: true }).nullable().optional() } }, async ({ titulo, detalhes, tipo, prazo }) => {
+  if (requester().role !== "owner" || inGroup) return result("Memória privada disponível somente ao owner em conversa privada.", true);
+  return guarded("mcp__maia__memoria_registrar", { titulo, detalhes, tipo, prazo }, async () => {
+    const row = await saveOwnerMemory(getDb(), { title: titulo, detail: detalhes, kind: tipo, due_at: prazo ?? null, source_task_id: taskId || null, created_by: "maia" });
+    return `Memória registrada (#${row.id}) e sincronizada com o painel.`;
+  });
+});
 
 server.registerTool("buscar_conhecimento", { description: "Busca regras, decisões e registros na base interna da Maia.", inputSchema: { pergunta: z.string().min(3).max(500) } }, async ({ pergunta }) => guarded("mcp__maia__buscar_conhecimento", { pergunta }, async () => {
   const hits = await searchKnowledge(getDb(), pergunta, 4);
