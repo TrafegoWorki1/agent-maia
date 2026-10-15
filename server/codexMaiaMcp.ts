@@ -267,6 +267,7 @@ server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo
   }
   const id = await sendGroupText(found.group.jid, texto, mentions.numbers, ghost, citar_id);
   await recordActionEvidence(getDb(), taskId, "grupo_enviar_texto", found.group.subject, `mensagem ${id}`);
+  await addTaskEvent(getDb(), taskId, "group_message_sent", "grupo_enviar_texto", `jid=${found.group.jid}; mensagem ${id}`).catch((error) => console.error("[grupo] falha ao registrar envio direto:", error instanceof Error ? error.message : error));
   await recordConvMessage(getDb(), { conv: found.group.jid, name: "Maia", text: texto, fromMaia: true }).catch(() => {});
   return `Texto enviado no grupo "${found.group.subject}" (mensagem ${id}).`;
 }));

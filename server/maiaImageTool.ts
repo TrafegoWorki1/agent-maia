@@ -239,6 +239,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             if (taskId) {
               await addTaskEvent(getDb(), taskId, "external_done", "grupo_enviar_texto", group.group.subject).catch(() => {});
               await addTaskEvent(getDb(), taskId, "task_verified", "grupo_enviar_texto", `mensagem ${id}`).catch(() => {});
+              await addTaskEvent(getDb(), taskId, "group_message_sent", "grupo_enviar_texto", `jid=${group.group.jid}; mensagem ${id}`).catch((error) => console.error("[grupo] falha ao registrar envio direto:", error instanceof Error ? error.message : error));
             }
             return { content: [{ type: "text", text: `Texto enviado no grupo "${group.group.subject}" e aceito pelo WhatsApp (mensagem ${id}).` }] };
           } catch (error) {
