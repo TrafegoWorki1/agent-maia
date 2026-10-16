@@ -56,4 +56,5 @@ export interface RoutingConfig {
   fallback: { enabled: boolean; categories: Category[] };
   jev: { activeRouting: boolean; minConfidence: number };
   images: { dailyLimit: number };
+  execution: { maxSteps: number };
 }

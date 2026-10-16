@@ -1,0 +1,10 @@
+{
+  "ownerMessageRetentionDays": 90,
+  "scopedConversationRetentionDays": 7,
+  "ownerMediaRetentionHours": 24,
+  "memberMediaRetentionDays": 7,
+  "inboxPayloadRetentionHours": 24,
+  "outboundReceiptRetentionDays": 30,
+  "durableMemoryRetention": "until_revoked",
+  "auditRetention": "policy_managed"
+}

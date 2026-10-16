@@ -96,6 +96,23 @@ export async function activePlans(db: Db): Promise<Plan[]> {
   return ((data ?? []) as Record<string, unknown>[]).map(asPlan);
 }
 
+export interface ExpiredPlanNotice { id: number; title: string; waiting: string; lastCompletedStep: string | null }
+
+// Encerra planos vencidos mesmo quando o evento esperado nunca chega. A troca condicional de active para
+// cancelled torna o retorno uma fila de avisos de uso único entre workers concorrentes.
+export async function expireStalePlans(db: Db, now = new Date()): Promise<ExpiredPlanNotice[]> {
+  const notices: ExpiredPlanNotice[] = [];
+  for (const plan of await activePlans(db)) {
+    if (now.getTime() - Date.parse(plan.created_at) <= PLAN_MAX_AGE_MS) continue;
+    const lastCompleted = [...plan.steps].reverse().find((step) => step.done)?.text ?? null;
+    const context = { ...plan.context, expiration: { at: now.toISOString(), reason: "limite de sete dias", waiting: plan.waiting, lastCompletedStep: lastCompleted } };
+    const { data, error } = await db.from("maia_plans").update({ status: "cancelled", waiting: null, context, updated_at: now.toISOString() }).eq("id", plan.id).eq("status", "active").select("id").maybeSingle();
+    if (error) throw new Error(`Expiração do plano #${plan.id}: ${error.message}`);
+    if (data) notices.push({ id: plan.id, title: plan.title, waiting: describeWaiting(plan.waiting), lastCompletedStep: lastCompleted });
+  }
+  return notices;
+}
+
 export interface PlanPatch {
   doneSteps?: number[];
   waiting?: Waiting | null;

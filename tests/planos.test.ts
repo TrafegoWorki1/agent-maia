@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cancelWaiting, claimWaiting, createPlan, describeWaiting, matchesWaiting, resumePlans, resumePrompt, runDuePlanTimers, setWaiting, updatePlan, waitingForFile, PLAN_MAX_AGE_MS } from "../server/plans.ts";
+import { cancelWaiting, claimWaiting, createPlan, describeWaiting, expireStalePlans, matchesWaiting, resumePlans, resumePrompt, runDuePlanTimers, setWaiting, updatePlan, waitingForFile, PLAN_MAX_AGE_MS } from "../server/plans.ts";
 import { notifyGroupJoin } from "../server/groupJoin.ts";
 import { runPlanUpdate } from "../server/planTools.ts";
 import type { Db } from "../server/store.ts";
@@ -139,6 +139,15 @@ describe("plano de várias etapas", () => {
     const claimed = await claimWaiting(db, { type: "approval", id: 10 }, Date.now() + PLAN_MAX_AGE_MS + 1000);
     expect(claimed).toEqual([]);
     expect(tables.maia_plans[0].status).toBe("cancelled");
+  });
+
+  it("vence sem gatilho, gera aviso uma vez e não retoma automaticamente", async () => {
+    const old = new Date(Date.now() - PLAN_MAX_AGE_MS - 1000).toISOString();
+    const { db, tables } = memoryDb({ maia_plans: [{ id: 9, created_at: old, title: "Antigo", request: "x", steps: [{ text: "primeira", done: true }, { text: "segunda", done: false }], status: "active", waiting: { type: "approval", id: 2 }, context: {} }] });
+    const first = await expireStalePlans(db, new Date());
+    expect(first).toEqual([{ id: 9, title: "Antigo", waiting: "o OK do pedido de aprovação #2", lastCompletedStep: "primeira" }]);
+    expect(tables.maia_plans[0].status).toBe("cancelled");
+    expect(await expireStalePlans(db, new Date())).toEqual([]);
   });
 
   it("marcar todas as etapas conclui o plano; etapa fora do plano é recusada", async () => {

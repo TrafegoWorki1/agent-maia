@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG: RoutingConfig = {
   fallback: { enabled: true, categories: ["conversa", "consulta", "resumo", "analise", "tarefa_tecnica", "escrita_externa", "geral", "carrossel"] },
   jev: { activeRouting: false, minConfidence: 0.8 },
   images: { dailyLimit: 10 },
+  execution: { maxSteps: 30 },
 };
 
 const FILE = resolve(dirname(fileURLToPath(import.meta.url)), "../../config/ai-routing.json");

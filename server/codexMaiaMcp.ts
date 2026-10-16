@@ -25,7 +25,7 @@ import { recordConvMessage } from "./conversations.ts";
 import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, participantsWithOwner, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
-import { approverNumbers, approvalBinding, consumeApproval, createApproval, openApprovals, waitApproval } from "./approvals.ts";
+import { approverNumbers, approvalBinding, consumeApproval, createApproval, hasInFlightToolApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
@@ -52,9 +52,9 @@ const inGroup = process.env.MAIA_CODEX_GROUP === "1";
 
 function requester(): Requester {
   try {
-    const raw = JSON.parse(process.env.MAIA_CODEX_REQUESTER ?? "") as { role?: string; name?: string; number?: string; permissions?: string[]; groupScope?: Requester["groupScope"]; accessGroups?: string[]; clientIds?: string[] };
+    const raw = JSON.parse(process.env.MAIA_CODEX_REQUESTER ?? "") as { role?: string; personId?: string; name?: string; number?: string; permissions?: string[]; groupScope?: Requester["groupScope"]; accessGroups?: string[]; clientIds?: string[] };
     if ((raw.role === "owner" || raw.role === "member" || raw.role === "guest") && Array.isArray(raw.permissions)) {
-      return { role: raw.role, name: raw.name ?? "", number: raw.number ?? "", permissions: new Set(raw.permissions), groupScope: raw.groupScope, accessGroups: raw.accessGroups, clientIds: raw.clientIds };
+      return { role: raw.role, personId: raw.personId, name: raw.name ?? "", number: raw.number ?? "", permissions: new Set(raw.permissions), groupScope: raw.groupScope, accessGroups: raw.accessGroups, clientIds: raw.clientIds };
     }
   } catch {}
   return { role: "guest", name: "", number: "", permissions: new Set() };
@@ -76,7 +76,7 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   const verdict = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
   if (verdict.decision === "deny") { await addTaskEvent(db, taskId, "access_denied", tool, verdict.reason); return { ok: false, message: verdict.reason }; }
   if (verdict.decision === "allow") return { ok: true, oneTimeApproval:false };
-  if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
+  if (hasInFlightToolApproval(await openApprovals(db), taskId)) {
     await addTaskEvent(db, taskId, "access_denied", tool, "outra aprovação já pendente");
     return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
   }

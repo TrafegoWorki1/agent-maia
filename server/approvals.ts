@@ -49,8 +49,8 @@ function envApprovers(): string[] {
 
 export async function isApprover(db: Db, number: string | undefined): Promise<boolean> {
   if (!number) return false;
-  const digits = number.replace(/D/g, "");
-  return (await approverNumbers(db)).some((n) => n.replace(/D/g, "") === digits);
+  const digits = number.replace(/\D/g, "");
+  return (await approverNumbers(db)).some((n) => n.replace(/\D/g, "") === digits);
 }
 
 export type ApprovalKind = "ferramenta" | "grupo";
@@ -65,6 +65,10 @@ export interface ApprovalRow {
   status: string;
   expires_at: string;
   process_id: number | null;
+}
+
+export function hasInFlightToolApproval(rows: readonly ApprovalRow[], taskId: number): boolean {
+  return rows.some((row) => row.kind === "ferramenta" && row.task_id === taskId);
 }
 
 // "ok", "sim", "não", "nao", com número opcional. Qualquer outra coisa não é uma resposta de aprovação.

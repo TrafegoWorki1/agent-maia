@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 import { requiresApproval } from "../server/approvalPolicy.ts";
 import { canConverse, decideAccess, type Requester } from "../server/access.ts";
 import { matchContacts } from "../server/contacts.ts";
+import { hasInFlightToolApproval, type ApprovalRow } from "../server/approvals.ts";
 
 const owner: Requester = { role: "owner", name: "Herickson", number: "5511988886666", permissions: new Set() };
 const member = (...perms: string[]): Requester => ({ role: "member", name: "Jéssica", number: "5585911112222", permissions: new Set(perms) });
 const guest: Requester = { role: "guest", name: "Alguém", number: "", permissions: new Set() };
+
+it("limita uma aprovação de ferramenta por fluxo, sem bloquear outros fluxos persistidos", () => {
+  const row = (task_id: number): ApprovalRow => ({ id: task_id, kind: "ferramenta", tool_name: "x", summary: null, payload: null, task_id, status: "pending", expires_at: new Date(Date.now() + 60_000).toISOString(), process_id: process.pid });
+  const rows = [row(10), row(20)];
+  expect(hasInFlightToolApproval(rows, 10)).toBe(true);
+  expect(hasInFlightToolApproval(rows, 30)).toBe(false);
+});
 
 describe("ação pública ou de risco: sempre OK do dono", () => {
   it("lista estática", () => {
@@ -75,6 +83,9 @@ describe("dono tem autonomia no que é interno e privado", () => {
 });
 
 describe("membro só faz o que a permissão cobre", () => {
+  it("nega leitura não mapeada em vez de liberar por omissão", () => {
+    expect(decideAccess("mcp__conector_desconhecido__read_everything", member("sheets.ler"), {}, true).decision).toBe("deny");
+  });
   it("leitura por conector", () => {
     expect(decideAccess("mcp__claude_ai_Gmail__search_threads", member("gmail.ler"), {}, true).decision).toBe("allow");
     expect(decideAccess("mcp__claude_ai_Gmail__search_threads", member("meta.ler"), {}, true).decision).toBe("approve");

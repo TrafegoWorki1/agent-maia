@@ -1,5 +1,10 @@
 # Pendências atuais da Maia
 
+## Regras de vibecoding — implantação pendente
+
+- [ ] Aplicar em janela de implantação a migration `20261016223848_maia_vibecoding_access_retention.sql` e conferir `pnpm rules:verify`; o documento de implementação proíbe aplicação automática neste trabalho.
+- [ ] Configurar e validar um provider real de permissões do Google Drive antes de expor o wrapper gerenciado; até lá `share_file` permanece bloqueado para não criar acesso sem rastreio.
+
 Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
 ## Indicadores e quadros — evolução visual local

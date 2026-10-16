@@ -69,13 +69,14 @@ export function clientCodexEnvironment(folder: string, base = minimalEnv()): Rec
   return { ...base, CODEX_HOME: home } as Record<string, string>;
 }
 
-export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext | null }): Promise<CodexTextResult> {
+export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext | null; maxSteps?: number }): Promise<CodexTextResult> {
   const t0 = Date.now();
   const folder = join(TEMP, randomBytes(16).toString("hex"));
   mkdirSync(TEMP, { recursive: true });
   mkdirSync(folder, { mode: 0o700 });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  let abortReason: "timeout" | "steps" | null = null;
+  const timer = setTimeout(() => { abortReason = "timeout"; controller.abort(); }, input.timeoutMs);
   const context = input.mcp ? {
     MAIA_CODEX_TASK_ID: String(input.mcp.taskId),
     MAIA_CODEX_CHANNEL: input.mcp.channel,
@@ -105,14 +106,21 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     });
     const run = await thread.runStreamed(input.prompt, { signal: controller.signal });
     let final = "";
+    let completedSteps = 0;
     for await (const event of run.events) {
-      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") await input.mcp?.onToolUse?.(`mcp__maia__${event.item.tool}`, event.item.status === "failed" || !!event.item.error);
+      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") {
+        completedSteps += 1;
+        await input.mcp?.onToolUse?.(`mcp__maia__${event.item.tool}`, event.item.status === "failed" || !!event.item.error);
+        if (input.maxSteps && completedSteps >= input.maxSteps) { abortReason = "steps"; controller.abort(); }
+      }
       if (event.type === "item.completed" && event.item.type === "agent_message") final = event.item.text;
     }
     if (!final.trim()) return { ok: false, error: "o Codex não devolveu resposta", durationMs: Date.now() - t0 };
     return { ok: true, text: final.trim(), durationMs: Date.now() - t0 };
   } catch (error) {
-    const message = controller.signal.aborted ? "tempo esgotado no Codex" : error instanceof Error ? error.message : String(error);
+    const message = controller.signal.aborted
+      ? abortReason === "steps" ? `limite de ${input.maxSteps} passos atingido no Codex` : "tempo esgotado no Codex"
+      : error instanceof Error ? error.message : String(error);
     return { ok: false, error: message, durationMs: Date.now() - t0 };
   } finally {
     clearTimeout(timer);

@@ -1,5 +1,12 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-16 — divergência de limite e leitura sem política
+
+- Problema: o catálogo dizia 12 passos enquanto os executores Claude usavam 30; leituras MCP desconhecidas podiam ser liberadas por omissão.
+- Correção: limite único `execution.maxSteps=30`, documentação gerada e negação explícita de leitura sem política.
+- Segurança adicional: `sheets.ler` deixou de representar acesso global ao Drive; permissões específicas vencidas, revogadas ou removidas de grupo são recusadas na próxima chamada.
+- Compartilhamento direto do conector foi bloqueado até usar o serviço rastreável por `permissionId`; resultado incerto não é repetido.
+
 Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.

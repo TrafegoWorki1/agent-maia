@@ -3,6 +3,7 @@ import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEDIA_EXT, MAX_BYTES, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia, saveMedia } from "./media.ts";
 import { purgeTempAdMedia } from "./integrations/adsMedia.ts";
+import { purgeRetainedMessages } from "./retention.ts";
 import { retryPendingAudio } from "./audioRetry.ts";
 import { handleApproverText } from "./groups.ts";
 import { handleGroupAudio, handleGroupMedia, handleMemberAudio, handleMemberMedia, resumeGroupAudio, resumeMemberAudio, handleOwnerAudio, handleOwnerMedia, notifyOwner, routeOwnerText, type GroupAudioRef, type GroupMediaRef, type MemberAudioRef, type MemberMediaRef } from "./ownerRouter.ts";
@@ -443,8 +444,8 @@ async function main(): Promise<void> {
         if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia (dono 24 h / membros 7 dias) apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
-        const scopedPurged = await db.rpc("purge_maia_scoped_history");
-        if (scopedPurged.error) console.error("[worker] limpeza das sessões com retenção:", scopedPurged.error.message);
+        const retained = await purgeRetainedMessages(db).catch((error) => { console.error("[worker] limpeza das sessões com retenção:", error instanceof Error ? error.message : error); return null; });
+        if (retained) console.log(`[worker] retenção: ${retained.messages + retained.ownerSessionMessages + retained.scopedSessionMessages} mensagem(ns) bruta(s) e ${retained.summaries} resumo(s) removidos${retained.legacyFallback ? " (modo compatível; owner preservado)" : ""}`);
         const receiptsPurged = await db.rpc("purge_outbound_receipts");
         if (receiptsPurged.error) console.error("[worker] limpeza dos recibos:", receiptsPurged.error.message);
         else if (receiptsPurged.data) console.log(`[worker] ${receiptsPurged.data} recibo(s) de envio com mais de 30 dias removido(s)`);
