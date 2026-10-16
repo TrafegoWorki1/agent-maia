@@ -15,6 +15,7 @@ import { proposeOwnerPreference } from "./ownerPreferences.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { workTools } from "./workTasks.ts";
+import { isCollaborativeWorkTool, issueWorkToolPermit } from "./workToolPermit.ts";
 import { createCreativeJob } from "./creativeJobs.ts";
 import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
@@ -63,7 +64,7 @@ function result(text: string, isError = false) {
   return isError ? { content: [{ type: "text" as const, text }], isError: true } : { content: [{ type: "text" as const, text }] };
 }
 
-async function allowed(tool: string, input: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
+async function allowed(tool: string, input: Record<string, unknown>): Promise<{ ok: true; oneTimeApproval?: boolean } | { ok: false; message: string }> {
   const db = getDb();
   if (channel === "painel" && !(isReadTool(tool) || isLocalSafeTool(tool))) {
     await addTaskEvent(db, taskId, "access_denied", tool, "escrita pelo painel não permitida");
@@ -74,7 +75,7 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
   const verdict = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
   if (verdict.decision === "deny") { await addTaskEvent(db, taskId, "access_denied", tool, verdict.reason); return { ok: false, message: verdict.reason }; }
-  if (verdict.decision === "allow") return { ok: true };
+  if (verdict.decision === "allow") return { ok: true, oneTimeApproval:false };
   if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
     await addTaskEvent(db, taskId, "access_denied", tool, "outra aprovação já pendente");
     return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
@@ -99,12 +100,13 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
     }
     catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
   }
-  return outcome === "approved" ? { ok: true } : { ok: false, message: "Ação recusada ou sem aprovação do dono." };
+  return outcome === "approved" ? { ok: true, oneTimeApproval:true } : { ok: false, message: "Ação recusada ou sem aprovação do dono." };
 }
 
 async function guarded(tool: string, input: Record<string, unknown>, run: () => Promise<string>) {
   const verdict = await allowed(tool, input);
   if (!verdict.ok) return result(verdict.message, true);
+  if(isCollaborativeWorkTool(tool))issueWorkToolPermit({number:requester().number,taskId,tool,args:input,oneTimeApproval:verdict.oneTimeApproval});
   try { return result(await run()); } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     await addTaskEvent(getDb(), taskId, "tool_failed", tool, reason.slice(0, 300)).catch(() => {});
@@ -128,8 +130,8 @@ for (const t of memberAccessTools) {
 }
 
 for (const t of workTools) {
-  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape, annotations: { readOnlyHint:t.name === "tarefas_listar", destructiveHint:false, openWorldHint:false } }, async (args: Record<string, unknown>) =>
-    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args, taskId))));
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape, annotations: { readOnlyHint:t.name === "tarefas_listar"||t.name==="trabalho_contexto", destructiveHint:false, openWorldHint:false } }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args, taskId, requester().number))));
 }
 server.registerTool("operacao_resumo", { description: "Consulta tarefas de trabalho com prazos/lembretes, pedidos, aprovações e conexões. Dados privados do owner.", inputSchema: {} }, async () => guarded("mcp__maia__operacao_resumo", {}, async () => JSON.stringify(await operationalSummary(getDb()))));
 

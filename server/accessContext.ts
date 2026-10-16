@@ -7,7 +7,7 @@ import type { Db } from "./store.ts";
 // Dados que a decisão de acesso precisa e que dependem do banco: o grupo é cadastrado? quantos contatos já recebem
 // mensagem neste pedido?
 export async function accessContext(db: Db, taskId: number, toolName: string, input: Record<string, unknown>): Promise<AccessContext> {
-  const ctx: AccessContext = {};
+  const ctx: AccessContext = { toolInput:input };
   if (/^mcp__maia__grupo_(enviar_texto|enviar_enquete|agendar|gerenciar_participantes|enviar_convite|alterar_foto|info|participantes|ler_enquetes)$/.test(toolName)) {
     const name = typeof input.grupo === "string" ? input.grupo : "";
     const group = name ? await resolveGroup(name) : null;

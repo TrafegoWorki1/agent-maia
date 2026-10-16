@@ -194,6 +194,29 @@ h1, h2, h3, p { margin-top: 0; }
 .small-stat small { color: #9b978e; font-size: 11.5px; }
 .page-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 9px; margin-top: 25px; padding: 13px 2px 0; color: #a29e94; border-top: 1px solid var(--line); font-size: 10px; }
 
+.collab-view-switch { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.collab-board { display:grid; grid-template-columns:repeat(3,minmax(260px,1fr)); gap:12px; align-items:start; overflow-x:auto; }
+.collab-board .panel { min-width:260px; }
+.collab-board table thead { display:none; }
+.collab-board table,.collab-board tbody,.collab-board tr,.collab-board td { display:block; }
+.collab-board tr { padding:10px 0; border-bottom:1px solid var(--line); }
+.collab-board td { padding:3px 0; border:0; }
+.collab-detail { display:block; margin-top:5px; color:var(--amber); }
+.collab-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.collab-calendar { display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;overflow-x:auto; }
+.collab-calendar section { min-height:110px;border:1px solid var(--line);border-radius:8px;padding:8px; }
+.collab-calendar section button { display:block;width:100%;text-align:left;margin-top:6px;white-space:normal;overflow-wrap:anywhere; }
+.collab-calendar time { display:block;font-weight:600; }
+.page-content pre { white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow-y:auto; }
+@media(max-width:760px){.collab-calendar{grid-template-columns:repeat(7,minmax(95px,1fr));}}
+.collab-actions button { padding:5px 8px; color:var(--gold-dark); border:1px solid #e9e0cf; border-radius:6px; background:#faf7f0; font-size:11px; }
+.collab-load { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px; }
+.collab-load article { display:flex; flex-direction:column; gap:5px; padding:14px; border:1px solid var(--line); border-radius:9px; background:var(--paper); }
+.collab-load span { color:var(--muted); font-size:12px; }
+.collab-metric-button { display:flex; width:100%; flex-direction:column; gap:13px; color:inherit; text-align:left; cursor:pointer; }
+@media (max-width: 900px) { .collab-board { grid-template-columns:repeat(2,minmax(260px,1fr)); } }
+@media (max-width: 620px) { .collab-board { display:flex; } .metrics-grid { grid-template-columns:1fr; } }
+
 .status-summary-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 17px 0 22px; }
 .status-counter { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 6px; font-size: 11.5px; font-weight: 600; }
 .status-counter i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

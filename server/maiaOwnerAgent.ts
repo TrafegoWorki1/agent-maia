@@ -20,6 +20,7 @@ import { selectedSkillContext } from "./skills.ts";
 import { latestSessionSummary } from "./sessionSummaries.ts";
 import { canAccessGroup, loadGroupScope, scopeIncludesMessage } from "./groupScope.ts";
 import { refreshGroupRequester } from "./groupAuthorization.ts";
+import { isCollaborativeWorkTool, issueWorkToolPermit } from "./workToolPermit.ts";
 import { loadRoutingConfig } from "./ai/config.ts";
 import { classifyByRules, isImageCreationRequest } from "./ai/rulesClassifier.ts";
 import { route } from "./ai/router.ts";
@@ -107,7 +108,10 @@ function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(
       await addTaskEvent(getDb(), taskId, "access_denied", toolName, verdict.reason);
       return { behavior: "deny", message: verdict.reason };
     }
-    if (verdict.decision === "allow") return { behavior: "allow", updatedInput: input };
+    if (verdict.decision === "allow") {
+      if(isCollaborativeWorkTool(toolName))issueWorkToolPermit({number:who.number,taskId,tool:toolName,args:input,oneTimeApproval:false});
+      return { behavior: "allow", updatedInput: input };
+    }
     // Mostra quem pediu sempre que não for o próprio owner (no grupo ou no privado de um membro).
     const showRequester = inGroup || who.role !== "owner";
     const requester = showRequester ? who.name || "Alguém" : undefined;
@@ -144,16 +148,21 @@ Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 1
       if (latest.decision === "deny" || !await consumeApproval(db, approval.id, binding)) return { behavior: "deny", message: "Acesso revogado, aprovação expirada ou já utilizada." };
     }
     return outcome === "approved"
-      ? { behavior: "allow", updatedInput: input }
+      ? (isCollaborativeWorkTool(toolName)
+        ? (issueWorkToolPermit({number:who.number,taskId,tool:toolName,args:input,oneTimeApproval:true}),{ behavior: "allow", updatedInput: input })
+        : { behavior: "allow", updatedInput: input })
       : { behavior: "deny", message: "Ação recusada ou sem aprovação do dono." };
   };
 }
 
 
 // Conversa do painel: mantém as ferramentas locais/consultas permitidas; outras escritas vão pelo WhatsApp.
-function makePanelPermission(taskId: number): CanUseTool {
+function makePanelPermission(taskId: number,who:Requester=ownerRequester()): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || isLocalSafeTool(toolName)) return { behavior: "allow", updatedInput: input };
+    if (isReadTool(toolName) || isLocalSafeTool(toolName)) {
+      if(isCollaborativeWorkTool(toolName))issueWorkToolPermit({number:who.number,taskId,tool:toolName,args:input,oneTimeApproval:false});
+      return { behavior: "allow", updatedInput: input };
+    }
     await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
     return { behavior: "deny", message: "Peça essa ação pelo WhatsApp; as permissões e aprovações necessárias serão verificadas lá." };
   };

@@ -1,4 +1,5 @@
 export const sections = [
+  { id: "trabalho", label: "Central de trabalho", icon: "work", pages: [{ id: "meu-dia", label: "Meu dia" }, { id: "minha-equipe", label: "Minha equipe" }, { id: "coordenacao", label: "Coordenação" }, { id: "direcao", label: "Direção" }, { id: "planejamento", label: "Planejamento" }, { id: "metricas", label: "Métricas" }] },
   { id: "visao-geral", label: "Visão geral", icon: "home", pages: [{ id: "resumo", label: "Resumo" }, { id: "indicadores", label: "Indicadores" }] },
   { id: "marketing", label: "Marketing", icon: "marketing", pages: [{ id: "campanhas", label: "Campanhas" }, { id: "vendas", label: "Vendas e comunidade" }, { id: "insights", label: "Conversas e insights" }, { id: "tom", label: "Tom de voz" }] },
   { id: "execucao", label: "Execução", icon: "execution", pages: [{ id: "tarefas", label: "Tarefas e eficácia" }, { id: "ocorrencias", label: "Ocorrências" }] },
@@ -16,7 +17,9 @@ export type ScreenId = typeof sections[number]["pages"][number]["id"];
 export interface PanelRoute { section: SectionId; screen: ScreenId }
 export function routeHash(route: PanelRoute): string { return `#${route.section}/${route.screen}`; }
 
-export function parseRoute(hash: string, owner = true): PanelRoute {
+export function parseRoute(hash: string, access: boolean | readonly string[] = true): PanelRoute {
+  const owner = typeof access === "boolean" ? access : false;
+  const screens = new Set(typeof access === "boolean" ? [] : access);
   const raw = hash.replace(/^#/, "");
   const value = raw === "operacao" ? "manual"
     : raw === "agente" || raw === "agente-maia/agente" ? "regras"
@@ -24,13 +27,16 @@ export function parseRoute(hash: string, owner = true): PanelRoute {
     : raw === "grupos-clientes/clientes" ? "clientes-cs/clientes"
     : raw === "grupos-clientes" ? "clientes-cs/clientes"
     : raw;
-  const allowed = sections.filter((s) => owner || s.id === "acessos");
+  const allowed = sections.filter((section) => owner || (section.id === "trabalho" && section.pages.some((page) => screens.has(page.id))) || (typeof access === "boolean" && !access && section.id === "acessos"));
   for (const section of allowed) {
     if (value === section.id) return { section: section.id, screen: section.pages[0].id };
     for (const page of section.pages) {
-      if (!owner && page.id !== "pessoas") continue;
+      if (!owner && section.id === "trabalho" && !screens.has(page.id)) continue;
+      if (!owner && section.id !== "trabalho" && page.id !== "pessoas") continue;
       if (value === page.id || value === `${section.id}/${page.id}`) return { section: section.id, screen: page.id };
     }
   }
-  return owner ? { section: "visao-geral", screen: "resumo" } : { section: "acessos", screen: "pessoas" };
+  if (owner) return { section: "visao-geral", screen: "resumo" };
+  const first = sections[0].pages.find((page) => screens.has(page.id));
+  return first ? { section:"trabalho",screen:first.id } : { section: "acessos", screen: "pessoas" };
 }

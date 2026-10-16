@@ -63,6 +63,7 @@ export async function resolveRequester(db: Db, number: string, pushName: string,
 
 export interface AccessContext {
   // A tarefa já usou busca na web: conteúdo de terceiros entrou na conversa. Ações que alteram algo pedem OK, até do dono.
+  toolInput?: Record<string, unknown>;
   webTainted?: boolean;
   groupRegistered?: boolean; // para ferramentas de grupo: o grupo está em maia_groups?
   dmInTask?: number; // mensagens diretas já enviadas nesta tarefa
@@ -77,8 +78,11 @@ export interface AccessDecision {
 
 export const MAX_DM_PER_TASK = 3;
 
-export function neededPermission(toolName: string, readOnly: boolean): string | null {
+export function neededPermission(toolName: string, readOnly: boolean, input:Record<string,unknown>={}): string | null {
   if (toolName === "mcp__maia__integracao_chamar") return "integracao.usar";
+  if (toolName === "mcp__maia__tarefas_listar" || toolName === "mcp__maia__trabalho_contexto") return "trabalho.ver";
+  if (toolName === "mcp__maia__tarefa_criar") return "tarefas.criar";
+  if (toolName === "mcp__maia__tarefa_atualizar") return input.resultado_revisao?"trabalho.revisar":input.aprovar?"trabalho.aprovar":input.responsavel_pessoa_id||input.equipe_id?"trabalho.redistribuir":input.prioridade!==undefined?"trabalho.planejar":"trabalho.atualizar";
   if (readOnly) {
     if (toolName.startsWith("mcp__claude_ai_Gmail__")) return "gmail.ler";
     if (toolName.startsWith("mcp__claude_ai_Meta_ADS__")) return "meta.ler";
@@ -93,7 +97,7 @@ export function neededPermission(toolName: string, readOnly: boolean): string | 
 const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_gerenciar_participantes|grupo_enviar_convite|grupo_alterar_foto)$/;
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
-const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|contato_salvar|plano_criar|plano_atualizar|planos_ativos|operacao_resumo|tarefas_listar|tarefa_criar|tarefa_atualizar|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor|prospeccao_preparar|prospeccao_enviar_proximo|prospeccao_descadastrar)$/;
+const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|contato_salvar|plano_criar|plano_atualizar|planos_ativos|operacao_resumo|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor|prospeccao_preparar|prospeccao_enviar_proximo|prospeccao_descadastrar)$/;
 
 // Quem pode conversar com a Maia no privado: o dono sempre; membro só com a permissão conversa.maia.
 export function canConverse(who: Requester): boolean {
@@ -117,7 +121,7 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (toolName === "mcp__maia__mensagem_status" && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "status de mensagens privadas só pode ser consultado pelo owner no privado" };
   if (/^mcp__maia__(grupos_clientes_listar|grupo_cliente_classificar)$/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "cadastro de clientes e acessos exclusivo do owner no privado" };
   if (who.role === "member") {
-    const needed = neededPermission(toolName, readOnly);
+    const needed = neededPermission(toolName, readOnly,ctx.toolInput);
     if (needed && who.blockedPermissions?.has(needed)) return { decision: "deny", reason: `acesso individual bloqueado: ${needed}` };
     if (needed && who.approvalPermissions?.has(needed)) return { decision: "approve", reason: `aprovação pontual exigida para ${needed}` };
   }
@@ -131,6 +135,8 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
 
 
   if (OWNER_ONLY.test(toolName)) return { decision: "approve", reason: "só o owner cadastra" };
+  const capability = neededPermission(toolName,readOnly,ctx.toolInput);
+  if (capability) return who.permissions.has(capability) ? { decision:"allow",reason:`tem ${capability}` } : { decision:"approve",reason:`sem a permissão ${capability}` };
   if (/^mcp__maia__integracao_chamar$/.test(toolName)) return who.permissions.has("integracao.usar") ? { decision: "allow", reason: "tem integracao.usar" } : { decision: "approve", reason: "sem a permissão integracao.usar" };
   if (readOnly) {
     const needed = readPermission(toolName);
