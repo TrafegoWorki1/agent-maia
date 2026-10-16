@@ -8,6 +8,15 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-16 — Indicadores e quadros de trabalho (evolução visual local)
+
+- Cartões compartilhados com número/unidade, hierarquia, cores de atenção e acesso à população; grids de três colunas explicativas/quatro compactas, duas em telas intermediárias e uma no celular. Indicadores indisponíveis mantêm motivo e catálogo acessíveis.
+- Meu dia, equipe e coordenação apresentam prazos, bloqueios e decisões clicáveis. Detalhes usam a leitura corrente, sem guardar cópia antiga dos registros. Baseline considera equipe e semana; urgências antigas não entram nos acréscimos atuais.
+- Barras de baseline e capacidade usam denominadores reais; utilização acima de 100% permanece explícita e a falta de estimativa/disponibilidade não vira zero. Projetos mostram contagem de entregáveis concluídos, sem atribuir percentual ponderado de execução.
+- Comercial passa a ter colunas com oportunidades, responsável, próxima ação, contexto e ações autorizadas. Filtro de etapa preserva o denominador da taxa de ganho. Marketing/Projetos ganham quadro de produção sobre as mesmas tarefas.
+- Indicadores técnicos da Maia destacam quatro números e recolhem detalhes secundários; fontes, períodos e diferenças entre execução e entrega continuam visíveis.
+- Verificação: `pnpm rules:check`, `pnpm typecheck`, `pnpm test` (571 Vitest + 75 testes de Postgres temporário), `pnpm build` e `git diff --check` aprovados. Capturas isoladas com os componentes reais em 1366 px e 390 px; viewport móvel sem transbordamento da página e funil com rolagem interna. Entrada JS de 465,68 kB. Sem nova migration, escrita remota, envio real, publicação ou reinício do worker nesta evolução visual.
+
 ## 2026-10-16 — Integração departamental do painel (local, não publicada)
 
 - Corrigidas telas estáticas de Projetos e Comercial: carteira, entregáveis e tarefas usam a API compartilhada da Central; oportunidades e combinados de CS têm persistência, origem, próxima ação, revisão e histórico.

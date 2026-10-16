@@ -4,6 +4,13 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-16 — Indicadores visuais e funil em colunas (local)
+
+- **Causa:** números sem hierarquia uniforme, indicadores de Comercial/CS em listas expansíveis e funil sem colunas visuais. Filtrar etapa alterava o denominador da taxa de ganho; baseline podia considerar outra equipe.
+- **Correção:** cartões compartilhados, grupos por área, população clicável, barras em horas/baseline e avanço por entregáveis. Funil e quadro usam os registros existentes; recorte de etapa não recalcula a taxa sobre um subconjunto indevido. Baseline e acréscimos consideram plano/equipe/período corrente.
+- **Verificação:** rules:check, typecheck, 571 testes Vitest + 75 de banco temporário, build e diff-check aprovados; captura dos componentes reais com fixture isolada em 1366 px/390 px. No celular, largura do documento igual ao viewport; rolagem do funil permanece interna.
+- **Estado:** código local; sem migration, alteração de regras, integrações novas ou reinício. Implantação visual ainda separada; os dados de teste usados nas capturas não entram na aplicação.
+
 ## 2026-10-16 — Áreas integradas à Central (preparadas localmente)
 
 - **Causa:** as abas legadas de Projetos/Comercial exibiam textos estáticos e não acompanhavam os registros da Central; a área técnica ainda tinha outro editor de tarefas.

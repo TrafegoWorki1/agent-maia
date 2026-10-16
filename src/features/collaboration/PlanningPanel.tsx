@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { EmptyState, Panel } from "../../components/ui";
+import { CapacityOverview } from "./WorkOverview";
 import { mutateCollaboration, type CollaborationData } from "../../lib/collaborationApi";
 
 type Props={data:CollaborationData;reload:()=>Promise<void>};
@@ -61,6 +62,7 @@ export function PlanningPanel({data,reload}:Props){
     <button disabled={busy||!canPlan||!personId} type="submit">Salvar capacidade</button>
    </form>
   </Panel>
+  <Panel title="Capacidade informada da semana" caption="Estimativas e disponibilidade líquida em horas, no escopo semanal autorizado."><CapacityOverview data={data}/></Panel>
   <Panel title="Planos e alterações registrados">
    {data.plans.length?<div className="table-wrap"><table><thead><tr><th>Plano / período</th><th>Objetivo</th><th>Estado</th><th>Revisão</th><th>Ação</th></tr></thead><tbody>{data.plans.map(plan=><tr key={String(plan.id)}><td>{String(plan.period_kind)} · {String(plan.period_start)} a {String(plan.period_end)}</td><td>{String(plan.objective??"—")}</td><td>{String(plan.status)}</td><td>{String(plan.revision)}</td><td>{data.planningTeamIds.includes(String(plan.team_id))&&<button onClick={()=>pickPlan(String(plan.id))}>Editar plano</button>}</td></tr>)}</tbody></table></div>:<EmptyState title="Nenhum plano neste escopo" detail="Os planos salvos aparecerão após a próxima leitura."/>}
    <ul>{data.planChanges.filter(change=>!planId||change.plan_id===planId).map(change=><li key={String(change.id)}>{new Date(String(change.changed_at)).toLocaleString("pt-BR")} · {String(change.change_kind)} · {String(change.reason)} · itens {(change.affected_task_ids as number[]).join(", ")} · {data.people.find(person=>person.id===change.changed_by)?.name??"Pessoa cadastrada"}</li>)}</ul>

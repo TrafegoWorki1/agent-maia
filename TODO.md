@@ -2,7 +2,16 @@
 
 Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
-## Integração das áreas — branch local, sem rollout
+## Indicadores e quadros — evolução visual local
+
+- [x] Cartões responsivos compartilhados; indicadores por área e motivos de indisponibilidade recolhidos.
+- [x] Meu dia, equipe e coordenação com população clicável e dados atualizados na recarga.
+- [x] Baseline semanal por equipe/período, capacidade em horas e avanço de entregáveis com denominador explícito.
+- [x] Funil comercial em colunas; quadro de produção nas áreas; taxa de ganho independente do filtro de etapa.
+- [x] Regras/tipos, 571 testes Vitest + 75 de banco temporário e build aprovados; capturas isoladas desktop/celular conferidas.
+- [ ] Publicar a evolução visual após validação; sem nova migration e sem alteração de worker.
+
+## Integração das áreas — PR #23 integrado
 
 - [x] Projetos/Implementações conectados à carteira e tarefas reais da Central.
 - [x] Trabalho/calendário de Marketing sobre os mesmos registros; snapshots gerais mantidos separados e restritos.
@@ -12,7 +21,8 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Financeiro lê observações autorizadas persistidas; sem coletor novo, sem somar períodos/moedas incompatíveis.
 - [x] Aplicar `20261016180722_maia_department_workspace.sql` no projeto Supabase `Agent Maia` antes da publicação dependente; dry-run listou somente essa migration e o ledger local/remoto está alinhado.
 - [ ] Revalidar drift do schema remoto: `pnpm db:drift` respondeu HTTP 401 na Management API; corrigir/renovar credencial de leitura e executar após a integração.
-- [ ] Autorizar push/PR/merge/deploy; atualizar e reiniciar uma única instância do worker, em etapa separada.
+- [x] Enviar e integrar PR #23 por squash `5c504d4`, com checks aprovados.
+- [ ] Confirmar publicação de produção e atualizar/reiniciar uma única instância do worker, em etapa separada.
 - [ ] Validar visualmente com logins de homologação e fontes externas configuradas. Nenhum envio/publicação real foi usado como teste.
 
 Mapa, matriz, catálogo e evidências: [integração do painel](docs/integracao-painel-maia.md).

@@ -96,12 +96,12 @@ Novos testes: `departmentWork.test.ts`, `departmentWorkspace.test.ts`, `departme
 - Não foram adicionados cadastro de prospect sem cliente real, valores comerciais, SLA automático ou indicador inferido de saúde do cliente. Oportunidades usam clientes/prospects previamente cadastrados pelo fluxo administrativo existente.
 - O painel não cria trabalho manualmente; cria/edita carteira conforme a competência existente. Nenhuma regra gerada foi editada e nenhuma mudança de regra foi ativada.
 - Interface validada em testes DOM; inspeção visual autenticada em desktop/celular e homologação com logins reais ainda são necessárias. Os testes não provam qualidade semântica de respostas do modelo nem disponibilidade de conectores.
-- Código implementado/testado localmente e migration `20261016180722` aplicada ao projeto Supabase `Agent Maia`; ledger local/remoto confirmado. `pnpm db:drift` ainda não validado: a Management API respondeu HTTP 401. Push/merge/deploy e reinício do worker ainda não realizados. Nenhuma mensagem, publicação, imagem real ou chamada paga foi usada para simular sucesso.
+- Migration `20261016180722` aplicada ao projeto Supabase `Agent Maia`; ledger local/remoto confirmado. Código integrado pelo [PR #23](https://github.com/TrafegoWorki1/agent-maia/pull/23), squash `5c504d4`, com checks aprovados. `pnpm db:drift` ainda não validado: a Management API respondeu HTTP 401. Publicação de produção e reinício do worker exigem conferência separada. A evolução visual seguinte está implementada/testada localmente e não exige migration ou atualização do worker; evidências no changelog. Nenhuma mensagem, publicação, imagem real ou chamada paga foi usada para simular sucesso.
 
 ## Procedimento de implantação após autorização
 
 1. Migration já aplicada no projeto Supabase `Agent Maia`; dry-run e histórico confirmaram somente a versão `20261016180722` pendente. A comparação `pnpm db:drift` precisa ser repetida após corrigir a credencial da Management API (HTTP 401).
-2. Enviar a branch, abrir/acompanhar PR, aguardar CI verde e fazer squash merge sem conflito.
+2. Integração departamental já enviada e integrada pelo PR #23. Para a evolução visual posterior, publicar o frontend após revisão da branch e CI.
 3. Após o merge, atualizar o checkout do worker, encerrar a instância anterior e iniciar **uma** instância com `pnpm start` ou `Iniciar Maia.bat`. Não iniciar dois workers para conferir.
 4. Homologar com contas de teste: membro, coordenação, cliente, revisão e financeiro. Não usar publicação/mensagem real como teste automático.
 
