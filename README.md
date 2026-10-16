@@ -61,6 +61,7 @@ O ambiente do servidor contém as credenciais de Supabase, Evolution, Whisper e 
 - [Pendências atuais](TODO.md): o que ainda falta verificar ou implementar.
 - [Migrações](docs/database-migrations.md): contrato de mudanças no banco.
 - [Changelog](CHANGELOG.md) e [resumo de erros e melhorias](docs/erros-e-mudancas.md): registros históricos.
+- [Evolução do núcleo](docs/evolucao-nucleo-maia.md): sessões, contexto, skills, planos, subagentes, rotinas e extensibilidade segura.
 - `plan.md` e planos identificados como históricos documentam etapas anteriores; não definem permissões atuais.
 
 O banco `maia_rules` contém a versão ativada. Editar Markdown não altera o agente automaticamente. O painel de regras é somente leitura. A busca operacional indexa apenas as regras vigentes; histórico e planos não são fontes de autorização.
@@ -88,6 +89,8 @@ Os testes de banco usam PGlite temporário. `pnpm db:guard` compara commits com 
 - `server/rules.ts` e `server/ruleCatalog.ts`: prompt e contrato documental.
 - `server/knowledge.ts` e `server/knowledgeSync.ts`: busca e indexação.
 - `server/ai/`: roteamento, executores e contingência.
+- `server/sessions.ts`, `server/skills.ts`, `server/subagents.ts` e `server/scheduler.ts`: contratos do núcleo persistente; a ativação operacional depende da migration e da configuração autorizada.
+- `skills/`: procedimentos Markdown versionados; propostas precisam de aprovação antes de se tornarem ativas.
 - `supabase/migrations/`: evolução versionada do banco.
 - `tests/`: comportamento, interface e banco temporário.
 

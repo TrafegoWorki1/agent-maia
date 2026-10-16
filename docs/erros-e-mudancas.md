@@ -4,6 +4,13 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-16 — Núcleo persistente em preparação
+
+- **Causa:** a continuidade operacional estava concentrada em mensagens recentes de 24 h e em memórias do owner; faltavam contratos compartilhados para sessões isoladas, resumos rastreáveis, skills, leases de etapas, subagentes, rotinas e MCP configurável.
+- **Correção:** adicionados `server/sessions.ts`, orçamento/compressão em `server/context.ts`, `server/skills.ts`, `server/planExecution.ts`, `server/subagents.ts`, `server/scheduler.ts`, `server/mcpRegistry.ts` e `server/controlledExecution.ts`, além da migration `20261016120000_maia_nucleus_v1.sql` e três skills Markdown iniciais.
+- **Segurança:** tabelas novas têm RLS e acesso público revogado; a execução controlada permanece desabilitada por padrão; skills e MCP usam allowlist; autorização precisa ser revalidada pelo chamador antes da leitura/execução.
+- **Pendente de operação:** aplicar a migration no ambiente autorizado, ligar os módulos aos handlers/worker/painel, configurar skills/MCP/rotinas e reiniciar um único worker. Nada disso foi ativado remotamente neste trabalho.
+
 ## 2026-10-15 — Aprovação de repetição e recibos de envio
 
 - **Mudança em preparação:** verificação server-side de texto idêntico ao mesmo destino nas últimas 24 h; pede OK explícito antes do reenvio. Se a consulta falhar, o agente não envia.

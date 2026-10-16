@@ -8,6 +8,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-16 — Núcleo persistente da Maia (preparação)
+
+- **Continuidade:** adicionados contratos para sessões por canal/conversa/solicitante/cliente, mensagens com autoria/origem e resumos com cobertura; o histórico original permanece separado da memória do owner.
+- **Procedimentos:** catálogo Markdown inicial em `skills/` e persistência de skills/propostas/uso, sem permitir que uma skill altere regras ou permissões.
+- **Execução:** etapas de planos têm dependências, lease, evidência, bloqueio e estado externo incerto; subagentes e rotinas registram limites, vínculo pai/filho, concorrência e entrega separada.
+- **Extensibilidade segura:** registro configurável de MCP e contrato para execução controlada, ambos com allowlist e desabilitados por padrão; catálogo HTTP existente permanece separado.
+- **Banco:** migration aditiva `20261016120000_maia_nucleus_v1.sql`, com RLS e funções de reserva; não aplicada remotamente neste trabalho.
+- **Validação:** testes locais cobrem orçamento/linhagem, isolamento por ferramentas, dependências, cron, allowlist MCP e bloqueio padrão da execução controlada. Resultados completos ficam no handoff após a execução dos comandos exigidos.
+
+---
+
 ## 2026-10-15 — Trabalhos criativos retomáveis
 
 - **Sintoma/causa:** pedidos de imagem eram executados de forma síncrona dentro do turno do agente; séries longas podiam exceder o timeout e perder progresso, sem checkpoint separado por arte.

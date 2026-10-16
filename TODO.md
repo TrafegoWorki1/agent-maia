@@ -11,10 +11,19 @@ Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Páginas com empty states honestos (sem mock data)
 
 **Etapa 1 — pendente** (Plano 01: memória, planos robustos, cancelamento, agendamentos)
-- [ ] `maia_memories`: tabela de memória declarativa durável por identidade/decisão/projeto
-- [ ] Retomada de plano multi-etapa em qualquer evento (hoje só alguns eventos)
-- [ ] Mecanismo de cancelamento/correção durante execução de plano
+- [x] Contratos de sessão, histórico pesquisável e resumo com cobertura em `maia_nucleus_v1`
+- [x] Dependências, leases, evidência e estado externo incerto para etapas de plano
+- [x] Contratos de rotinas com intervalo/cron, fuso e distinção entre execução e entrega
+- [ ] Aplicar migration no ambiente autorizado e ligar retomadas ao worker operacional
 - [ ] `automation_rules`: gatilhos por evento com contexto departamental opcional
+
+**Evolução do núcleo — código preparado, ativação pendente**
+- [x] Catálogo Markdown inicial: diagnóstico operacional, relatório de marketing e trabalho criativo
+- [x] Contratos de subagentes supervisionados com limites e cancelamento
+- [x] Registro configurável de servidores MCP, allowlist e timeout
+- [x] Política de navegador/comandos desabilitada por padrão
+- [ ] Expor sessões, planos, subagentes, skills e rotinas no painel com dados autenticados
+- [ ] Integrar execução de subagentes ao Claude/Codex após revisão de permissões
 
 **Etapa 2 — pendente** (Plano 02: dados reais nos novos departamentos)
 - [ ] Clientes e CS: vincular `maia_clients` e grupos com dados reais
