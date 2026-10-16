@@ -37,6 +37,7 @@ export interface GroupJoin {
   jid: string;
   action: string;
   participants: string[];
+  receivedAt?: string;
 }
 
 // Quem entrou (action "add") em um grupo. Só o número, sem @. Qualquer outro formato de evento devolve null.

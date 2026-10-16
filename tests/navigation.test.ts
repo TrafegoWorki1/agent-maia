@@ -6,7 +6,7 @@ describe("organização do painel", () => {
     const pages = sections.flatMap((s) => s.pages.map((p) => p.id));
     expect(new Set(pages).size).toBe(pages.length);
     expect(sections.find((s) => s.id === "sistema")!.pages.map((p) => p.id)).toEqual(["conexoes", "modelos"]);
-    expect(sections.find((s) => s.id === "agente-maia")!.pages.map((p) => p.id)).toEqual(["regras", "memoria", "manual"]);
+    expect(sections.find((s) => s.id === "agente-maia")!.pages.map((p) => p.id)).toEqual(["regras", "memoria", "nucleo", "manual"]);
   });
   it("preserva endereços antigos e produz rotas canônicas", () => {
     for (const s of sections) for (const p of s.pages) {

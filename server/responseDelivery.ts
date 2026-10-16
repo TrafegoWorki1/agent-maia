@@ -7,11 +7,26 @@ import { refreshGroupRequester } from "./groupAuthorization.ts";
 import { recordAcceptedOutbound } from "./outboundReceipts.ts";
 
 export async function persistResponse(db: Db, taskId: number, recipient: string, text: string, request?: string, who?: Requester) {
-  const requester = who?.groupScope ? { ...who, permissions:[...who.permissions] } : null;
+  const requester = who?.groupScope || who?.role === "member" ? { ...who, permissions:[...who.permissions], approvalPermissions: [...(who.approvalPermissions ?? [])], blockedPermissions: [...(who.blockedPermissions ?? [])] } : null;
   if (recipient.endsWith("@g.us") && requester?.groupScope?.jid !== recipient) throw new DeliveryError("Resposta sem autorização do grupo.", false);
+  if (requester?.role === "member" && !requester.groupScope && !samePhone(requester.number, recipient)) throw new DeliveryError("Resposta privada destinada a outra pessoa.", false);
   const r = await db.from("response_deliveries").upsert(splitReply(text).map((part, i) => ({ task_id: taskId, recipient, part: i, text: part, requester, request_text: i === 0 ? request?.slice(0,16000) ?? null : null })), { onConflict: "task_id,part", ignoreDuplicates: true });
   if (r.error) throw new Error(`Persistência da resposta: ${r.error.message}`);
   await addTaskEvent(db, taskId, "execution_completed", null, "Resposta gerada; entrega ainda pendente");
+}
+
+export async function assertResponseRequester(db: Db, recipient: string, raw: unknown): Promise<void> {
+  if (recipient.endsWith("@g.us")) {
+    const saved = raw as (Omit<Requester, "permissions"> & { permissions: string[] }) | null;
+    if (!saved?.groupScope || saved.groupScope.jid !== recipient || !Array.isArray(saved.permissions)) throw new DeliveryError("Resposta antiga sem autorização de grupo. Faça um novo pedido.", false);
+    try { await refreshGroupRequester(db, { ...saved, permissions: new Set(saved.permissions) }); }
+    catch (error) { throw new DeliveryError(error instanceof Error ? error.message : "Acesso ao grupo indisponível.", false); }
+  } else if ((raw as { role?: string } | null)?.role === "member") {
+    const saved = raw as Omit<Requester, "permissions"> & { permissions: string[] };
+    if (saved.groupScope || !Array.isArray(saved.permissions) || !samePhone(saved.number, recipient)) throw new DeliveryError("Resposta privada sem vínculo válido com o membro.", false);
+    try { await refreshGroupRequester(db, { ...saved, permissions: new Set(saved.permissions) }); }
+    catch (error) { throw new DeliveryError(error instanceof Error ? error.message : "Acesso do membro indisponível.", false); }
+  }
 }
 
 export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30) {
@@ -22,12 +37,7 @@ export async function runResponseDeliveries(db: Db, taskId?: number, limit = 30)
     if (!item) break;
     let accepted = false;
     try {
-      if (item.recipient.endsWith("@g.us")) {
-        const saved = item.requester as (Omit<Requester,"permissions"> & { permissions:string[] }) | null;
-        if (!saved?.groupScope || saved.groupScope.jid !== item.recipient || !Array.isArray(saved.permissions)) throw new DeliveryError("Resposta antiga sem autorização de grupo. Faça um novo pedido.", false);
-        try { await refreshGroupRequester(db,{ ...saved,permissions:new Set(saved.permissions) }); }
-        catch (error) { throw new DeliveryError(error instanceof Error ? error.message : "Acesso ao grupo indisponível.", false); }
-      }
+      await assertResponseRequester(db, item.recipient, item.requester);
       const id = await sendTextChecked(item.recipient, item.text);
       accepted = true;
       await recordAcceptedOutbound(db, id, item.recipient).catch((error) => console.error("[entrega] falha ao registrar recibo aceito:", error instanceof Error ? error.message : error));

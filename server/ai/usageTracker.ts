@@ -9,6 +9,8 @@ export interface RunMetrics {
   motivo: string;
   tokensIn: number | null;
   tokensOut: number | null;
+  cacheReadTokens?: number | null;
+  cacheCreationTokens?: number | null;
   durationMs: number;
   fallbackDe: string | null;
   erroClasse: string | null;
@@ -26,6 +28,8 @@ export async function annotateRun(db: Db, runId: number, m: RunMetrics): Promise
       motivo: m.motivo.slice(0, 300),
       tokens_in: m.tokensIn,
       tokens_out: m.tokensOut,
+      cache_read_tokens: m.cacheReadTokens ?? null,
+      cache_creation_tokens: m.cacheCreationTokens ?? null,
       duration_ms: m.durationMs,
       fallback_de: m.fallbackDe,
       erro_classe: m.erroClasse,
@@ -43,6 +47,8 @@ interface RunRow {
   duration_ms: number | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  cache_read_tokens?: number | null;
+  cache_creation_tokens?: number | null;
   cost_usd: number | null;
   fallback_de: string | null;
   erro_classe: string | null;
@@ -76,6 +82,8 @@ export function summarizeRuns(rows: RunRow[]) {
       duracaoMediaMs: avg(list.map((r) => r.duration_ms)),
       tokensEntrada: sum(list.map((r) => r.tokens_in)),
       tokensSaida: sum(list.map((r) => r.tokens_out)),
+      tokensCacheLidos: sum(list.map((r) => r.cache_read_tokens ?? null)),
+      tokensCacheCriados: sum(list.map((r) => r.cache_creation_tokens ?? null)),
       custoUsd: sum(list.map((r) => r.cost_usd)),
     };
   });
@@ -99,7 +107,7 @@ export async function modelsView(db: Db, now = new Date()): Promise<Record<strin
   const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const runs = await db
     .from("agent_runs")
-    .select("provider, model, categoria, status, duration_ms, tokens_in, tokens_out, cost_usd, fallback_de, erro_classe, started_at")
+    .select("provider, model, categoria, status, duration_ms, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, cost_usd, fallback_de, erro_classe, started_at")
     .gte("started_at", since)
     .not("provider", "is", null)
     .order("id", { ascending: false })

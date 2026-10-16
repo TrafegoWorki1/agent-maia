@@ -7,6 +7,8 @@ import { signOut } from "../auth/AuthGate";
 type Role = "proprietario" | "aprovador" | "equipe";
 const ROLE_LABEL: Record<Role, string> = { proprietario: "Proprietário", aprovador: "Aprovador", equipe: "Equipe" };
 interface Catalog { code: string; label: string; description: string }
+interface AccessMode { person_id: string; permission_code: string; mode: "permitido" | "bloqueado" | "aprovacao" }
+interface GroupGrant { person_id: string; permission_code: string; group_name: string }
 interface Person {
   id: string; name: string; role: Role; active: boolean;
   person_numbers: { number: string }[];
@@ -24,6 +26,8 @@ function formatNumber(number: string) {
 export function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [catalog, setCatalog] = useState<Catalog[]>([]);
+  const [accessModes, setAccessModes] = useState<AccessMode[]>([]);
+  const [groupGrants, setGroupGrants] = useState<GroupGrant[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -39,15 +43,21 @@ export function PeoplePage() {
   async function load() {
     try {
       if (!supabase) throw new Error("A conexão para carregar pessoas não está configurada.");
-      const [peopleRes, catalogRes, ownerRes] = await Promise.all([
+      const [peopleRes, catalogRes, ownerRes, modesRes, membersRes, groupsRes, grantsRes] = await Promise.all([
         supabase.from("people").select("id, name, role, active, person_numbers(number), person_permissions(permission_code)").order("created_at"),
         supabase.from("permission_catalog").select("code, label, description").order("code"),
         supabase.rpc("is_owner"),
+        supabase.from("maia_member_access_modes").select("person_id,permission_code,mode"),
+        supabase.from("maia_access_group_members").select("person_id,access_group_id"),
+        supabase.from("maia_access_groups").select("id,name,active,client_id"),
+        supabase.from("maia_access_group_permissions").select("access_group_id,permission_code"),
       ]);
-      const failure = peopleRes.error ?? catalogRes.error ?? ownerRes.error;
+      const failure = peopleRes.error ?? catalogRes.error ?? ownerRes.error ?? modesRes.error ?? membersRes.error ?? groupsRes.error ?? grantsRes.error;
       if (failure) throw new Error(failure.message);
       setPeople((peopleRes.data ?? []) as unknown as Person[]);
       setCatalog((catalogRes.data ?? []) as Catalog[]);
+      setAccessModes((modesRes.data ?? []) as AccessMode[]);
+      setGroupGrants((membersRes.data ?? []).flatMap((m) => (groupsRes.data ?? []).filter((g) => g.id === m.access_group_id && g.active && !g.client_id).flatMap((g) => (grantsRes.data ?? []).filter((p) => p.access_group_id === g.id).map((p) => ({ person_id: m.person_id, permission_code: p.permission_code, group_name: g.name })))));
       setIsOwner(ownerRes.data === true);
       setError(null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as pessoas."); }
@@ -69,9 +79,7 @@ export function PeoplePage() {
   async function togglePermission(person: Person, code: string, granted: boolean) {
     if (!supabase || person.role === "proprietario") return;
     const db = supabase;
-    await run(() => granted
-      ? db.from("person_permissions").delete().eq("person_id", person.id).eq("permission_code", code)
-      : db.from("person_permissions").insert({ person_id: person.id, permission_code: code }), granted ? "Permissão removida." : "Permissão concedida.");
+    await run(() => db.rpc("set_maia_member_access_mode", { p_person_id: person.id, p_code: code, p_mode: granted ? "bloqueado" : "permitido", p_actor_number: "painel", p_task_id: null }), granted ? "Acesso bloqueado." : "Acesso permitido.");
   }
   async function setActive(person: Person) {
     if (!supabase || person.role === "proprietario") return;
@@ -92,7 +100,10 @@ export function PeoplePage() {
   const selected = visible.find((person) => person.id === selectedId) ?? visible[0];
   const locked = selected?.role === "proprietario";
   const granted = new Set(selected?.person_permissions.map((permission) => permission.permission_code));
-  const permissionCount = locked ? catalog.length : catalog.filter((permission) => granted.has(permission.code)).length;
+  const modeFor = (code: string) => accessModes.find((m) => m.person_id === selected?.id && m.permission_code === code)?.mode;
+  const inheritedFor = (code: string) => groupGrants.filter((g) => g.person_id === selected?.id && g.permission_code === code).map((g) => g.group_name);
+  const effectiveFor = (code: string) => !["bloqueado", "aprovacao"].includes(modeFor(code) ?? "") && (modeFor(code) === "permitido" || granted.has(code) || inheritedFor(code).length > 0);
+  const permissionCount = locked ? catalog.length : catalog.filter((permission) => effectiveFor(permission.code)).length;
   const activeCount = people.filter((person) => person.active).length;
 
   function selectPerson(id: string) { setSelectedId(id); setCreating(false); setMobileDetail(true); setNotice(null); }
@@ -134,7 +145,7 @@ export function PeoplePage() {
           </section>
           <section className="people-detail-section" aria-label="Permissões"><div className="people-section-heading"><h3><ShieldCheck size={16} /> Permissões individuais</h3><span>{permissionCount} de {catalog.length}</span></div><p className="people-section-description">{locked ? "O proprietário tem acesso a todas as permissões." : "Confira as permissões concedidas diretamente a esta pessoa."}{!locked && isOwner && " Alterações são salvas automaticamente."}</p>
             {isOwner && !locked && <p className="people-section-description">Grupos podem conceder permissões adicionais. <a href="#acessos/grupos-acesso">Confira os grupos de acesso.</a></p>}
-            <div className="people-permissions">{catalog.map((perm) => { const on = locked || granted.has(perm.code); return <label key={perm.code} className={`people-permission ${on ? "people-permission-on" : ""}`}><input type="checkbox" checked={on} disabled={!isOwner || locked || busy} onChange={() => void togglePermission(selected, perm.code, granted.has(perm.code))} /><span><strong>{perm.label}</strong><small>{perm.description}</small></span>{on && <Check size={15} className="people-permission-check" aria-hidden="true" />}</label>; })}</div>
+            <div className="people-permissions">{catalog.map((perm) => { const on = locked || effectiveFor(perm.code); const mode = modeFor(perm.code); const teams = inheritedFor(perm.code); return <label key={perm.code} className={`people-permission ${on ? "people-permission-on" : ""}`}><input type="checkbox" checked={on} disabled={!isOwner || locked || busy} onChange={() => void togglePermission(selected, perm.code, on)} /><span><strong>{perm.label}</strong><small>{perm.description}</small><small>{mode === "bloqueado" ? "Bloqueado individualmente" : mode === "aprovacao" ? "Exige aprovação pontual" : on ? `Permitido${teams.length ? ` por equipe: ${teams.join(", ")}` : ""}` : "Sem acesso"}</small></span>{on && <Check size={15} className="people-permission-check" aria-hidden="true" />}</label>; })}</div>
           </section>
           {isOwner && !locked && <div className="people-profile-footer"><div><strong>{selected.active ? "Pausar este acesso" : "Retomar este acesso"}</strong><small>{selected.active ? "O cadastro e suas permissões serão mantidos." : "Reative a pessoa com as permissões atuais."}</small></div><button className={`button ${selected.active ? "button-danger-quiet" : "button-outline"}`} type="button" disabled={busy} onClick={() => void setActive(selected)}>{busy ? "Salvando…" : selected.active ? "Desativar" : "Reativar"}</button></div>}
         </Panel> : <Panel className="people-profile"><div className="people-empty"><ShieldCheck size={30} /><strong>Os acessos, em um só lugar</strong><p>{loading ? "Os perfis aparecerão assim que os dados forem carregados." : "Selecione uma pessoa ou cadastre um novo integrante."}</p>{isOwner && <button className="button button-dark" type="button" onClick={startCreate}><Plus size={16} /> Nova pessoa</button>}</div></Panel>}

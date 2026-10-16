@@ -98,6 +98,13 @@ describe("quem entrou vem pelo identificador interno (@lid)", () => {
   it("o plano que esperava o número retoma mesmo com a entrada vindo pelo identificador interno", async () => {
     const rows: Record<string, any>[] = [{ id: 2, created_at: new Date().toISOString(), title: "Projeto", request: "", steps: [{ text: "a", done: false }], status: "active", waiting: { type: "member_joined", jid: JID, number: "5511988887777" }, context: {} }];
     const db = {
+      rpc: async (name: string, args: Record<string, any>) => {
+        if (name !== "claim_maia_waiting_plan") return { data: false, error: { message: "rpc desconhecida" } };
+        const row = rows.find((r) => r.id === args.p_plan_id && JSON.stringify(r.waiting) === JSON.stringify(args.p_waiting));
+        if (!row) return { data: false, error: null };
+        row.waiting = null;
+        return { data: true, error: null };
+      },
       from(table: string) {
         const filters: ((r: any) => boolean)[] = [];
         let patch: any = null;

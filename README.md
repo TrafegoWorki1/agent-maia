@@ -18,7 +18,11 @@ Em Grupos e clientes, cadastre o cliente e associe os grupos reais do WhatsApp. 
 
 O contexto dos grupos de clientes não recebe o histórico privado do proprietário nem conversas de outros grupos. Ferramentas que consultam dados gerais da operação ficam bloqueadas nesse contexto. As permissões são conferidas novamente antes de executar ferramentas, após aprovação e antes de cada parte da resposta, inclusive na retomada da fila. Ao mudar o cliente ou os acessos de um grupo, pedidos anteriores precisam ser refeitos. Documentos de clientes continuam fora da busca do projeto.
 
-No contexto privado do owner, o agente inclui até 48 falas recentes dentro de 24 horas, limitado por orçamento de caracteres, e as memórias ativas de `owner_memories`. A Maia pode buscar e registrar compromissos explícitos; o owner também pode revisar, concluir ou arquivar registros em **Agente Maia > Memória e combinados**. Memória é contexto, não prova de execução nem autorização. A tabela é acessível somente pelo backend e a rota do painel valida a sessão do owner. Consulte [o plano de memória sincronizada](docs/plano-memoria-sincronizada.md) e o [procedimento de migrações](docs/database-migrations.md) antes do rollout.
+No contexto privado do owner, o agente combina conversa recente, histórico persistente autorizado além de 24 horas, resumos e memórias ativas de `owner_memories`, sob orçamento de contexto por executor. A Maia pode buscar e registrar compromissos explícitos; o owner também pode revisar, concluir ou arquivar registros em **Agente Maia > Memória e combinados**. Memória é contexto, não prova de execução nem autorização. A tabela é acessível somente pelo backend e a rota do painel valida a sessão do owner. Consulte [o plano de memória sincronizada](docs/plano-memoria-sincronizada.md) e o [procedimento de migrações](docs/database-migrations.md) antes do rollout.
+
+A evolução local do núcleo acrescenta sessões persistentes por canal, conversa, solicitante e cliente, inclusive para membros autorizados (`conversa.maia`). A recuperação e a busca revalidam o acesso, separadas da memória declarativa. As migrations foram aplicadas ao Supabase do projeto em 16/10/2026; o código publicado e o worker atualizado são necessários para o owner buscar suas sessões em **Agente Maia > Núcleo**. Essa tela não expõe conversas privadas de membros. A gravação do histórico de membros/grupos segue retenção de 7 dias. Skills, rotinas e subagentes são funcionalidades configuráveis, inicialmente desativadas; veja [estado e implantação do núcleo](docs/evolucao-nucleo-maia.md). A aplicação das migrations não ativa essas opções nem reinicia o worker.
+
+O painel **Modelos e Roteamento** também pode mostrar tokens de cache lidos/criados quando o Claude os devolve. Campos ausentes ficam vazios; valores não são inferidos e isso não garante economia.
 
 As estruturas estão nas migrações `20261011185724_maia_client_groups_access.sql` e `20261012014613_maia_response_deliveries_requester.sql`. O histórico remoto foi consultado para reconciliar a primeira; a coluna de entrega pertence somente à segunda. O painel informa quando falta estrutura e impede salvar nesses casos.
 
@@ -61,6 +65,7 @@ O ambiente do servidor contém as credenciais de Supabase, Evolution, Whisper e 
 - [Pendências atuais](TODO.md): o que ainda falta verificar ou implementar.
 - [Migrações](docs/database-migrations.md): contrato de mudanças no banco.
 - [Changelog](CHANGELOG.md) e [resumo de erros e melhorias](docs/erros-e-mudancas.md): registros históricos.
+- [Evolução do núcleo](docs/evolucao-nucleo-maia.md): sessões, contexto, skills, planos, subagentes, rotinas e extensibilidade segura.
 - `plan.md` e planos identificados como históricos documentam etapas anteriores; não definem permissões atuais.
 
 O banco `maia_rules` contém a versão ativada. Editar Markdown não altera o agente automaticamente. O painel de regras é somente leitura. A busca operacional indexa apenas as regras vigentes; histórico e planos não são fontes de autorização.
@@ -72,6 +77,7 @@ pnpm rules:check
 pnpm typecheck
 pnpm test
 pnpm db:validate
+pnpm db:guard
 pnpm build
 ```
 
@@ -88,7 +94,14 @@ Os testes de banco usam PGlite temporário. `pnpm db:guard` compara commits com 
 - `server/rules.ts` e `server/ruleCatalog.ts`: prompt e contrato documental.
 - `server/knowledge.ts` e `server/knowledgeSync.ts`: busca e indexação.
 - `server/ai/`: roteamento, executores e contingência.
+- `server/sessions.ts`, `server/skills.ts`, `server/subagents.ts` e `server/scheduler.ts`: contratos do núcleo persistente; a ativação operacional depende da migration e da configuração autorizada.
+- `skills/`: procedimentos Markdown versionados; propostas precisam de aprovação antes de se tornarem ativas.
 - `supabase/migrations/`: evolução versionada do banco.
 - `tests/`: comportamento, interface e banco temporário.
 
 A interface não substitui as permissões do servidor. Aprovações valem para uma ação, e resultados incertos não são repetidos automaticamente.
+# Administração de acessos pelo WhatsApp
+
+O proprietário autenticado pelo número do servidor pode pedir à Maia para localizar um membro existente, consultar suas capacidades e definir uma capacidade como `permitido`, `bloqueado` ou `aprovacao`. A Maia usa o ID da pessoa cadastrada; nomes ambíguos exigem escolha. Bloqueios individuais prevalecem sobre concessões de equipes. O painel de Pessoas relê os modos salvos no banco. A alteração vale para o acesso **via Maia**; não remove compartilhamentos diretos no Google Drive. A função depende da migração `20261016150000_maia_member_access_modes.sql` e de implantação posterior; não está ativa só por existir no repositório.
+
+A ferramenta recusa capacidades do catálogo que ainda não têm política de execução comprovada (como `painel.ver`). Para `conversa.maia` e `escrita.aprovar`, permite conceder ou bloquear, mas recusa `aprovacao`: um OK pontual não pode substituir a autorização de entrada ou a de aprovar outros pedidos.

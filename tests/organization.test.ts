@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decideAccess, decideBuiltin, resolveRequester, type Requester } from "../server/access.ts";
 import { canAccessGroup, loadGroupScope, scopeIncludesMessage, type GroupScope } from "../server/groupScope.ts";
 import { refreshGroupRequester } from "../server/groupAuthorization.ts";
+import { assertResponseRequester } from "../server/responseDelivery.ts";
 import { convMessages } from "../server/conversations.ts";
 import { groupInput, saveAccessGroup, saveWhatsAppGroup } from "../server/organization.ts";
 import type { Db } from "../server/store.ts";
@@ -58,6 +59,14 @@ describe("permissões e contexto por cliente", () => {
     tables.maia_access_groups[0].active = false;
     expect((await resolveRequester(db,"551122223333","Pessoa","client-a")).permissions.has("mensagem.enviar")).toBe(false);
   });
+  it("preserva o número autenticado de um proprietário cadastrado mesmo quando difere do número principal", async () => {
+    tables.person_numbers.push({ number: "5511777777777", person_id: "owner-two" });
+    tables.people.push({ id: "owner-two", name: "Proprietário", role: "proprietario", active: true });
+    const { db } = fixtureDb(tables);
+    const who = await resolveRequester(db, "5511777777777", "Proprietário");
+    expect(who).toMatchObject({ role: "owner", number: "5511777777777" });
+    expect((await refreshGroupRequester(db, who)).role).toBe("owner");
+  });
   it("cliente pausado ou grupo de acesso incompatível impede atendimento", async () => {
     expect(await loadGroupScope(fixtureDb(tables).db,"50@g.us")).toEqual(scope);
     tables.maia_clients[0].active = false;
@@ -87,6 +96,17 @@ describe("permissões e contexto por cliente", () => {
     await expect(refreshGroupRequester(db,who)).rejects.toThrow("acesso");
     tables.maia_groups[0].client_id = "client-b";
     await expect(refreshGroupRequester(db,who)).rejects.toThrow("grupo");
+  });
+  it("bloqueia resposta privada pendente quando o membro perde acesso, inclusive após retomada", async () => {
+    const { db } = fixtureDb(tables);
+    const who = await resolveRequester(db, "551122223333", "Pessoa");
+    const saved = { ...who, permissions: [...who.permissions] };
+    await expect(assertResponseRequester(db, who.number, saved)).resolves.toBeUndefined();
+    tables.maia_member_access_modes = [{ person_id: "person", permission_code: "conversa.maia", mode: "bloqueado" }];
+    await expect(assertResponseRequester(db, who.number, saved)).rejects.toThrow("não está mais autorizada");
+    tables.maia_member_access_modes = [{ person_id: "person", permission_code: "grupo.consultar", mode: "bloqueado" }];
+    await expect(assertResponseRequester(db, who.number, saved)).rejects.toThrow("mudou durante a execução");
+    await expect(assertResponseRequester(db, "5511888888888", saved)).rejects.toThrow("vínculo válido");
   });
   it("histórico de grupo filtra cliente; histórico antigo sem cliente fica fora", async () => {
     const row = { conv:scope.jid,participant:"1",name:"Pessoa",from_maia:false,at:new Date().toISOString() };

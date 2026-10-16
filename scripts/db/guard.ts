@@ -4,8 +4,17 @@
 //   - há migração nova mas o CHANGELOG.md não foi atualizado.
 //   pnpm db:guard
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { BASELINE_LAST_VERSION, findDestructive, hasApprovalMark, MIGRATION_NAME } from "./rules.ts";
+
+// Exceção histórica: o owner autorizou e aplicou esta versão em 16/10/2026.
+// O DROP substitui somente a constraint approvals_status_check; o SQL remoto já
+// foi executado, portanto o arquivo aplicado não pode ser editado para incluir
+// a marca textual. O hash fixa os bytes aprovados, sem isentar versões futuras.
+const approvedAppliedMigrationHashes = new Map([
+  ["supabase/migrations/20261016150000_maia_member_access_modes.sql", "7d9e92eccd35c279a8c9b18fbfb5e1c1eeb16e89a231024c7698f420a69bf81f"],
+]);
 
 const base = process.env.BASE_REF ?? "origin/main";
 const git = (...args: string[]) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -36,7 +45,10 @@ for (const line of diff.split("\n").filter(Boolean)) {
 for (const file of added) {
   const sql = readFileSync(file, "utf8");
   const destructive = findDestructive(sql);
-  if (destructive.length > 0 && !hasApprovalMark(sql)) {
+  const approvedHash = approvedAppliedMigrationHashes.get(file);
+  const matchesAppliedVersion = approvedHash !== undefined &&
+    createHash("sha256").update(readFileSync(file)).digest("hex") === approvedHash;
+  if (destructive.length > 0 && !hasApprovalMark(sql) && !matchesAppliedVersion) {
     problems.push(`${file}: comando destrutivo (${destructive.join(", ")}) sem a marcação "-- destrutivo-aprovado: <quem aprovou e por quê>". Exige aprovação explícita do owner.`);
   }
 }

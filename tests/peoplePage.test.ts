@@ -26,6 +26,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   people = structuredClone(fixtures);
   db.rpc.mockResolvedValue({ data: true, error: null });
+  db.rpc.mockImplementation(async (name: string, args?: { p_person_id: string; p_code: string; p_mode: string }) => {
+    if (name === "set_maia_member_access_mode" && args) {
+      const person = people.find((p) => p.id === args.p_person_id)!;
+      person.person_permissions = person.person_permissions.filter((p) => p.permission_code !== args.p_code);
+      if (args.p_mode === "permitido") person.person_permissions.push({ permission_code: args.p_code });
+    }
+    return { data: true, error: null };
+  });
   db.insertNumber.mockResolvedValue({ error: null });
   db.insertPerson.mockImplementation((person) => {
     people.push({ ...person, id: "new", active: true, person_numbers: [], person_permissions: [] });
@@ -44,6 +52,7 @@ beforeEach(() => {
     if (table === "permission_catalog") return { select: () => ({ order: async () => ({ data: catalog, error: null }) }) };
     if (table === "person_numbers") return { insert: db.insertNumber };
     if (table === "person_permissions") return { insert: db.insertPermission };
+    if (["maia_member_access_modes", "maia_access_group_members", "maia_access_groups", "maia_access_group_permissions"].includes(table)) return { select: async () => ({ data: [], error: null }) };
     throw new Error(`Unexpected table: ${table}`);
   });
 });
@@ -121,8 +130,8 @@ describe("Pessoas: diretório e perfil de acesso", () => {
     await render(); await selectTeam();
     const checkbox = [...host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find((c) => !c.checked)!;
     await click(checkbox);
-    expect(db.insertPermission).toHaveBeenCalledExactlyOnceWith({ person_id: "team", permission_code: "mensagem.enviar" });
-    expect(host.querySelector('[role="status"]')?.textContent).toContain("Permissão concedida");
+    expect(db.rpc).toHaveBeenCalledWith("set_maia_member_access_mode", expect.objectContaining({ p_person_id: "team", p_code: "mensagem.enviar", p_mode: "permitido" }));
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Acesso permitido");
     expect([...host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every((c) => c.checked)).toBe(true);
   });
   it("se o WhatsApp falha no cadastro, abre a pessoa salva sem oferecer cadastro duplicado", async () => {

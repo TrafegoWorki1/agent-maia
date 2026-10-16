@@ -61,7 +61,7 @@ describe("arte direta", () => {
 
 describe("métricas por modelo", () => {
   const run = (over: Record<string, unknown>) => ({
-    provider: "claude", model: "haiku", categoria: "conversa", status: "ok", duration_ms: 1000, tokens_in: 10, tokens_out: 5, cost_usd: 0.01,
+    provider: "claude", model: "haiku", categoria: "conversa", status: "ok", duration_ms: 1000, tokens_in: 10, tokens_out: 5, cache_read_tokens: 7, cache_creation_tokens: 3, cost_usd: 0.01,
     fallback_de: null, erro_classe: null, started_at: "2026-10-09T12:00:00Z", ...over,
   });
 
@@ -71,6 +71,7 @@ describe("métricas por modelo", () => {
     expect(view.taxaFallback).toBe(33);
     const haiku = view.porModelo.find((m) => m.model === "haiku");
     expect([haiku?.execucoes, haiku?.sucesso]).toEqual([2, 50]);
+    expect([haiku?.tokensCacheLidos, haiku?.tokensCacheCriados]).toEqual([14, 6]);
     const codex = view.porModelo.find((m) => m.provider === "codex");
     expect([codex?.tokensEntrada, codex?.custoUsd]).toEqual([null, null]);
   });

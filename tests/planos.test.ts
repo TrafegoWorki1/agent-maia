@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { cancelWaiting, claimWaiting, createPlan, describeWaiting, matchesWaiting, resumePlans, resumePrompt, setWaiting, updatePlan, waitingForFile, PLAN_MAX_AGE_MS } from "../server/plans.ts";
+import { cancelWaiting, claimWaiting, createPlan, describeWaiting, matchesWaiting, resumePlans, resumePrompt, runDuePlanTimers, setWaiting, updatePlan, waitingForFile, PLAN_MAX_AGE_MS } from "../server/plans.ts";
 import { notifyGroupJoin } from "../server/groupJoin.ts";
+import { runPlanUpdate } from "../server/planTools.ts";
 import type { Db } from "../server/store.ts";
 
 // Decisão do owner (13/10/2026): um pedido com várias etapas vira um plano gravado; as etapas que dependem de um evento
@@ -11,6 +12,16 @@ function memoryDb(seed: Record<string, Row[]> = {}) {
   const tables: Record<string, Row[]> = { maia_plans: [], maia_groups: [], contacts: [], ...seed };
   let nextId = 1;
   const db = {
+    async rpc(name: string, args: Record<string, any>) {
+      if (name !== "claim_maia_waiting_plan") return { data: null, error: { message: "rpc desconhecida" } };
+      const plan = tables.maia_plans.find((r) => r.id === args.p_plan_id && r.status === "active" && JSON.stringify(r.waiting) === JSON.stringify(args.p_waiting));
+      if (!plan || Date.parse(plan.created_at) > Date.parse(args.p_event_at) || Date.parse(args.p_event_at) - Date.parse(plan.created_at) > PLAN_MAX_AGE_MS) return { data: false, error: null };
+      const events = tables.maia_plan_resumptions ?? (tables.maia_plan_resumptions = []);
+      if (events.some((r) => r.plan_id === plan.id && r.event_key === args.p_event_key)) return { data: false, error: null };
+      events.push({ plan_id: plan.id, event_key: args.p_event_key, status: "leased" });
+      plan.waiting = null;
+      return { data: true, error: null };
+    },
     from(table: string) {
       const rows = tables[table] ?? (tables[table] = []);
       const filters: ((r: Row) => boolean)[] = [];
@@ -58,12 +69,35 @@ describe("gatilhos do plano", () => {
     const waiting = { type: "member_joined", jid: "g1@g.us", number: "5585991872784" } as const;
     expect(matchesWaiting(waiting, { type: "member_joined", jid: "g1@g.us", number: "558591872784" })).toBe(true);
     expect(matchesWaiting(waiting, { type: "member_joined", jid: "g1@g.us", number: "5585988888888" })).toBe(false);
+    expect(matchesWaiting(waiting, { type: "member_joined", jid: "g1@g.us" })).toBe(false);
     expect(matchesWaiting(waiting, { type: "member_joined", jid: "g2@g.us", number: "5585991872784" })).toBe(false);
     expect(matchesWaiting({ type: "member_joined", jid: "g1@g.us" }, { type: "member_joined", jid: "g1@g.us", number: "5585988888888" })).toBe(true);
+  });
+
+  it("horário retoma uma vez quando vence e não antecipa eventos futuros", async () => {
+    const { db } = memoryDb();
+    const id = await createPlan(db, { title: "Retomar amanhã", request: "continue", steps: STEPS });
+    const dueAt = new Date(Date.now() + 60_000).toISOString();
+    await setWaiting(db, id, { type: "time", at: dueAt });
+    const resume = vi.fn(async (_prompt: string) => {});
+    expect(await runDuePlanTimers(db, resume, new Date(Date.now() + 30_000))).toBe(0);
+    expect(await runDuePlanTimers(db, resume, new Date(Date.now() + 90_000))).toBe(1);
+    expect(await runDuePlanTimers(db, resume, new Date(Date.now() + 120_000))).toBe(0);
+    expect(resume).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("plano de várias etapas", () => {
+  it("valida a espera por horário e não aceita fora da validade do plano", async () => {
+    const { db, tables } = memoryDb();
+    const id = await createPlan(db, { title: "Retomada", request: "", steps: STEPS });
+    const valid = await runPlanUpdate(db, { plano: id, esperar: { tipo: "horario", instante: new Date(Date.now() + 60_000).toISOString() } });
+    expect(valid.ok).toBe(true);
+    expect(tables.maia_plans[0].waiting.type).toBe("time");
+    const expired = await runPlanUpdate(db, { plano: id, esperar: { tipo: "horario", instante: new Date(Date.now() + 8 * 24 * 3600_000).toISOString() } });
+    expect(expired.ok).toBe(false);
+  });
+
   it("retoma uma vez só quando o OK chega, com o pedido, as etapas e o grupo criado no texto", async () => {
     const { db } = memoryDb();
     const id = await createPlan(db, { title: "Projeto Italo", request: "crie o grupo e mande o link", steps: STEPS });

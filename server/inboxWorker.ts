@@ -26,6 +26,13 @@ import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
 import { applyDeliveryUpdates, type DeliveryUpdate } from "./outboundReceipts.ts";
 import { recoverStaleCreativeItems, runCreativeQueueOnce } from "./creativeJobs.ts";
+import { recoverStaleScheduleRuns, runDueSchedules } from "./scheduler.ts";
+import { runCodexText } from "./ai/providers/codex.ts";
+import { samePhone } from "./evolutionWebhook.ts";
+import { syncBundledSkillProposals } from "./skills.ts";
+import { recoverUncertainPlanResumptions, runDuePlanTimers } from "./plans.ts";
+import { consolidateDelegations, recoverInterruptedSubagents, runQueuedSubagents } from "./subagents.ts";
+import { summarizeSession } from "./sessionSummaries.ts";
 import { type Db, type Sender, getDb, recordEvent, recordGroupActivity, recordMessage, recoverStaleTasks } from "./store.ts";
 
 // Worker da fila `inbox`: roda no computador da Maia. Lê o que o webhook da Vercel gravou,
@@ -45,6 +52,12 @@ const BATCH = 10;
 const IDLE_MS = 3_000;
 const STALE_MS = 5 * 60 * 1000;
 const PURGE_MS = 10 * 60 * 1000;
+
+async function generateIsolatedText(prompt: string, timeoutMs: number): Promise<{ text: string; durationMs: number }> {
+  const result = await runCodexText({ prompt, timeoutMs, model: null, mcp: null });
+  if (!result.ok) throw new Error(result.error);
+  return { text: result.text, durationMs: result.durationMs };
+}
 
 // Marca como lida só quando a mensagem de fato vai ser processada (ver server/chats.ts). Nunca bloqueia: é cosmético.
 function markRead(jid: string, keyId: string | null): void {
@@ -109,13 +122,14 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   // Membro cadastrado (permissão conversa.maia) falando com a Maia no privado.
   if (item.sender === "member" && item.kind === "text" && item.payload) {
     const req = JSON.parse(item.payload) as { from: string; name: string; text: string };
+    const memberRequest = { ...req, keyId: item.key_id ?? undefined };
     const digits = req.from.replace(/\D/g, "");
     markRead(dmJid(digits), item.key_id);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "handled" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: req.name, text: req.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
     await upsertContact(db, { number: digits, name: req.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
     await relayIfContacted(db, digits, req.name, req.text.slice(0, 500));
-    void handleMemberMessage(req).catch((error) => console.error("[worker] privado de membro:", error instanceof Error ? error.message : error));
+    void handleMemberMessage(memberRequest).catch((error) => console.error("[worker] privado de membro:", error instanceof Error ? error.message : error));
     return;
   }
 
@@ -172,6 +186,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "group" && item.kind === "media" && item.payload) {
     // Arquivo em grupo cadastrado: só é lido se um plano do dono esperava (server/ownerRouter.ts, handleGroupMedia).
     const ref = JSON.parse(item.payload) as GroupMediaRef;
+    ref.receivedAt = item.received_at ?? now.toISOString();
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "group" as Sender, outcome: "media" }, now);
     void handleGroupMedia(ref).catch((error) => console.error("[worker] mídia de grupo:", error instanceof Error ? error.message : error));
     return;
@@ -232,6 +247,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
   if (item.sender === "group" && item.kind === "event" && item.payload?.startsWith("{\"join\"")) {
     // Alguém entrou num grupo: invalida o cache e avisa o dono (só grupos cadastrados).
     const { join } = JSON.parse(item.payload) as { join: GroupJoin };
+    join.receivedAt = item.received_at ?? now.toISOString();
     resetGroupCache();
     await recordEvent(db, { event: "group-participants.update", kind: "event", sender: "group" as Sender, outcome: "join" }, now);
     await notifyGroupJoin(db, join, notifyOwner, (prompt) => handleOwnerMessage(prompt)).catch((error) => console.error("[worker] entrada no grupo:", error instanceof Error ? error.message : error));
@@ -301,11 +317,22 @@ async function recoverClaimed(db: Db): Promise<void> {
 async function main(): Promise<void> {
   loadLocalEnv();
   const db = getDb();
+  let planTimersBusy = false;
+  setInterval(() => {
+    if (planTimersBusy) return;
+    planTimersBusy = true;
+    void runDuePlanTimers(db, (prompt) => handleOwnerMessage(prompt)).catch((error) => console.error("[planos] gatilhos de horário:", error instanceof Error ? error.message : error)).finally(() => { planTimersBusy = false; });
+  }, 30_000);
   await recoverClaimed(db);
   const batchesRecovered = await recoverBatches(db);
+  const planRecovered = await recoverUncertainPlanResumptions(db).catch((error) => { console.error("[planos] recuperação:", error instanceof Error ? error.message : error); return 0; });
+  if (planRecovered) console.warn(`[worker] ${planRecovered} retomada(s) de plano incerta(s) para revisão`);
   if (batchesRecovered > 0) console.warn(`[worker] ${batchesRecovered} lote(s) interrompido(s) marcado(s) como incerto(s)`);
   void runBatchDispatcher(db, (text) => routeOwnerText(text));
   startKnowledgeSync(db);
+  if (process.env.MAIA_NUCLEUS_SKILLS_SYNC_ENABLED === "1") {
+    await syncBundledSkillProposals(db).catch((error) => console.error("[skills] propostas iniciais:", error instanceof Error ? error.message : error));
+  }
   // Avisos automáticos (resumo diário, conexões, aprovações paradas). Antes ficavam só no webhook local.
   const proactive = () => runProactive(db, notifyOwner).catch((error) => console.error("[proativo]", error instanceof Error ? error.message : error));
   setTimeout(proactive, 30_000);
@@ -318,6 +345,47 @@ async function main(): Promise<void> {
   if (interrupted > 0) console.warn(`[worker] ${interrupted} tarefa(s) interrompida(s) marcadas como incertas`);
   const creativeRecovered = await recoverStaleCreativeItems(db);
   if (creativeRecovered > 0) console.warn(`[worker] ${creativeRecovered} item(ns) criativos recuperados ou pausados para revisão`);
+  if (process.env.MAIA_NUCLEUS_SCHEDULES_ENABLED === "1") {
+    const stale = await recoverStaleScheduleRuns(db);
+    if (stale) console.warn(`[worker] ${stale} rotina(s) incerta(s) pausada(s) para revisão`);
+    let schedulesBusy = false;
+    setInterval(() => {
+      if (schedulesBusy) return;
+      schedulesBusy = true;
+      void runDueSchedules(db, {
+        authorize: async (schedule) => !schedule.client_id && samePhone(schedule.owner_key, process.env.EVOLUTION_OWNER_NUMBER) && samePhone(schedule.destination, process.env.EVOLUTION_OWNER_NUMBER) && schedule.skills.length === 0,
+        execute: async (schedule) => {
+          const output = await generateIsolatedText(`Você é a Maia em uma rotina isolada. Sem ferramentas, conectores, arquivos ou internet. Não execute ações externas, não publique nem afirme ter concluído algo sem evidência. Responda somente com análise textual em português.\n\nInstrução da rotina:\n${schedule.instruction}`, Math.min(Number(schedule.limits.timeout_ms) || 120000, 300000));
+          return output.text;
+        },
+        deliver: async (_schedule, result) => { await notifyOwner(result); return "pending"; },
+      }).catch((error) => console.error("[rotinas]", error instanceof Error ? error.message : error)).finally(() => { schedulesBusy = false; });
+    }, 30_000);
+  }
+  if (process.env.MAIA_NUCLEUS_SUBAGENTS_ENABLED === "1") {
+    const interrupted = await recoverInterruptedSubagents(db);
+    if (interrupted) console.warn(`[worker] ${interrupted} subagente(s) interrompido(s); sem replay automático`);
+    let subagentsBusy = false;
+    setInterval(() => {
+      if (subagentsBusy) return;
+      subagentsBusy = true;
+      void (async () => { await runQueuedSubagents(db, generateIsolatedText, 3); await consolidateDelegations(db, generateIsolatedText); })()
+        .catch((error) => console.error("[subagentes]", error instanceof Error ? error.message : error))
+        .finally(() => { subagentsBusy = false; });
+    }, 30_000);
+  }
+  if (process.env.MAIA_NUCLEUS_SUMMARIES_ENABLED === "1") {
+    let summariesBusy = false;
+    setInterval(() => {
+      if (summariesBusy) return;
+      summariesBusy = true;
+      void (async () => {
+        const { data, error } = await db.from("maia_sessions").select("id,channel,requester_key").eq("status", "active").order("last_message_at", { ascending: false }).limit(5);
+        if (error) throw new Error(error.message);
+        for (const row of data ?? []) if (await summarizeSession(db, { sessionId: row.id, requesterNumber: row.requester_key, channel: row.channel }, generateIsolatedText)) break;
+      })().catch((error) => console.error("[resumos]", error instanceof Error ? error.message : error)).finally(() => { summariesBusy = false; });
+    }, 60_000);
+  }
   let recoveringCreative = false;
   setInterval(() => {
     if (recoveringCreative) return;
@@ -375,6 +443,8 @@ async function main(): Promise<void> {
         if (mediaPurged > 0) console.log(`[worker] ${mediaPurged} arquivo(s) de mídia (dono 24 h / membros 7 dias) apagado(s)`);
         const convPurged = await db.rpc("purge_group_messages");
         if (convPurged.error) console.error("[worker] limpeza das conversas:", convPurged.error.message);
+        const scopedPurged = await db.rpc("purge_maia_scoped_history");
+        if (scopedPurged.error) console.error("[worker] limpeza das sessões com retenção:", scopedPurged.error.message);
         const receiptsPurged = await db.rpc("purge_outbound_receipts");
         if (receiptsPurged.error) console.error("[worker] limpeza dos recibos:", receiptsPurged.error.message);
         else if (receiptsPurged.data) console.log(`[worker] ${receiptsPurged.data} recibo(s) de envio com mais de 30 dias removido(s)`);

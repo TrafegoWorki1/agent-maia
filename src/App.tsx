@@ -11,6 +11,7 @@ const AccessGroupsPage = lazy(() => import("./features/organization/AccessGroups
 const RegrasPage = lazy(() => import("./features/operacao/RegrasPage").then((m) => ({ default: m.RegrasPage })));
 const ModelosPage = lazy(() => import("./features/operacao/ModelosPage").then((m) => ({ default: m.ModelosPage })));
 const MemoriaPage = lazy(() => import("./features/operacao/MemoriaPage").then((m) => ({ default: m.MemoriaPage })));
+const NucleoPage = lazy(() => import("./features/operacao/NucleoPage").then((m) => ({ default: m.NucleoPage })));
 const ConnectionsPage = lazy(() => import("./features/connections/ConnectionsPage").then((m) => ({ default: m.ConnectionsPage })));
 const TarefasPage = lazy(() => import("./features/operacao/TarefasPage").then((m) => ({ default: m.TarefasPage })));
 const ResumoPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.ResumoPage })));
@@ -114,6 +115,7 @@ function Screen({ id }: { id: ScreenId }) {
     case "grupos-acesso": return <AccessGroupsPage />;
     case "regras": return <RegrasPage />;
     case "memoria": return <MemoriaPage />;
+    case "nucleo": return <NucleoPage />;
     case "manual": return <ManualOperadorPanel />;
     case "conexoes": return <ConnectionsPage />;
     case "modelos": return <ModelosPage />;
