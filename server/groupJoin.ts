@@ -35,7 +35,7 @@ export async function notifyGroupJoin(db: Db, join: GroupJoin, notify: (text: st
     const known = contacts.find((c) => samePhone(c.number, number));
     const who = known?.name ? `${known.name} (+${number})` : `+${number}`;
     const resumed = resumePlan
-      ? await resumePlans(db, { type: "member_joined", jid: join.jid, number }, `${who} entrou no grupo "${groupName}" (jid ${join.jid}).`, { entrou: { quem: who, grupo: groupName, jid: join.jid } }, resumePlan).catch((error) => { console.error("[planos] retomada:", error instanceof Error ? error.message : error); return 0; })
+      ? await resumePlans(db, { type: "member_joined", jid: join.jid, number }, `${who} entrou no grupo "${groupName}" (jid ${join.jid}).`, { entrou: { quem: who, grupo: groupName, jid: join.jid } }, resumePlan, `join:${join.jid}:${number}:${join.receivedAt ?? ""}`, join.receivedAt ? new Date(join.receivedAt) : new Date()).catch((error) => { console.error("[planos] retomada:", error instanceof Error ? error.message : error); return 0; })
       : 0;
     if (resumed > 0) continue;
     // Se há um plano esperando uma entrada neste grupo mas não era esta pessoa, o dono fica sabendo (e a Maia, pelo histórico).

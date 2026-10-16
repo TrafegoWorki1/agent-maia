@@ -23,6 +23,146 @@ after(async () => {
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
 
+describe("administração individual de acessos", () => {
+  it("uma aprovação vinculada a pessoa/operação/recurso só é consumida uma vez", async () => {
+    const binding = JSON.stringify({ requester: "5511990000000", operation: "mcp__claude_ai_Google_Drive__search_files", resource: "hash-recurso", taskId: 7 });
+    const row = (await q("insert into approvals(tool_name,status,payload,expires_at) values('search_files','approved',$1::jsonb,now()+interval '10 minutes') returning id", [binding]))[0];
+    const claim = (payload: string) => q("update approvals set status='consumed' where id=$1 and status='approved' and expires_at>now() and payload @> $2::jsonb returning id", [row.id, payload]);
+    assert.equal((await claim(JSON.stringify({ requester: "5511888888888" }))).length, 0);
+    assert.equal((await claim(binding)).length, 1);
+    assert.equal((await claim(binding)).length, 0);
+  });
+  it("grava modo e auditoria atomicamente sem alterar concessão da equipe", async () => {
+    const person = (await q("insert into people(name,role) values('Membro teste acesso','equipe') returning id"))[0].id;
+    const group = (await q("insert into maia_access_groups(name) values('Equipe teste acesso') returning id"))[0].id;
+    await q("insert into maia_access_group_members(access_group_id,person_id) values($1,$2)", [group, person]);
+    await q("insert into maia_access_group_permissions(access_group_id,permission_code) values($1,'sheets.ler')", [group]);
+    await local.db.exec("set role service_role");
+    try {
+      await q("select set_config('request.jwt.claim.role','service_role',false)");
+      await q("select set_maia_member_access_mode($1,'sheets.ler','bloqueado','5511990000000')", [person]);
+      await q("select set_maia_member_access_mode($1,'sheets.ler','aprovacao','5511990000000')", [person]);
+    } finally { await local.db.exec("reset role"); await q("select set_config('request.jwt.claim.role','',false)"); }
+    assert.equal((await q("select mode from maia_member_access_modes where person_id=$1 and permission_code='sheets.ler'", [person]))[0].mode, "aprovacao");
+    assert.equal((await q("select count(*)::int as n from maia_member_access_audit where person_id=$1", [person]))[0].n, 2);
+    assert.equal((await q("select count(*)::int as n from maia_access_group_permissions where access_group_id=$1", [group]))[0].n, 1);
+    assert.equal((await q("select count(*)::int as n from person_permissions where person_id=$1 and permission_code='sheets.ler'", [person]))[0].n, 0);
+    await local.db.exec("set role anon");
+    try {
+      await rejects(q("select set_maia_member_access_mode($1,'sheets.ler','permitido','falso')", [person]), /permission denied/i);
+      await rejects(q("select * from maia_member_access_audit where person_id=$1", [person]), /permission denied/i);
+    } finally { await local.db.exec("reset role"); }
+    await local.db.exec("set role authenticated");
+    try {
+      await rejects(q("select set_maia_member_access_mode($1,'sheets.ler','permitido','5511990000000')", [person]), /Solicitante não autenticado|Somente proprietário/i);
+      assert.equal((await q("select * from maia_member_access_modes where person_id=$1", [person])).length, 0);
+    } finally { await local.db.exec("reset role"); }
+  });
+});
+
+describe("núcleo: isolamento e execução sem replay", () => {
+  it("uma sessão ativa por escopo inclusive sem cliente; arquivos permanecem históricos", async () => {
+    const owner = "5511990000000";
+    const args = ["whatsapp", `dm:${owner}`, owner, "owner_private"];
+    const insert = () => q("insert into maia_sessions(channel,conversation_key,requester_key,scope_kind) values($1,$2,$3,$4) returning id", args);
+    const first = (await insert())[0].id;
+    await rejects(insert(), /duplicate key/i);
+    await q("update maia_sessions set status='archived' where id=$1", [first]);
+    const second = (await insert())[0].id;
+    await q("update maia_sessions set status='archived' where id=$1", [second]);
+    assert.ok((await insert())[0].id);
+    assert.equal((await q("select count(*)::int as n from maia_sessions where requester_key=$1", [owner]))[0].n, 3);
+  });
+
+  it("reserva etapa uma vez, sem reclamar lease vencido ou resultado externo incerto", async () => {
+    const plan = (await q("insert into maia_plans(title) values('Plano teste lease') returning id"))[0].id;
+    await q("insert into maia_plan_steps(plan_id,step_no,text) values($1,1,'Ação externa')", [plan]);
+    const claim = () => q("select (claim_maia_plan_step($1,1,'worker',1)).status as status", [plan]);
+    assert.equal((await claim())[0].status, "leased");
+    await q("update maia_plan_steps set lease_until=now()-interval '1 second' where plan_id=$1", [plan]);
+    assert.equal((await claim())[0].status, null);
+    await q("update maia_plan_steps set status='uncertain' where plan_id=$1", [plan]);
+    assert.equal((await claim())[0].status, null);
+  });
+
+  it("espelha planos existentes em etapas e cancela só as não iniciadas", async () => {
+    const plan = (await q("insert into maia_plans(title,steps) values('Plano teste etapas','[{\"text\":\"Primeira\",\"done\":true},{\"text\":\"Segunda\",\"done\":false},{\"text\":\"Terceira\",\"done\":false}]'::jsonb) returning id"))[0].id;
+    const before = await q("select step_no,status,depends_on from maia_plan_steps where plan_id=$1 order by step_no", [plan]);
+    assert.deepEqual(before.map((r) => r.status), ["done", "pending", "pending"]);
+    assert.deepEqual(before[2].depends_on, [2]);
+    await q("update maia_plan_steps set status='running' where plan_id=$1 and step_no=2", [plan]);
+    await q("update maia_plans set status='cancelled' where id=$1", [plan]);
+    const after = await q("select status from maia_plan_steps where plan_id=$1 order by step_no", [plan]);
+    assert.deepEqual(after.map((r) => r.status), ["done", "running", "cancelled"]);
+  });
+
+  it("evento do plano é reservado atomicamente e evento anterior ao plano não retoma", async () => {
+    const waiting = JSON.stringify({ type: "approval", id: 123 });
+    const plan = (await q("insert into maia_plans(title,waiting) values('Plano teste evento',$1::jsonb) returning id", [waiting]))[0].id;
+    const claim = (key: string, at = new Date().toISOString()) => q("select claim_maia_waiting_plan($1,$2::jsonb,$3,$4::timestamptz) as ok", [plan, waiting, key, at]);
+    assert.equal((await claim("evento-antigo", "2000-01-01T00:00:00Z"))[0].ok, false);
+    assert.equal((await claim("evento-123"))[0].ok, true);
+    assert.equal((await claim("evento-123"))[0].ok, false);
+    assert.equal((await q("select count(*)::int as n from maia_plan_resumptions where plan_id=$1", [plan]))[0].n, 1);
+  });
+
+  it("reserva rotina só na hora agendada e não repete execução interrompida", async () => {
+    const schedule = (await q("insert into maia_schedules(owner_key,instruction,schedule_kind,schedule_value,destination,status,next_run_at) values('owner','Resumo','once','2026-10-16T00:00:00Z','owner','active',now()-interval '1 minute') returning id,next_run_at"))[0];
+    const run = () => q("select (claim_maia_schedule_run($1,$2,'worker',1)).status as status", [schedule.id, schedule.next_run_at]);
+    assert.equal((await run())[0].status, "leased");
+    await q("update maia_schedule_runs set lease_until=now()-interval '1 second' where schedule_id=$1", [schedule.id]);
+    assert.equal((await run())[0].status, null);
+    await q("update maia_schedules set status='paused' where id=$1", [schedule.id]);
+    assert.equal((await run())[0].status, null);
+  });
+
+  it("retenção remove história de membro/grupo e preserva a do owner", async () => {
+    const member = (await q("insert into maia_sessions(channel,conversation_key,requester_key,scope_kind) values('whatsapp','dm:5511990000001','5511990000001','member_private') returning id"))[0].id;
+    const owner = (await q("select id from maia_sessions where requester_key='5511990000000' and status='active'"))[0].id;
+    await q("insert into maia_session_messages(session_id,at,author,text,source) values($1,now()-interval '8 days','member','antigo','whatsapp'),($2,now()-interval '8 days','owner','preservado','whatsapp')", [member, owner]);
+    const recent = (await q("insert into maia_session_messages(session_id,author,text,source) values($1,'member','recente','whatsapp') returning id", [member]))[0].id;
+    await q("insert into maia_context_summaries(session_id,covers_through_message_id,source,summary,source_message_count) values($1,$2,'worker','contém texto antigo',2)", [member, recent]);
+    assert.equal((await q("select purge_maia_scoped_history() as n"))[0].n, 1);
+    assert.equal((await q("select count(*)::int as n from maia_session_messages where session_id=$1", [member]))[0].n, 1);
+    assert.equal((await q("select count(*)::int as n from maia_context_summaries where session_id=$1", [member]))[0].n, 0);
+    assert.equal((await q("select count(*)::int as n from maia_session_messages where session_id=$1", [owner]))[0].n, 1);
+  });
+
+  it("resumo registra cobertura sem apagar a mensagem de origem", async () => {
+    const session = (await q("select id from maia_sessions where requester_key='5511990000000' and status='active'"))[0].id;
+    const message = (await q("insert into maia_session_messages(session_id,author,text,source) values($1,'owner','decisão original','whatsapp') returning id", [session]))[0].id;
+    await q("insert into maia_context_summaries(session_id,covers_through_message_id,source,summary,source_message_count) values($1,$2,'worker','decisão resumida',1)", [session, message]);
+    await rejects(q("insert into maia_context_summaries(session_id,covers_through_message_id,source,summary,source_message_count) values($1,$2,'worker','duplicado',1)", [session, message]), /duplicate key/i);
+    assert.equal((await q("select text from maia_session_messages where id=$1", [message]))[0].text, "decisão original");
+  });
+
+  it("skill proposta exige ativação explícita e troca versão sem duas ativas", async () => {
+    const first = (await q("insert into maia_skills(slug,version,description,instructions) values('teste-seguro','1','Teste','Consultar') returning id"))[0].id;
+    const second = (await q("insert into maia_skills(slug,version,description,instructions) values('teste-seguro','2','Teste','Consultar') returning id"))[0].id;
+    assert.equal((await q("select status from maia_skills where id=$1", [first]))[0].status, "proposal");
+    await q("select activate_maia_skill($1,'owner-test')", [first]);
+    await q("select activate_maia_skill($1,'owner-test')", [second]);
+    const statuses = await q("select version,status,approved_by from maia_skills where slug='teste-seguro' order by version");
+    assert.deepEqual(statuses.map((r) => r.status), ["archived", "active"]);
+    assert.equal(statuses[1].approved_by, "owner-test");
+  });
+
+  it("subagente só é reservado uma vez e cancelado não pode concluir", async () => {
+    const first = (await q("insert into maia_subagents(objective) values('Analisar contexto') returning id"))[0].id;
+    const second = (await q("insert into maia_subagents(objective) values('Revisar contexto') returning id"))[0].id;
+    assert.equal((await q("select (claim_maia_subagent($1,1)).status as status", [first]))[0].status, "running");
+    assert.equal((await q("select (claim_maia_subagent($1,1)).status as status", [second]))[0].status, null);
+    await q("update maia_subagents set status='cancelled' where id=$1", [first]);
+    assert.equal((await q("select (claim_maia_subagent($1,1)).status as status", [first]))[0].status, null);
+    assert.equal((await q("select (claim_maia_subagent($1,1)).status as status", [second]))[0].status, "running");
+  });
+
+  it("registro MCP impede nome duplicado em escopo sem cliente", async () => {
+    await q("insert into maia_mcp_servers(owner_key,name,transport,endpoint) values('owner-test','externo','http','https://mcp.example.test')");
+    await rejects(q("insert into maia_mcp_servers(owner_key,name,transport,endpoint) values('owner-test','externo','http','https://mcp.example.test')"), /duplicate key/i);
+  });
+});
+
 describe("clientes e grupos de acesso", () => {
   after(async () => { await q("delete from group_messages where conv='8800@g.us'"); });
   let clientA: unknown; let clientB: unknown; let person: unknown; let access: unknown;
@@ -426,7 +566,7 @@ describe("estruturas usadas pelos módulos (integração)", () => {
     await local.db.exec("insert into public.provider_health (provider, state) values ('claude', 'healthy')");
     await rejects(local.db.exec("insert into public.provider_health (provider, state) values ('codex', 'quebrado')"), /check/i);
     const cols = (await q("select column_name from information_schema.columns where table_name = 'agent_runs'")).map((r) => r.column_name);
-    for (const c of ["tokens_in", "tokens_out"]) assert.ok(cols.includes(c), c);
+    for (const c of ["tokens_in", "tokens_out", "cache_read_tokens", "cache_creation_tokens"]) assert.ok(cols.includes(c), c);
     const jev = (await q("select column_name from information_schema.columns where table_name = 'jev_triage'")).map((r) => r.column_name);
     assert.ok(jev.includes("intencao"));
   });

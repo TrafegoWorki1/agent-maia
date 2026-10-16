@@ -5,7 +5,13 @@ import type { Db } from "./store.ts";
 // Releitura antes de executar e entregar: uma alteração de cliente ou revogação
 // durante a fila/aprovação não deve reutilizar a autorização anterior.
 export async function refreshGroupRequester(db: Db, who: Requester): Promise<Requester> {
-  if (!who.groupScope) return who;
+  if (!who.groupScope) {
+    const fresh = await resolveRequester(db, who.number, who.name);
+    if (fresh.role !== who.role) throw new Error("O papel do solicitante mudou durante a execução.");
+    if (who.role === "member" && !fresh.permissions.has("conversa.maia")) throw new Error("A conversa com a Maia não está mais autorizada.");
+    if (who.role === "member" && [...who.permissions].some((code) => !fresh.permissions.has(code))) throw new Error("O acesso do membro mudou durante a execução. Faça um novo pedido.");
+    return fresh;
+  }
   const original = who.groupScope;
   const current = await loadGroupScope(db, original.jid);
   if (!current || current.clientId !== original.clientId || current.accessGroupId !== original.accessGroupId ||

@@ -8,6 +8,29 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-16 — Aplicação das migrações do núcleo e preparação do rollout
+
+- **Banco:** após autorização do owner, reconciliados dois pares de versões com SQL idêntico (`20261015131351`/`20261015123609` e `20261015131420`/`20261015124400`); aplicadas em ordem as migrations `20261016120000`, `20261016130000`, `20261016140000` e `20261016150000` no Supabase configurado no `.env` local.
+- **Verificação:** o histórico remoto contém as versões locais; tabelas principais, função de acesso e RLS foram conferidas por leitura. Documentação de implantação atualizada para distinguir esquema aplicado de código publicado e worker atualizado.
+- **Limite:** nenhuma mensagem, imagem ou publicação externa foi gerada; o worker não foi reiniciado. Testes comportamentais operacionais ainda dependem do código publicado e do worker atualizado.
+
+---
+
+## 2026-10-16 — Núcleo persistente: integração local e segurança
+
+- **Sintoma/causa:** a migração inicial permitia colisão de escopo quando `client_id` era nulo, impedia arquivar/reabrir múltiplas sessões e contratos de núcleo não estavam ligados aos handlers/worker/painel.
+- **Correção:** migration compensatória `20261016130000_maia_nucleus_safety.sql`; sessões e busca com autorização atual, histórico de membros isolado e retenção, resumos com linhagem, ativação de skill pelo owner, reservas idempotentes para planos/rotinas/subagentes, tratamento de resultado externo incerto, painel autenticado e flags independentes no worker.
+- **Limites:** MCP externo tem sondagem e chamadas de leitura explicitamente permitidas, mas ainda não é ferramenta dos executores; navegador/comandos isolados e gatilhos de resposta/arquivo privado continuam pendentes. Retomada por horário e contadores de cache Claude estão registrados na entrada seguinte. Nenhuma migration foi aplicada remotamente, nem integração ou rotina foi ativada.
+- **Validação local:** `pnpm rules:check`, `pnpm typecheck`, `pnpm test` (530 Vitest + 50 banco temporário), `pnpm db:validate` (46 migrations), `pnpm db:guard` e `pnpm build` passaram. Sem mensagens reais, imagens ou chamadas pagas nos testes.
+
+## 2026-10-16 — Cache de entrada do Claude e retomada de plano por horário
+
+- **Mudança:** grava `cache_read_input_tokens` e `cache_creation_input_tokens` quando Claude CLI/SDK os informa; Codex e respostas sem esses campos permanecem nulos. O painel de modelos mostra as somas observadas. Sem estimativa ou promessa de economia.
+- **Planos:** `plano_atualizar` aceita horário ISO futuro em até sete dias; o worker retoma por reserva idempotente a cada 30 segundos. Nenhum efeito incerto recebe replay.
+- **Validação:** migration aditiva `20261016140000_maia_cache_usage.sql`; testes focados cobrem métricas e horário. A migration permanece local e não aplicada remotamente.
+
+---
+
 ## 2026-10-16 — Núcleo persistente da Maia (preparação)
 
 - **Continuidade:** adicionados contratos para sessões por canal/conversa/solicitante/cliente, mensagens com autoria/origem e resumos com cobertura; o histórico original permanece separado da memória do owner.
@@ -1181,3 +1204,12 @@ bug, qual era o sintoma e a causa.
   `127.0.0.1`. Decidir se o `dev` também deve mudar.
 - A URL do túnel Cloudflare muda a cada execução: o launcher re-registra o webhook, mas um túnel
   iniciado fora dele exige novo `--apply`.
+# Acesso de membros por linguagem natural (não implantado)
+
+- Respostas privadas pendentes agora carregam o solicitante e são revalidadas antes do envio, inclusive após retomada do worker; revogação impede novas partes.
+- RPC e tabelas de acesso recebem privilégios explícitos para a Data API com RLS; chamadas sem identidade do proprietário são recusadas.
+- Consulta distingue concessões de equipes globais e de cliente; testes cobrem revogação durante execução e consumo único da aprovação.
+- Ferramentas de localizar, consultar e definir acesso disponíveis no MCP Claude/Codex, com verificação do proprietário no servidor.
+- Modos individuais e auditoria transacional em migração nova; bloqueio individual prevalece sobre equipe.
+- Aprovação vinculada a solicitante, tarefa, ferramenta e parâmetros, expira em 10 minutos e só pode ser consumida uma vez.
+- Releitura das permissões antes das ferramentas e após aprovações; painel de Pessoas relê os modos no banco.

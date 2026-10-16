@@ -123,6 +123,19 @@ export async function markMessageSeen(db: Db, keyId: string, now = new Date()): 
 
 export async function recordMessage(db: Db, input: { channel: Channel; author: Author; text: string }, now = new Date()): Promise<void> {
   unwrap(await db.from("messages").insert({ at: now.toISOString(), channel: input.channel, author: input.author, text: input.text }));
+  if (input.author === "owner" || input.author === "maia") {
+    const number = (process.env.EVOLUTION_OWNER_NUMBER ?? "").replace(/\D/g, "");
+    if (number) {
+      try {
+        const { openSession, appendSessionMessage } = await import("./sessions.ts");
+        const session = await openSession(db, { channel: input.channel, conversationKey: input.channel === "painel" ? "owner:panel" : `dm:${number}`, requesterKey: number, clientId: null, kind: input.channel === "painel" ? "panel" : "owner_private" });
+        await appendSessionMessage(db, { sessionId: session.id, author: input.author, text: input.text, source: input.channel, at: now });
+      } catch (error) {
+        // A migração pode ainda não estar aplicada. Não derrubar o caminho operacional antigo.
+        console.error("[sessions] registro pendente:", error instanceof Error ? error.message : error);
+      }
+    }
+  }
 }
 
 export async function recentMessages(db: Db, limit = 100): Promise<{ id: number; at: string; channel: string; author: string; text: string }[]> {

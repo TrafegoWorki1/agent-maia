@@ -22,6 +22,8 @@ export interface ClaudeCliRun {
   costUsd: number | null;
   tokensIn: number | null;
   tokensOut: number | null;
+  cacheReadTokens: number | null;
+  cacheCreationTokens: number | null;
 }
 
 export interface ClaudeCliInput {
@@ -94,7 +96,7 @@ export function buildCliArgs(input: { tools?: string[]; model?: string; maxBudge
 
 interface StreamState {
   usedTools: string[];
-  result: { reply: string; costUsd: number | null; tokensIn: number | null; tokensOut: number | null } | null;
+  result: { reply: string; costUsd: number | null; tokensIn: number | null; tokensOut: number | null; cacheReadTokens: number | null; cacheCreationTokens: number | null } | null;
 }
 
 // Interpreta uma linha do stream-json. Erros do resultado sobem com o texto do CLI, para o classificador separar
@@ -118,6 +120,8 @@ export function readStreamLine(line: string, state: StreamState): string[] {
       costUsd: event.total_cost_usd ?? null,
       tokensIn: event.usage?.input_tokens ?? null,
       tokensOut: event.usage?.output_tokens ?? null,
+      cacheReadTokens: event.usage?.cache_read_input_tokens ?? null,
+      cacheCreationTokens: event.usage?.cache_creation_input_tokens ?? null,
     };
   }
   return [];

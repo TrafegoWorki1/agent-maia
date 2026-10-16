@@ -62,7 +62,7 @@ export function ModelosPage() {
             ) : (
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Provedor</th><th>Modelo</th><th>Execuções</th><th>Sucesso</th><th>Tempo médio</th><th>Tokens (entrada/saída)</th><th>Custo informado</th></tr></thead>
+                  <thead><tr><th>Provedor</th><th>Modelo</th><th>Execuções</th><th>Sucesso</th><th>Tempo médio</th><th>Tokens (entrada/saída)</th><th>Cache (lidos/criados)</th><th>Custo informado</th></tr></thead>
                   <tbody>
                     {snapshot.modelos.porModelo.map((m) => (
                       <tr key={`${m.provider}-${m.model}`}>
@@ -72,6 +72,7 @@ export function ModelosPage() {
                         <td>{m.sucesso}%</td>
                         <td>{m.duracaoMediaMs === null ? "—" : `${(m.duracaoMediaMs / 1000).toFixed(1)} s`}</td>
                         <td>{show(m.tokensEntrada)} / {show(m.tokensSaida)}</td>
+                        <td>{show(m.tokensCacheLidos)} / {show(m.tokensCacheCriados)}</td>
                         <td>{m.custoUsd === null ? "—" : `US$ ${m.custoUsd.toFixed(3)}`}</td>
                       </tr>
                     ))}

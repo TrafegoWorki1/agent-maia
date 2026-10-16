@@ -69,28 +69,30 @@ export function clientCodexEnvironment(folder: string, base = minimalEnv()): Rec
   return { ...base, CODEX_HOME: home } as Record<string, string>;
 }
 
-export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext }): Promise<CodexTextResult> {
+export async function runCodexText(input: { prompt: string; timeoutMs: number; model: string | null; mcp: CodexMcpContext | null }): Promise<CodexTextResult> {
   const t0 = Date.now();
   const folder = join(TEMP, randomBytes(16).toString("hex"));
   mkdirSync(TEMP, { recursive: true });
   mkdirSync(folder, { mode: 0o700 });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
-  const context = {
+  const context = input.mcp ? {
     MAIA_CODEX_TASK_ID: String(input.mcp.taskId),
     MAIA_CODEX_CHANNEL: input.mcp.channel,
     MAIA_CODEX_GROUP: input.mcp.inGroup ? "1" : "0",
     MAIA_CODEX_IMAGE_ALLOWED: input.mcp.imageAllowed === true ? "1" : "0",
     MAIA_CODEX_PREFERENCE_ALLOWED: input.mcp.preferenceAllowed === true ? "1" : "0",
     MAIA_CODEX_REQUESTER: JSON.stringify({ ...input.mcp.requester, permissions: [...input.mcp.requester.permissions] }),
-  };
+  } : null;
   try {
     const codex = new Codex({
       // Usa o Codex já autenticado nesta máquina. O ambiente mínimo não contém
       // segredo do projeto; o processo MCP lê o .env somente do lado servidor.
       codexPathOverride: codexExecutable(),
-      env: input.mcp.requester.groupScope?.clientId ? clientCodexEnvironment(folder) : minimalEnv() as Record<string, string>,
-      config: { ...(input.mcp.requester.groupScope?.clientId ? CLIENT_CODEX_POLICY : {}), mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context, ...MAIA_MCP_POLICY } } },
+      env: !input.mcp || input.mcp.requester.groupScope?.clientId ? clientCodexEnvironment(folder) : minimalEnv() as Record<string, string>,
+      config: input.mcp
+        ? { ...(input.mcp.requester.groupScope?.clientId ? CLIENT_CODEX_POLICY : {}), mcp_servers: { maia: { command: process.execPath, args: [MCP], env: context!, ...MAIA_MCP_POLICY } } }
+        : { ...CLIENT_CODEX_POLICY, mcp_servers: {} },
     });
     const thread = codex.startThread({
       ...(input.model ? { model: input.model } : {}),
@@ -104,7 +106,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     const run = await thread.runStreamed(input.prompt, { signal: controller.signal });
     let final = "";
     for await (const event of run.events) {
-      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") await input.mcp.onToolUse?.(`mcp__maia__${event.item.tool}`, event.item.status === "failed" || !!event.item.error);
+      if (event.type === "item.completed" && event.item.type === "mcp_tool_call") await input.mcp?.onToolUse?.(`mcp__maia__${event.item.tool}`, event.item.status === "failed" || !!event.item.error);
       if (event.type === "item.completed" && event.item.type === "agent_message") final = event.item.text;
     }
     if (!final.trim()) return { ok: false, error: "o Codex não devolveu resposta", durationMs: Date.now() - t0 };

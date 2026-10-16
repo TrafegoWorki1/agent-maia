@@ -4,7 +4,7 @@ import { parseSkillMarkdown, skillMatches } from "../server/skills.ts";
 import { validateStepDependencies } from "../server/planExecution.ts";
 import { nextCronAt, nextScheduleAt } from "../server/scheduler.ts";
 import { decideControlledExecution } from "../server/controlledExecution.ts";
-import { authorizeMcpTool, validateMcpServer } from "../server/mcpRegistry.ts";
+import { allowedMcpEndpoint, authorizeMcpTool, validateMcpServer } from "../server/mcpRegistry.ts";
 
 describe("núcleo persistente da Maia", () => {
   it("comprime mensagens sem apagar a fonte e registra cobertura", () => {
@@ -31,6 +31,8 @@ describe("núcleo persistente da Maia", () => {
     expect(nextScheduleAt("interval", "2h", base)?.toISOString()).toBe("2026-10-16T17:00:00.000Z");
     expect(nextCronAt("*/15 * * * *", base)?.toISOString()).toBe("2026-10-16T15:15:00.000Z");
     expect(nextCronAt("30 12 * * *", base)?.getMinutes()).toBe(30);
+    expect(nextCronAt("30 12 * * *", new Date("2026-10-16T14:00:00Z"), "America/Sao_Paulo")?.toISOString()).toBe("2026-10-16T15:30:00.000Z");
+    expect(nextCronAt("30 12 * * *", base, "Invalid/Zone")).toBeNull();
   });
 
   it("mantém execução controlada desabilitada e MCP em allowlist", () => {
@@ -38,5 +40,8 @@ describe("núcleo persistente da Maia", () => {
     expect(validateMcpServer({ ownerKey: "owner", clientId: null, name: "externo", transport: "http", allowedTools: [], timeoutMs: 10000 }).join(" ")).toMatch(/endpoint/);
     expect(authorizeMcpTool({ name: "externo", allowed_tools: ["listar"], status: "configured" }, "publicar").allowed).toBe(false);
     expect(authorizeMcpTool({ name: "externo", allowed_tools: ["listar"], status: "configured" }, "listar").allowed).toBe(true);
+    expect(allowedMcpEndpoint("https://mcp.example.test/api", "mcp.example.test")).toBe(true);
+    expect(allowedMcpEndpoint("http://mcp.example.test/api", "mcp.example.test")).toBe(false);
+    expect(allowedMcpEndpoint("https://attacker.test/api", "mcp.example.test")).toBe(false);
   });
 });

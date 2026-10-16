@@ -63,7 +63,7 @@ async function contactedNumbers(): Promise<Set<string>> {
 // falar com a Maia no privado, dentro do que pode). Cache de 10 s, mesmo padrão dos outros.
 let membersCache: { at: number; numbers: Set<string> } | null = null;
 async function membersWithConversa(): Promise<Set<string>> {
-  if (membersCache && Date.now() - membersCache.at < 10_000) return membersCache.numbers;
+  // Não reutilizar uma lista antiga após revogação administrativa.
   try {
     const db = supabaseFromEnv();
     const perms = await db.from("person_permissions").select("person_id").eq("permission_code", "conversa.maia");
@@ -73,9 +73,12 @@ async function membersWithConversa(): Promise<Set<string>> {
     const inherited = grants.data?.length ? await db.from("maia_access_group_members").select("person_id").in("access_group_id", grants.data.map((g) => g.access_group_id)) : { data: [], error: null };
     if (grants.error || inherited.error) throw new Error("Permissões herdadas indisponíveis");
     const personIds = [...new Set([...(perms.data ?? []).map((r) => r.person_id), ...(inherited.data ?? []).map((r) => r.person_id)])];
+    const overrides = personIds.length ? await db.from("maia_member_access_modes").select("person_id,mode").eq("permission_code", "conversa.maia").in("person_id", personIds) : { data: [], error: null };
+    if (overrides.error) throw new Error("Modos individuais indisponíveis");
+    const allowedIds = personIds.filter((id) => !(overrides.data ?? []).some((o) => o.person_id === id && (o.mode === "bloqueado" || o.mode === "aprovacao")));
     let numbers = new Set<string>();
-    if (personIds.length > 0) {
-      const people = await db.from("people").select("id").in("id", personIds).eq("active", true).neq("role", "proprietario");
+    if (allowedIds.length > 0) {
+      const people = await db.from("people").select("id").in("id", allowedIds).eq("active", true).neq("role", "proprietario");
       const activeIds = (people.data ?? []).map((r) => r.id);
       if (activeIds.length > 0) {
         const nums = await db.from("person_numbers").select("number").in("person_id", activeIds);
@@ -85,7 +88,7 @@ async function membersWithConversa(): Promise<Set<string>> {
     membersCache = { at: Date.now(), numbers };
   } catch {
     // Sem o banco, mantém a última lista conhecida; sem lista, nenhum membro fala no privado.
-    membersCache = { at: Date.now(), numbers: membersCache?.numbers ?? new Set() };
+    membersCache = { at: Date.now(), numbers: new Set() };
   }
   return membersCache.numbers;
 }

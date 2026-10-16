@@ -10,7 +10,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const url = process.env.SUPABASE_URL, key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return json(res, 500, { error: "config_missing" });
   const caller = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
-  const owner = await caller.rpc("is_owner");
-  if (owner.error || owner.data !== true) return json(res, 403, { error: "owner_only" });
-  return handleNucleus(req, res, supabaseFromEnv());
+  const [owner, user] = await Promise.all([caller.rpc("is_owner"), caller.auth.getUser(token)]);
+  if (owner.error || owner.data !== true || !user.data.user) return json(res, 403, { error: "owner_only" });
+  return handleNucleus(req, res, supabaseFromEnv(), user.data.user.id);
 }

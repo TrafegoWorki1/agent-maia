@@ -1,6 +1,18 @@
 # Pendências atuais da Maia
 
-Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
+
+## Núcleo da Maia — pendências de ativação e escopo
+
+- [x] Persistência/busca de sessões de owner e membros com revalidação, migrações locais, painel autenticado, reserva atômica de planos/rotinas/subagentes e testes em banco temporário.
+- [x] Aplicar no Supabase do projeto as migrações `20261016120000`, `20261016130000`, `20261016140000` e `20261016150000`; histórico remoto conferido em 16/10/2026.
+- [ ] Publicar o código dependente e atualizar/reiniciar um único worker; a aplicação das migrações não ativa o código local.
+- [ ] Validar recuperação de membro e revogação de `conversa.maia` e acesso ao grupo em ambiente operacional; não usar clientes reais como teste automático.
+- [ ] Habilitar separadamente resumos, skills, subagentes e rotinas após revisão de limites, custos e entregas; MCP externo continua fora do catálogo dos executores.
+- [x] Retomar planos por horário ISO futuro (até sete dias) com reserva idempotente no worker.
+- [x] Registrar e exibir contadores de cache de entrada informados pelo Claude; valores ausentes ficam nulos.
+- [ ] Implementar gatilhos gerais de plano por resposta/arquivo privado e obrigatoriedade de plano estruturado para todos os pedidos com múltiplas etapas.
+- [ ] Medir custo efetivo e implantar runner isolado para navegador/comandos somente em ambiente com runtime e autorização explícita.
 
 ## Atualizado em 13/10/2026 — Vibe Code em andamento
 
@@ -22,8 +34,8 @@ Atualizado em 13/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Contratos de subagentes supervisionados com limites e cancelamento
 - [x] Registro configurável de servidores MCP, allowlist e timeout
 - [x] Política de navegador/comandos desabilitada por padrão
-- [ ] Expor sessões, planos, subagentes, skills e rotinas no painel com dados autenticados
-- [ ] Integrar execução de subagentes ao Claude/Codex após revisão de permissões
+- [x] Expor sessões do owner, planos, subagentes, skills e rotinas no painel autenticado, com estados vazios honestos.
+- [x] Integrar subagentes textuais isolados ao Codex sem ferramentas; ativação do worker e consumo pago permanecem pendentes.
 
 **Etapa 2 — pendente** (Plano 02: dados reais nos novos departamentos)
 - [ ] Clientes e CS: vincular `maia_clients` e grupos com dados reais
@@ -125,3 +137,10 @@ As ferramentas Instagram agora estão disponíveis nos executores Claude e Codex
 
 - [ ] Jev: rotular ~100 mensagens reais; só considerar roteamento ativo com 200 rotuladas e 85% na faixa de alta confiança. Usar complexidade=simples para modelo mais barato em modo sombra.
 - [ ] PRs #7 (docs) e #8 (áudio sem eco) aguardam merge; depois, testes ao vivo de cofre, prospecção, citação/áudio em grupo e menção fantasma.
+# Administração de acessos — implantação pendente
+
+- Integrar as capacidades do catálogo ainda sem política efetiva (incluindo `painel.ver`) antes de permitir sua administração por linguagem natural; criar fluxo próprio para entrada com OK pontual se esse modo for necessário.
+- [x] Aplicar `20261016150000_maia_member_access_modes.sql` no Supabase do projeto; tabelas, função e RLS verificadas por leitura.
+- [ ] Verificar auditoria com dados de teste e reiniciar o worker somente depois do rollout do código.
+- Validar manualmente no WhatsApp owner: nome ambíguo, equipe herdada, bloqueio e aprovação pontual; confirmar no painel após leitura do banco.
+- Validar operacionalmente, com autorização do owner, a corrida residual entre a checagem imediatamente anterior e a aceitação de um efeito externo; efeitos já aceitos não são reversíveis.

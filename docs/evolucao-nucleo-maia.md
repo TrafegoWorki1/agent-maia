@@ -99,8 +99,54 @@ privados do banco.
 - `CHANGELOG.md`, `docs/erros-e-mudancas.md`, README e pendências refletem o que foi
   implementado, o que foi testado e o que permanece operacionalmente pendente.
 
-## Estado desta implementação
+## Estado local antes da aplicação remota em 16/10/2026
 
-Esta entrega implementa as etapas 1–5 em contratos de servidor, migração e testes puros;
-o painel e a ativação operacional ficam preparados/documentados quando dependerem de
-configuração ou de aplicação remota da migração.
+O código usa as migrações `20261016120000_maia_nucleus_v1.sql` (estrutura inicial),
+`20261016130000_maia_nucleus_safety.sql` (unicidade de escopo, reservas, retenção,
+revisão e eventos idempotentes) e `20261016140000_maia_cache_usage.sql` (contadores
+de cache retornados pelo Claude). A primeira migration não foi editada. As três
+passaram em banco PGlite temporário. Esta descrição registra o estado anterior
+à aplicação remota documentada em "Rollout" abaixo.
+
+Sessões do owner e de membros autorizados são gravadas por canal, conversa,
+solicitante e cliente. No privado, `conversa.maia` é conferida novamente em cada
+recuperação/busca. Em grupo, a recuperação exige também que grupo e cliente
+continuem ativos e o solicitante conserve acesso. Nova conversa arquiva a
+anterior sem apagar a fonte; resumos guardam cobertura e referências. O painel
+autenticado exibe apenas sessões privadas do owner, permite buscar nelas e
+acompanha planos, skills, subagentes e rotinas. Retenção atual: mensagens de
+membros/grupos por 7 dias; o worker expurga o texto vencido quando ativo.
+
+O worker pode sincronizar propostas de skills, resumir sessões e executar
+subagentes/rotinas textuais isolados mediante flags independentes. Rotinas são
+criadas pausadas, revalidam o destino do owner e não recebem ferramentas.
+Subagentes iniciais analisam apenas o contexto fornecido: "pesquisa" não
+significa acesso à web. Resultado de execução e confirmação de entrega são
+estados distintos. O registro MCP permite sondar servidores Streamable HTTP
+HTTPS autorizados e chamadas de leitura expressamente permitidas, mas não
+injeta essas ferramentas nos executores Claude/Codex. Navegador e comandos
+isolados permanecem indisponíveis: não há runtime Docker neste ambiente.
+
+Ainda faltam gatilhos gerais de resposta/arquivo privado, obrigatoriedade
+estrutural para todo pedido de múltiplas etapas e integração MCP nos catálogos
+dos executores. Gatilhos de horário ISO futuro até sete dias estão disponíveis,
+junto com aprovação, entrada e arquivo em grupo; todos usam reserva atômica e
+bloqueiam eventos antigos. Cache de entrada lido/criado é armazenado somente
+quando Claude retorna os contadores; Codex fica nulo. Efeitos externos incertos
+exigem revisão, sem replay automático.
+
+Verificações locais: `pnpm rules:check`, `pnpm typecheck`, `pnpm test`
+(530 Vitest + 50 banco), `pnpm db:validate` (46 migrations), `pnpm db:guard`
+e `pnpm build` passaram. Não foram enviados WhatsApps reais, nem geradas
+imagens, nem consumidos modelos pagos para testar.
+
+Rollout: as quatro migrations do núcleo/acessos (`20261016120000` a
+`20261016150000`) foram aplicadas ao Supabase do projeto em 16/10/2026,
+na ordem de versão, após reconciliação autorizada de dois pares de versões
+com SQL idêntico. O código dependente ainda precisa ser publicado; flags e
+conexões opcionais não são ativadas automaticamente. Atualizar/reiniciar um
+único worker depois do deploy. Verificar uma sessão
+de membro e sua revogação, leases e entregas antes de ampliar flags. Reversão:
+desligar flags e voltar código/worker à versão compatível; manter dados
+históricos e criar migration compensatória se for necessário ajustar esquema.
+Não apagar tabelas nem presumir que envios anteriores podem ser desfeitos.

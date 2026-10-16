@@ -1,5 +1,8 @@
 import { z } from "zod";
 import type { Db } from "./store.ts";
+import { canConverse, resolveRequester } from "./access.ts";
+import { canAccessGroup, loadGroupScope } from "./groupScope.ts";
+import { samePhone } from "./evolutionWebhook.ts";
 
 export const sessionScopeSchema = z.object({
   channel: z.enum(["whatsapp", "painel"]),
@@ -75,8 +78,10 @@ export async function openSession(db: Db, input: SessionScope & { title?: string
 
 export async function startNewSession(db: Db, input: SessionScope & { title?: string }): Promise<MaiaSession> {
   const scope = scopeValue(input);
-  const { error: archiveError } = await db.from("maia_sessions").update({ status: "archived", updated_at: new Date().toISOString() })
+  let archive = db.from("maia_sessions").update({ status: "archived", updated_at: new Date().toISOString() })
     .eq("channel", scope.channel).eq("conversation_key", scope.conversationKey).eq("requester_key", scope.requesterKey).eq("scope_kind", scope.kind).eq("status", "active");
+  archive = scope.clientId ? archive.eq("client_id", scope.clientId) : archive.is("client_id", null);
+  const { error: archiveError } = await archive;
   if (archiveError) throw new Error(`Não consegui iniciar nova sessão: ${archiveError.message}`);
   return openSession(db, input);
 }
@@ -119,4 +124,35 @@ export async function searchSessionMessages(db: Db, sessionId: string, queryText
 export async function authorizedSessionMessages(db: Db, session: MaiaSession, authorize: (session: MaiaSession) => Promise<boolean>, limit = 120): Promise<SessionMessage[]> {
   if (!(await authorize(session))) throw new Error("Acesso ao contexto recusado; a sessão não foi lida.");
   return sessionMessages(db, session.id, limit);
+}
+
+// Recarrega o escopo do banco em cada leitura: um objeto de sessão antigo não é autorização.
+export async function canReadSession(db: Db, sessionId: string, requesterNumber: string, channel: SessionScope["channel"]): Promise<MaiaSession | null> {
+  const { data, error } = await db.from("maia_sessions").select(SESSION_SELECT).eq("id", sessionId).maybeSingle();
+  if (error || !data) return null;
+  const session = data as MaiaSession;
+  if (session.channel !== channel) return null;
+  const requester = await resolveRequester(db, requesterNumber, "", session.client_id);
+  if (session.scope_kind === "owner_private" || session.scope_kind === "panel") {
+    return requester.role === "owner" && samePhone(requesterNumber, session.requester_key) ? session : null;
+  }
+  if (!samePhone(requesterNumber, session.requester_key)) return null;
+  if (session.scope_kind === "member_private") return canConverse(requester) ? session : null;
+  if (session.scope_kind === "group") {
+    const scope = await loadGroupScope(db, session.conversation_key);
+    return scope && scope.clientId === session.client_id && canAccessGroup(requester, scope) ? session : null;
+  }
+  return null;
+}
+
+export async function readAuthorizedSession(db: Db, sessionId: string, requesterNumber: string, channel: SessionScope["channel"], limit = 120): Promise<SessionMessage[]> {
+  const session = await canReadSession(db, sessionId, requesterNumber, channel);
+  if (!session) throw new Error("Acesso ao contexto recusado.");
+  return sessionMessages(db, session.id, limit);
+}
+
+export async function searchAuthorizedSessionMessages(db: Db, sessionId: string, requesterNumber: string, channel: SessionScope["channel"], query: string, limit = 20): Promise<SessionMessage[]> {
+  const session = await canReadSession(db, sessionId, requesterNumber, channel);
+  if (!session) throw new Error("Acesso ao contexto recusado.");
+  return searchSessionMessages(db, session.id, query, limit);
 }

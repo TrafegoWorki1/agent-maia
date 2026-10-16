@@ -17,6 +17,8 @@ import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { organizationTools } from "./organization.ts";
+import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
+import { resolveRequester } from "./access.ts";
 import { addTaskEvent, getDb, recordMessage } from "./store.ts";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, registerGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
@@ -25,6 +27,7 @@ import { activateIntegration, callIntegration, listIntegrations, parseJsonObject
 import { participantsWithOwner, requestCreateGroup } from "./groups.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
+import { proposeSkill } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 
@@ -54,7 +57,7 @@ function zernioErrorText(error: unknown): string {
   return error instanceof ZernioError ? error.message : error instanceof Error ? error.message : String(error);
 }
 
-export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false, allowOwnerMemory = false) {
+export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false, allowOwnerMemory = false, requesterNumber = "") {
   return createSdkMcpServer({
     name: "maia",
     version: "1.0.0",
@@ -80,6 +83,14 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ...organizationTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
         catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no cadastro." }], isError: true }; }
+      })),
+      ...memberAccessTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try {
+          const actor = await resolveRequester(getDb(), requesterNumber, "");
+          if (channel !== "whatsapp" || !isOwner || actor.role !== "owner") throw new Error("Administração de acesso exclusiva do proprietário autenticado no WhatsApp privado.");
+          const value = await runMemberAccessTool(getDb(), t.name, args, requesterNumber, taskId);
+          return { content: [{ type: "text" as const, text: JSON.stringify(value) }] };
+        } catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Acesso negado." }], isError: true }; }
       })),
       ...workTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args, taskId)) }] }; }
@@ -298,13 +309,18 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           catch (error) { return { content: [{ type: "text", text: `Não gravei o plano: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
         },
       ),
+      tool("skill_propor", "Propõe um procedimento Markdown reutilizável a partir de uma tarefa já concluída. Não ativa a skill; o owner precisa revisar e aprovar no painel.", { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) }, async ({ tarefa, markdown }) => {
+        if (!isOwner || !allowOwnerMemory) return { content: [{ type: "text", text: "Skills só podem ser propostas pelo owner em conversa privada." }], isError: true };
+        try { const id = await proposeSkill(getDb(), markdown, tarefa); return { content: [{ type: "text", text: `Proposta de skill ${id} registrada. Aguardando aprovação explícita do owner no painel.` }] }; }
+        catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true }; }
+      }),
       tool(
         "plano_atualizar",
         PLAN_UPDATE_DESCRIPTION,
         {
           plano: z.number().int().min(1),
           etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional().describe("Números (a partir de 1) das etapas já feitas."),
-          esperar: z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional().describe("A próxima etapa espera alguém entrar neste grupo, ou um arquivo enviado nele (o número é de quem deve entrar ou enviar)."),
+          esperar: z.union([z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }), z.object({ tipo: z.literal("horario"), instante: z.string().datetime({ offset: true }) })]).optional().describe("A próxima etapa espera uma entrada/arquivo no grupo ou um horário ISO futuro dentro de sete dias."),
           limpar_espera: z.boolean().optional(),
           nota: z.string().max(500).optional(),
           concluir: z.boolean().optional(),

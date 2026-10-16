@@ -4,6 +4,23 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-16 — Esquema remoto aplicado, ativação do worker pendente
+
+- Dois pares de versões de migration foram reconciliados somente após comparação de SQL idêntico e autorização do owner. As quatro migrations do núcleo e de acessos (`20261016120000` a `20261016150000`) foram aplicadas ao Supabase configurado no projeto.
+- Histórico remoto, tabelas, RPC e RLS principais foram conferidos. O esquema aplicado não equivale a código/worker implantado; testes reais de WhatsApp e entrega seguem pendentes.
+
+## 2026-10-16 — Gatilho de horário e métricas de cache
+
+- Planos agora podem esperar um horário ISO futuro até sete dias; o worker faz claim idempotente a cada 30 segundos.
+- Tokens de cache de leitura/criação são persistidos e mostrados se vierem no resultado do Claude; demais provedores e campos ausentes ficam nulos.
+- Migration `20261016140000_maia_cache_usage.sql` validada localmente. Ativação remota continua pendente.
+
+## 2026-10-16 — Integração local do núcleo
+
+- **Falha encontrada:** a unicidade da migration inicial não protegia `client_id` nulo e bloqueava novas sessões depois de arquivar a anterior; reservas vencidas podiam sugerir repetição de efeito externo incerto.
+- **Correção:** migration `20261016130000_maia_nucleus_safety.sql`, busca com revalidação de permissão, retenção de história de membros, eventos/leases atômicos e painel/worker conectados sob flags desativadas. A v1 permanece intacta.
+- **Resultado:** 530 testes Vitest e 50 testes de banco temporário passaram, além de typecheck, build, regras e guards. Nenhuma migration remota, envio, imagem ou execução paga foi realizada. O rollout e as limitações estão em `docs/evolucao-nucleo-maia.md`.
+
 ## 2026-10-16 — Núcleo persistente em preparação
 
 - **Causa:** a continuidade operacional estava concentrada em mensagens recentes de 24 h e em memórias do owner; faltavam contratos compartilhados para sessões isoladas, resumos rastreáveis, skills, leases de etapas, subagentes, rotinas e MCP configurável.
@@ -841,3 +858,8 @@ Os itens abaixo registram as verificações intermediárias e a causa/correção
 - Imagem, vídeo e documento do dono agora são entendidos pela Maia (`server/media.ts`). Exige a migração `20261009224229_maia_inbox_kind_media` (amplia `inbox.kind`), ainda não aplicada em produção. Leitura de arquivos pelo agente passou a ser limitada por papel (antes Read/Grep eram livres).
 
 - Corrigido: o drift comparava o texto das funções com fim de linha CRLF (checkout no Windows) e acusava divergência falsa. Agora o hash ignora CR e há `.gitattributes` forçando LF nas migrações. Regra do banco `midia` (31) criada.
+# Modos de acesso de membros
+
+Complemento: a entrega privada persistida não guardava o solicitante, então uma resposta produzida antes da revogação ainda podia ser enviada após reinício. Agora guarda o vínculo e revalida papel, número e permissões imediatamente antes de cada parte. Respostas já aceitas pela Evolution não podem ser desfeitas.
+
+O fluxo anterior carregava permissões uma vez por conversa privada e não distinguia concessão herdada de bloqueio individual. O fluxo novo relê o cadastro a cada chamada e após OK, registra modos por pessoa/capacidade e não usa memória do owner como fonte de autorização. O OK é específico para a operação e não vira concessão permanente. Compartilhamento externo do Drive permanece fora deste controle.

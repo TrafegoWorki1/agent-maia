@@ -24,13 +24,15 @@ import { recordConvMessage } from "./conversations.ts";
 import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, participantsWithOwner, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
-import { approverNumbers, createApproval, openApprovals, waitApproval } from "./approvals.ts";
+import { approverNumbers, approvalBinding, consumeApproval, createApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { accessContext } from "./accessContext.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
+import { proposeSkill } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
-import { decideAccess, ownerRequester, type Requester } from "./access.ts";
+import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
+import { decideAccess, resolveRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { isLocalSafeTool } from "./maiaImageTool.ts";
 import { refreshGroupRequester } from "./groupAuthorization.ts";
@@ -54,7 +56,7 @@ function requester(): Requester {
       return { role: raw.role, name: raw.name ?? "", number: raw.number ?? "", permissions: new Set(raw.permissions), groupScope: raw.groupScope, accessGroups: raw.accessGroups, clientIds: raw.clientIds };
     }
   } catch {}
-  return ownerRequester();
+  return { role: "guest", name: "", number: "", permissions: new Set() };
 }
 
 function result(text: string, isError = false) {
@@ -78,7 +80,8 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
     return { ok: false, message: "Já existe outra ação aguardando aprovação do dono." };
   }
   const action = describeAction(tool, input);
-  const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: action.slice(0, 500), taskId });
+  const binding = approvalBinding(who.number, tool, input, taskId);
+  const approval = await createApproval(db, { kind: "ferramenta", toolName: tool, summary: action.slice(0, 500), taskId, payload: binding });
   await setTaskStatus(db, taskId, "aguardando_aprovacao");
   await addTaskEvent(db, taskId, "approval_requested", tool, null);
   // Decisão do owner (10/10/2026): nunca mostrar nome de ferramenta nem JSON no pedido de OK.
@@ -89,7 +92,11 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   await setTaskStatus(db, taskId, "em_andamento");
   await addTaskEvent(db, taskId, outcome === "approved" ? "approval_approved" : outcome === "denied" ? "approval_denied" : "approval_expired", tool, null);
   if (outcome === "approved") {
-    try { await refreshGroupRequester(db, who); }
+    try {
+      who = await refreshGroupRequester(db, who);
+      const latest = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+      if (latest.decision === "deny" || !await consumeApproval(db, approval.id, binding)) return { ok: false, message: "Acesso revogado, aprovação expirada ou já utilizada." };
+    }
     catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
   }
   return outcome === "approved" ? { ok: true } : { ok: false, message: "Ação recusada ou sem aprovação do dono." };
@@ -110,6 +117,14 @@ const server = new McpServer({ name: "maia", version: "1.0.0" });
 for (const t of organizationTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of memberAccessTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) => {
+    const actor = await resolveRequester(getDb(), requester().number, "");
+    if (channel !== "whatsapp" || inGroup || actor.role !== "owner") return result("Administração de acesso exclusiva do proprietário autenticado no WhatsApp privado.", true);
+    return guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await runMemberAccessTool(getDb(), t.name, args, actor.number, taskId)));
+  });
 }
 
 for (const t of workTools) {
@@ -434,7 +449,13 @@ server.registerTool("plano_criar", { description: PLAN_CREATE_DESCRIPTION, input
   return runPlanCreate(getDb(), args, taskId);
 }));
 
-server.registerTool("plano_atualizar", { description: PLAN_UPDATE_DESCRIPTION, inputSchema: { plano: z.number().int().min(1), etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional(), esperar: z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }).optional(), limpar_espera: z.boolean().optional(), nota: z.string().max(500).optional(), concluir: z.boolean().optional(), cancelar: z.boolean().optional() } }, async (args) => guarded("mcp__maia__plano_atualizar", args, async () => {
+server.registerTool("skill_propor", { description: "Propõe skill Markdown derivada de tarefa concluída; não ativa. Requer aprovação explícita do owner no painel.", inputSchema: { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) } }, async (args) => guarded("mcp__maia__skill_propor", args, async () => {
+  if (requester().role !== "owner" || inGroup) throw new Error("Skills só podem ser propostas pelo owner em conversa privada.");
+  const id = await proposeSkill(getDb(), args.markdown, args.tarefa);
+  return `Proposta de skill ${id} registrada; aguardando revisão do owner no painel.`;
+}));
+
+server.registerTool("plano_atualizar", { description: PLAN_UPDATE_DESCRIPTION, inputSchema: { plano: z.number().int().min(1), etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional(), esperar: z.union([z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }), z.object({ tipo: z.literal("horario"), instante: z.string().datetime({ offset: true }) })]).optional(), limpar_espera: z.boolean().optional(), nota: z.string().max(500).optional(), concluir: z.boolean().optional(), cancelar: z.boolean().optional() } }, async (args) => guarded("mcp__maia__plano_atualizar", args, async () => {
   if (requester().role !== "owner") throw new Error("Só o owner altera planos.");
   const result = await runPlanUpdate(getDb(), args);
   if (!result.ok) throw new Error(result.text);

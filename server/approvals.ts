@@ -1,10 +1,20 @@
 import type { Db } from "./store.ts";
+import { createHash } from "node:crypto";
 
 // Aprovações persistidas no banco. Cada pedido tem número (SIM 12 / NÃO 12), prazo e o processo que o espera.
 // Um SIM ou NÃO sem número só vale quando há exatamente um pedido aberto.
 // Se o processo que esperava a aprovação já não existe (a Maia reiniciou), o pedido não é executado.
 
 export const APPROVAL_TTL_MS = 10 * 60 * 1000;
+export function approvalBinding(number: string, toolName: string, input: Record<string, unknown>, taskId: number) {
+  return { requester: number.replace(/\D/g, ""), operation: toolName, resource: createHash("sha256").update(JSON.stringify(input)).digest("hex"), taskId };
+}
+
+export async function consumeApproval(db: Db, id: number, binding: ReturnType<typeof approvalBinding>): Promise<boolean> {
+  const result = await db.from("approvals").update({ status: "consumed" }).eq("id", id).eq("status", "approved").gt("expires_at", new Date().toISOString()).contains("payload", binding).select("id");
+  if (result.error) throw new Error(result.error.message);
+  return (result.data ?? []).length === 1;
+}
 const POLL_MS = 1_500;
 
 // Quem aprova ações: quem tem a permissão escrita.aprovar no painel (Pessoas), ativo e com número.

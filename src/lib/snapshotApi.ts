@@ -24,7 +24,7 @@ export interface SheetsData {
 export interface ModelosView {
   error?: string;
   total: number;
-  porModelo: { provider: string; model: string; execucoes: number; sucesso: number; duracaoMediaMs: number | null; tokensEntrada: number | null; tokensSaida: number | null; custoUsd: number | null }[];
+  porModelo: { provider: string; model: string; execucoes: number; sucesso: number; duracaoMediaMs: number | null; tokensEntrada: number | null; tokensSaida: number | null; tokensCacheLidos: number | null; tokensCacheCriados: number | null; custoUsd: number | null }[];
   porCategoria: Record<string, number>;
   taxaFallback: number;
   fallbacks: { em: string; de: string | null; para: string | null; motivo: string | null }[];

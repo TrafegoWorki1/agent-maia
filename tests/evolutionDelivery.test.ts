@@ -35,7 +35,7 @@ describe("entrega confirmada e diagnóstico sem dados privados", () => {
   });
   it("envio simples também exige aceitação das partes", async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{"key":{"id":"message-1"}}',{ status:201 }))); vi.stubGlobal("fetch",fetch);
-    await sendOwnerText("5511999999999","A".repeat(3500)); expect(fetch).toHaveBeenCalledTimes(2);
+    await sendOwnerText("5511999999999","A".repeat(3500)); expect(fetch.mock.calls.filter(([url]) => String(url).includes("/message/sendText/"))).toHaveLength(2);
     expect(deliveryDiagnostic({ message:"sensitive unknown message" })).toBe("sem diagnóstico seguro retornado");
   });
 
