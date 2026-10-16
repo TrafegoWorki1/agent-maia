@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PageHeader, Panel } from "../../components/ui";
+import { IndicatorCard } from "../../components/WorkIndicators";
 import { MANUAL_SECTIONS } from "../../data/manual";
 import { formatMoney, formatWhen, type Snapshot } from "../../lib/snapshotApi";
 import { useSnapshot } from "../../lib/useSnapshot";
@@ -36,18 +37,8 @@ const INCIDENT_LABELS: Record<string, string> = {
 };
 
 function Kpi({ label, value, helper, status }: { label: string; value: string; helper?: string; status?: "alvo" | "atencao" | "critico" | "sem_dado" }) {
-  const tone = status ?? "sem_dado";
-  return (
-    <article className={`metric-card metric-${tone}`}>
-      <div className="metric-topline">
-        <span className="metric-label">{label}</span>
-      </div>
-      <div className="metric-value-row">
-        <strong className="metric-value">{value}</strong>
-      </div>
-      {helper && <p className="metric-helper">{helper}</p>}
-    </article>
-  );
+  const missing = value === "sem dado" || value === "sem amostra suficiente";
+  return <IndicatorCard label={label} value={missing ? null : value} helper={helper ?? (missing ? "Sem amostra suficiente no período" : "Dados registrados da operação")} category="Maia" tone={status === "critico" ? "danger" : status === "atencao" ? "attention" : "neutral"} />;
 }
 
 function Table({ head, rows, empty }: { head: string[]; rows: ReactNode[][]; empty: string }) {
@@ -166,21 +157,23 @@ export function IndicadoresPage() {
           return (
             <>
               <Panel title="Entrega operacional" caption={`Semana ${q.week} · execuções operacionais registradas. Conversas simples não entram nesta amostra.`}>
-                <section className="metrics-grid" aria-label="Desempenho operacional">
+                <section className="work-indicator-grid work-indicator-grid-compact" aria-label="Desempenho operacional">
                   <Kpi label="Pedidos operacionais" value={String(counts.tasks)} helper="Total da semana" />
                   <Kpi label="Taxa de resposta" value={counts.tasks ? `${Math.round(counts.replied / counts.tasks * 100)}%` : "sem dado"} helper={`${counts.replied} de ${counts.tasks} pedidos com resposta registrada`} />
                   <Kpi label="Execuções sem erro ou interrupção" value={counts.terminal ? `${Math.round(completed / counts.terminal * 100)}%` : "sem dado"} helper={`${completed} de ${counts.terminal} encerradas; não comprova a resolução de todo pedido`} />
                   <Kpi label="Falhas" value={String(counts.failures)} helper="Execuções encerradas com erro" status={counts.failures ? "critico" : "sem_dado"} />
+                </section>
+                <details className="work-pending-metrics"><summary>Conferir pendências, envios e ferramentas</summary><section className="work-indicator-grid" aria-label="Detalhes da operação">
                   <Kpi label="Resultados incertos" value={String(counts.uncertain)} helper="Execuções que precisam de conferência" status={counts.uncertain ? "atencao" : "sem_dado"} />
                   <Kpi label="Pedidos sem resposta" value={String(counts.tasks - counts.replied)} helper="Pedidos operacionais da semana" status={counts.tasks > counts.replied ? "atencao" : "alvo"} />
                   <Kpi label="Falhas de envio" value={counts.deliveryFailures === undefined ? "sem dado" : String(counts.deliveryFailures)} helper="Erros de envio registrados pela Evolution" status={counts.deliveryFailures ? "critico" : "sem_dado"} />
                   <Kpi label="Erros de ferramenta" value={counts.toolFailures === undefined ? "sem dado" : String(counts.toolFailures)} helper="Erros registrados; podem ocorrer mesmo com resposta da IA" status={counts.toolFailures ? "atencao" : "sem_dado"} />
                   <Kpi label="Falhas em todos os registros" value={counts.allFailures === undefined ? "sem dado" : String(counts.allFailures)} helper={`${counts.allTasks ?? "—"} registros; inclui conversas simples e avisos`} status={counts.allFailures ? "atencao" : "sem_dado"} />
                   <Kpi label="Aprovações pendentes agora" value={String(s.approvals.length)} helper="Total atual, independente da semana" status={s.approvals.length ? "atencao" : "sem_dado"} />
-                </section>
+                </section></details>
               </Panel>
               <Panel title="Qualidade da entrega" caption={`Semana ${q.week} · avaliação baseada nos eventos registrados.`}>
-                <section className="metrics-grid" aria-label="Qualidade operacional">
+                <section className="work-indicator-grid" aria-label="Qualidade operacional">
                   <Kpi label="Nota operacional" value={q.overall === null ? "sem amostra suficiente" : `${q.overall.toFixed(1)} / 10`} helper={`Semana anterior: ${scoreText(s.quality.previous.overall)}`} />
                   <Kpi label="Ações conferidas" value={counts.externalActions === undefined ? String(counts.verified) : `${counts.verified} de ${counts.externalActions}`} helper="Conferência ligada à mesma tarefa e operação" />
                   <Kpi label="Ações sem prova" value={String(counts.withoutEvidence)} helper="Resultado externo registrado sem conferência correspondente" status={counts.withoutEvidence ? "atencao" : "alvo"} />

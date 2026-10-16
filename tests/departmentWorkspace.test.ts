@@ -19,6 +19,21 @@ function fixture(){
 }
 function host(){const node=document.createElement("div");document.body.append(node);root=createRoot(node);return node;}
 describe("áreas são visões da Central",()=>{
+ it("funil abre colunas reais sem alterar a taxa de ganho ao filtrar uma etapa",async()=>{
+  const data=fixture();
+  data.departmentRecords=[{...data.departmentRecords![0],id:"won",kind:"opportunity",title:"Ganha real",status:"won",canViewMetrics:true},{...data.departmentRecords![0],id:"lost",kind:"opportunity",title:"Perdida real",status:"lost",canViewMetrics:true}];
+  data.departmentMetrics=calculateDepartmentMetrics(data.departmentRecords,data.generatedAt);
+  vi.mocked(fetchCollaboration).mockResolvedValue(data);const node=host();
+  await act(async()=>root!.render(createElement(DepartmentWorkspace,{mode:"funnel"})));
+  expect(node.querySelector('[aria-label="Oportunidades por etapa"]')?.querySelectorAll(".work-opportunity-card")).toHaveLength(2);
+  const rate=()=>[...node.querySelectorAll("button.work-indicator")].find(button=>button.textContent?.includes("Ganho entre oportunidades encerradas"))!;
+  expect(rate().querySelector("strong")?.textContent).toBe("50");
+  await act(async()=>[...node.querySelectorAll("button")].find(button=>button.textContent==="Ganha / projeto (1)")!.click());
+  expect(node.querySelector('[aria-label="Oportunidades por etapa"]')?.querySelectorAll(".work-opportunity-card")).toHaveLength(1);
+  expect(rate().querySelector("strong")?.textContent).toBe("50");
+  await act(async()=>(rate() as HTMLButtonElement).click());
+  expect(node.querySelector(".work-indicator-detail")?.textContent).toContain("Perdida real");
+ });
  it("Projetos consulta a carteira real e abre o mesmo ID de tarefa",async()=>{
   vi.mocked(fetchCollaboration).mockResolvedValue(fixture());const node=host();
   await act(async()=>root!.render(createElement(DepartmentWorkspace,{mode:"projects"})));
