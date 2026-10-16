@@ -18,6 +18,7 @@ bug, qual era o sintoma e a causa.
 - `db:guard` inclui worktree e arquivos novos; leitura de drift pode usar CLI autenticada, com projeto conferido e search_path fixado na transação de leitura.
 - Verificação local: regras, tipos, 552 testes Vitest + 67 de banco, validação/guard das migrations e build aprovados. Aplicação remota e integração foram autorizadas pelo proprietário; evidência final no documento do painel. Worker não reiniciado nesta etapa.
 - Matriz, métricas, limites e rollout: `docs/painel-colaborativo.md`.
+- Banco aplicado por CLI com autorização do proprietário antes do merge do PR #21: duas migrations, 1697 objetos sem drift e 40 regras alinhadas ao catálogo. Sem publicação de conteúdo, mensagens reais ou reinício do worker.
 
 ## 2026-10-16 — Aplicação das migrações do núcleo e preparação do rollout
 

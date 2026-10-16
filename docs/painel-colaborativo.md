@@ -1,6 +1,6 @@
 # Painel colaborativo da Maia
 
-Estado em 16/10/2026: implementação concluída e validada localmente; aplicação das migrations e integração autorizadas pelo proprietário nesta sessão. O resultado remoto será registrado no encerramento do rollout. O worker exige atualização e reinício separado.
+Estado em 16/10/2026: implementação concluída, commit `eceac39` enviado no PR [#21](https://github.com/TrafegoWorki1/agent-maia/pull/21). As duas migrations foram aplicadas no Supabase do ambiente local com autorização do proprietário, antes do merge. Drift: 1697 objetos esperados e remotos, sem divergência. As 40 regras ativas correspondem ao catálogo `2026-10-16.1`. O worker exige atualização e reinício separado.
 
 ## Funcionalidades e uso
 
@@ -78,6 +78,8 @@ Executados com serviços simulados e PGlite temporário, sem mensagens reais, pu
 - Integração: WhatsApp → banco → painel e painel → banco → próxima consulta da Maia; isolamento de projetos/entregáveis, bloqueio individual, revogação e KPI com 1005 registros.
 - SQL: concorrência, baseline imutável, urgência/remoção com motivo, revisão sem atalhos, dependências sem ciclo, redistribuição, artefatos e funções restritas.
 - Simulação remota: somente as migrations abaixo. Advisor remoto de segurança no nível erro: sem ocorrências antes da aplicação.
+- Aplicação remota: `supabase db push --linked --yes` aplicou as versões `20261016160000` e `20261016161000` com sucesso.
+- Conferência posterior: `MAIA_DB_READ_VIA_CLI=1 pnpm db:drift` comparou 1697 objetos em cada lado, sem divergência; `pnpm rules:verify` confirmou 40 regras alinhadas à versão `2026-10-16.1`.
 
 ## Implantação, reversão e reinício
 
