@@ -27,6 +27,7 @@ describe("classificação por regras", () => {
 
   it("só autoriza geração quando a mensagem original pede uma imagem afirmativamente", () => {
     expect(isImageCreationRequest("Cria uma arte vertical para o Story da campanha")).toBe(true);
+    expect(isImageCreationRequest("Enfileira os 5 Stories daquele briefing.")).toBe(true);
     expect(isImageCreationRequest("Você poderia criar uma arte vertical para mim?")).toBe(true);
     expect(isImageCreationRequest("Tem algum Story ativo no Instagram?")).toBe(false);
     expect(isImageCreationRequest("Você pode me dizer se dá para criar um Story?")).toBe(false);

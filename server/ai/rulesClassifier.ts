@@ -36,8 +36,9 @@ export function isImageCreationRequest(text: string): boolean {
   const asksForImage = /\b(arte|imagem|criativo|banner|capa|post|story|stories)\b/.test(t);
   if (!asksForImage) return false;
   const directImperative = /^(?:(?:por favor|me)\s+)*(?:cria|crie|faz|faca|gera|gere|monta|monte)\b/.test(t);
+  const enqueueRequest = /^(?:(?:por favor|me)\s+)*enfileir(?:a|e|ar)\b/.test(t);
   const directPoliteRequest = /^(?:voce\s+)?pode\s+(?:(?:por favor|me)\s+)*(?:criar|cria|crie|fazer|faz|faca|gerar|gere|montar|monte)\b/.test(t);
   const couldYouRequest = /^(?:voce\s+)?poderia\s+(?:(?:por favor|me)\s+)*(?:criar|cria|crie|fazer|faz|faca|gerar|gere|montar|monte)\b/.test(t);
   const explicitIntent = /^(?:eu\s+)?(?:quero|preciso|gostaria)\b.{0,50}\b(?:criar|crie|cria|fazer|faz|faca|gerar|gere|montar|monte)\b/.test(t);
-  return directImperative || directPoliteRequest || couldYouRequest || explicitIntent;
+  return directImperative || enqueueRequest || directPoliteRequest || couldYouRequest || explicitIntent;
 }
