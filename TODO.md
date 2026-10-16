@@ -2,6 +2,20 @@
 
 Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
+## Painel colaborativo (implementação e integração autorizadas)
+
+- [x] Backend autenticado, escopos por pessoa/equipe/cliente/projeto, papéis operacionais e restrição individual prevalecendo sobre herança.
+- [x] Workflow compartilhado, trilha de alteração, revisões, baseline/planejamento, capacidade declarada e painéis com polling reconciliador.
+- [x] Testes de permissão, isolamento, revogação, concorrência/revisão, indicadores e banco temporário.
+- [x] Concluir edição de planos existentes/baseline, carteira de contrato/projeto/entregável, calendário real e detalhe de tarefas com artefatos/dependências.
+- [x] Validar sincronização nos dois sentidos com banco temporário e KPIs com população superior a mil itens.
+- [ ] Revisar/integrar o código; migrations `20261016160000` e `20261016161000` estão locais e não aplicadas remotamente.
+- [ ] Aplicar migrations pelo processo protegido, publicar frontend/API e atualizar/reiniciar uma única instância do worker.
+- [ ] Validar operacionalmente com contas de teste por perfil, sem mensagens reais ou publicações.
+- [ ] Configurar fontes externas e mapeamento por IDs de cliente/recurso; sem essa dependência, indicadores correspondentes permanecem indisponíveis.
+
+Detalhes: [docs/painel-colaborativo.md](docs/painel-colaborativo.md).
+
 ## Núcleo da Maia — pendências de ativação e escopo
 
 - [x] Persistência/busca de sessões de owner e membros com revalidação, migrações locais, painel autenticado, reserva atômica de planos/rotinas/subagentes e testes em banco temporário.

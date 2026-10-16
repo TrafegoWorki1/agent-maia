@@ -51,6 +51,10 @@ Se `supabase db push --dry-run` informar versões remotas não encontradas local
 `db:drift` precisa de `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` (ou `SUPABASE_URL`) no ambiente. O token nunca é impresso.
 No `.env` local o nome gravado hoje é `SUPABASE_ACCESS_TOKKEN` (com erro de digitação); o script aceita os dois nomes. Corrija quando puder.
 
+## Painel colaborativo — aplicação autorizada
+
+`20261016160000_maia_collaborative_operations.sql` cria equipes operacionais distintas dos grupos de acesso, papéis por escopo, contratos/projetos/entregáveis, workflow/auditoria, planos com baseline original preservada, capacidade e catálogo de métricas. `20261016161000_maia_rules_collaborative_panel.sql` versiona a regra aprovada pelo fluxo `rules:generate`. Ambas passaram validação local e sua aplicação foi autorizada pelo proprietário em 16/10/2026, antes do merge. O resultado remoto é registrado em [painel colaborativo](painel-colaborativo.md). Reversão do recurso é por rollback de código mantendo tabelas e histórico; não apagar dados por rollback.
+
 ## Fluxo de uma mudança no banco
 
 1. `pnpm db:new descricao_da_mudanca` e escreva o SQL (compatível com o código antigo).

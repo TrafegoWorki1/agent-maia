@@ -39,7 +39,7 @@ beforeEach(() => {
     person_permissions:[{ person_id:"person",permission_code:"grupo.consultar" }],
     maia_access_group_members:[{ person_id:"person",access_group_id:"a" },{ person_id:"person",access_group_id:"b" },{ person_id:"person",access_group_id:"internal" }],
     maia_access_groups:[{ id:"a",active:true,client_id:"client-a",revision:1 },{ id:"b",active:true,client_id:"client-b",revision:1 },{ id:"internal",active:true,client_id:null,revision:1 }],
-    maia_access_group_permissions:[{ access_group_id:"a",permission_code:"mensagem.enviar" },{ access_group_id:"b",permission_code:"email.consultar" },{ access_group_id:"internal",permission_code:"conversa.maia" }],
+    maia_access_group_permissions:[{ access_group_id:"a",permission_code:"mensagem.enviar" },{ access_group_id:"a",permission_code:"trabalho.atualizar" },{ access_group_id:"b",permission_code:"email.consultar" },{ access_group_id:"internal",permission_code:"conversa.maia" }],
     maia_clients:[{ id:"client-a",active:true,name:"Cliente A",revision:1 },{ id:"client-b",active:true,name:"Cliente B",revision:1 }],
     maia_groups:[{ jid:"50@g.us",name:"Grupo A",active:true,client_id:"client-a",access_group_id:"a",revision:2,scope_started_at:scope.startedAt }],
   };
@@ -96,6 +96,15 @@ describe("permissões e contexto por cliente", () => {
     await expect(refreshGroupRequester(db,who)).rejects.toThrow("acesso");
     tables.maia_groups[0].client_id = "client-b";
     await expect(refreshGroupRequester(db,who)).rejects.toThrow("grupo");
+  });
+  it("revoga OK pendente se o modo individual exige aprovação deixa de existir",async()=>{
+    const {db}=fixtureDb(tables);
+    tables.maia_member_access_modes=[{person_id:"person",permission_code:"trabalho.atualizar",mode:"aprovacao"}];
+    const who={...(await resolveRequester(db,"551122223333","Pessoa","client-a")),groupScope:scope};
+    expect(who.approvalPermissions?.has("trabalho.atualizar")).toBe(true);
+    await expect(refreshGroupRequester(db,who)).resolves.toMatchObject({groupScope:scope});
+    tables.maia_member_access_modes=[{person_id:"person",permission_code:"trabalho.atualizar",mode:"bloqueado"}];
+    await expect(refreshGroupRequester(db,who)).rejects.toThrow("mudou durante a execução");
   });
   it("bloqueia resposta privada pendente quando o membro perde acesso, inclusive após retomada", async () => {
     const { db } = fixtureDb(tables);

@@ -29,9 +29,12 @@ describe("administração de acessos", () => {
     expect(canConverse(member({ permissions: new Set(), blockedPermissions: new Set(["conversa.maia"]) }))).toBe(false);
   });
   it("não confirma capacidade sem política efetiva nem OK pontual para entrada", () => {
-    expect(() => validateMemberAccessChange("painel.ver", "bloqueado")).toThrow("nenhuma alteração");
+    expect(() => validateMemberAccessChange("capacidade.inexistente", "bloqueado")).toThrow("nenhuma alteração");
     expect(() => validateMemberAccessChange("conversa.maia", "aprovacao")).toThrow("não admite OK pontual");
     expect(() => validateMemberAccessChange("sheets.ler", "aprovacao")).not.toThrow();
+    expect(() => validateMemberAccessChange("painel.ver", "bloqueado")).not.toThrow();
+    expect(() => validateMemberAccessChange("painel.ver", "aprovacao")).toThrow();
+    expect(() => validateMemberAccessChange("trabalho.revisar", "permitido")).not.toThrow();
   });
   it("localização por cadastro devolve todas as homônimas, sem escolher por conta própria", async () => {
     vi.stubEnv("EVOLUTION_OWNER_NUMBER", "5511990000000");

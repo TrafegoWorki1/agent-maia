@@ -26,6 +26,8 @@ O painel **Modelos e Roteamento** também pode mostrar tokens de cache lidos/cri
 
 As estruturas estão nas migrações `20261011185724_maia_client_groups_access.sql` e `20261012014613_maia_response_deliveries_requester.sql`. O histórico remoto foi consultado para reconciliar a primeira; a coluna de entrega pertence somente à segunda. O painel informa quando falta estrutura e impede salvar nesses casos.
 
+Painel colaborativo: veja [documentação de escopos, métricas, evidências e rollout](docs/painel-colaborativo.md). Inclui Meu dia, equipe, coordenação, direção, carteira editável, tarefas com revisão/dependências, calendário, planejamento com baseline imutável e capacidade semanal. A aplicação versionada do banco e o merge foram autorizados pelo proprietário; o estado remoto é registrado no documento. Atualizar/reiniciar o worker é uma etapa separada. Fontes externas sem conexão/mapeamento ficam indisponíveis.
+
 ## Execução
 
 Requisitos: Node.js compatível com execução dos arquivos TypeScript do projeto e pnpm 11.25.0. As dependências e o launcher devem usar as versões instaladas e testadas no ambiente.
@@ -83,7 +85,7 @@ pnpm build
 
 Para mudar regras: editar catálogo, incrementar versão, gerar documento com `pnpm rules:generate` e preparar a migração de dados. A ativação autorizada deve ser conferida com `pnpm rules:verify`. `pnpm knowledge:sync` atualiza a busca somente quando documento, catálogo e regras ativas correspondem.
 
-Os testes de banco usam PGlite temporário. `pnpm db:guard` compara commits com `origin/main`; executar também depois do commit para incluir as mudanças novas. `pnpm db:drift` consulta o esquema real e grava um relatório local, sem corrigir produção.
+Os testes de banco usam PGlite temporário. `pnpm db:guard` compara commits e alterações locais com `origin/main`, incluindo arquivos novos. `pnpm db:drift` consulta o esquema real e grava um relatório local, sem corrigir produção. Com a CLI autenticada no mesmo projeto, `MAIA_DB_READ_VIA_CLI=1` permite a leitura sem copiar tokens para o ambiente.
 
 ## Estrutura principal
 

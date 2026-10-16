@@ -9,7 +9,7 @@ export async function refreshGroupRequester(db: Db, who: Requester): Promise<Req
     const fresh = await resolveRequester(db, who.number, who.name);
     if (fresh.role !== who.role) throw new Error("O papel do solicitante mudou durante a execução.");
     if (who.role === "member" && !fresh.permissions.has("conversa.maia")) throw new Error("A conversa com a Maia não está mais autorizada.");
-    if (who.role === "member" && [...who.permissions].some((code) => !fresh.permissions.has(code))) throw new Error("O acesso do membro mudou durante a execução. Faça um novo pedido.");
+    if (who.role === "member" && ([...who.permissions].some((code) => !fresh.permissions.has(code)) || [...(who.approvalPermissions??[])].some((code)=>!fresh.approvalPermissions?.has(code)&&!fresh.permissions.has(code)))) throw new Error("O acesso do membro mudou durante a execução. Faça um novo pedido.");
     return fresh;
   }
   const original = who.groupScope;
@@ -22,7 +22,7 @@ export async function refreshGroupRequester(db: Db, who: Requester): Promise<Req
     throw new Error("O atendimento ou a organização deste grupo mudou. Faça um novo pedido após conferir o cadastro.");
   }
   const fresh = await resolveRequester(db, who.number, who.name, current.clientId);
-  const revoked = [...who.permissions].some((p) => !fresh.permissions.has(p));
+  const revoked = [...who.permissions].some((p) => !fresh.permissions.has(p)) || [...(who.approvalPermissions??[])].some((p)=>!fresh.approvalPermissions?.has(p)&&!fresh.permissions.has(p));
   if (!canAccessGroup(fresh, current) || revoked || fresh.role !== who.role) {
     throw new Error("O acesso de quem pediu mudou durante a execução. Faça um novo pedido após conferir as permissões.");
   }

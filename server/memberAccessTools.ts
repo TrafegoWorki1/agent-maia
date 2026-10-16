@@ -6,10 +6,10 @@ import { canonicalPhone } from "./evolutionWebhook.ts";
 const id = z.string().uuid();
 const memberId = z.object({ pessoa_id: id });
 const change = memberId.extend({ capacidade: z.string().min(1).max(80), modo: z.enum(["permitido", "bloqueado", "aprovacao"]) });
-const enforcedCapabilities = new Set(["conversa.maia", "gmail.ler", "meta.ler", "sheets.ler", "agenda.ler", "mensagem.enviar", "escrita.pedir", "integracao.usar", "escrita.aprovar"]);
+const enforcedCapabilities = new Set(["conversa.maia", "gmail.ler", "meta.ler", "sheets.ler", "agenda.ler", "mensagem.enviar", "escrita.pedir", "integracao.usar", "escrita.aprovar", "painel.ver", "trabalho.ver", "trabalho.atualizar", "trabalho.revisar", "trabalho.aprovar", "trabalho.planejar", "trabalho.redistribuir", "tarefas.criar", "indicadores.ver", "financeiro.ver"]);
 export function validateMemberAccessChange(code: string, mode: string): void {
   if (!enforcedCapabilities.has(code)) throw new Error(`A capacidade ${code} não tem aplicação efetiva verificada neste fluxo; nenhuma alteração foi feita.`);
-  if (mode === "aprovacao" && (code === "conversa.maia" || code === "escrita.aprovar")) throw new Error(`A capacidade ${code} não admite OK pontual neste fluxo; nenhuma alteração foi feita.`);
+  if (mode === "aprovacao" && (["conversa.maia","escrita.aprovar","painel.ver","indicadores.ver","financeiro.ver"].includes(code))) throw new Error(`A capacidade ${code} não admite OK pontual neste fluxo; nenhuma alteração foi feita.`);
 }
 const normalizedName = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 

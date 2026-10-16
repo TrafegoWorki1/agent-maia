@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Db } from "./store.ts";
+import { identityByNumber, hasPermission } from "./panelIdentity.ts";
+import { canAccessTask, collaborationView, executeCollaborationCommand, scopedWorkTasksView, type CollaborativeTask } from "./collaborativeWork.ts";
+import { consumeWorkToolPermit } from "./workToolPermit.ts";
 
 export const workStatus = z.enum(["pendente", "em_andamento", "concluida"]);
 export const workTipo = z.enum(["melhoria", "bug", "conteudo", "operacional", "outro"]);
@@ -10,12 +13,20 @@ export const createWorkSchema = z.object({
   titulo: z.string().trim().min(1).max(200), responsavel: z.string().trim().min(1).max(100),
   prazo: timestamp.nullable().optional(), chave: z.string().min(1).max(200).optional(),
   tipo: workTipo.optional(),
+  responsavel_pessoa_id:z.string().uuid().optional(),equipe_id:z.string().uuid().optional(),cliente_id:z.string().uuid().optional(),projeto_id:z.string().uuid().optional(),
+  entregavel_id:z.string().uuid().optional(),area:z.string().max(80).optional(),revisor_id:z.string().uuid().optional(),aprovador_id:z.string().uuid().optional(),objetivo:z.string().max(2000).optional(),briefing:z.string().max(8000).optional(),criterios_aceite:z.string().max(4000).optional(),esforco_horas:z.number().min(0).max(10000).optional(),
 });
 export const updateWorkSchema = z.object({
   id: z.number().int().positive(), revisao: z.number().int().positive(),
   titulo: z.string().trim().min(1).max(200).optional(), responsavel: z.string().trim().min(1).max(100).optional(),
   status: workStatus.optional(), prazo: timestamp.nullable().optional(), evidencia: z.string().trim().min(1).max(2000).optional(),
   tipo: workTipo.nullable().optional(),
+  estado:z.enum(["pending","in_progress","review","awaiting_approval","blocked","completed","cancelled"]).optional(),
+  motivo:z.string().trim().min(1).max(2000).optional(),espera:z.enum(["team","owner","client","external"]).optional(),
+  resultado_revisao:z.enum(["approved","returned"]).optional(),motivo_devolucao:z.enum(["error","quality","incomplete_brief","scope_change"]).optional(),
+  aprovar:z.boolean().optional(),
+  objetivo:z.string().max(2000).optional(),briefing:z.string().max(8000).optional(),criterios_aceite:z.string().max(4000).optional(),esforco_horas:z.number().min(0).max(10000).nullable().optional(),
+  prioridade:z.number().int().min(1).max(5).optional(),responsavel_pessoa_id:z.string().uuid().optional(),equipe_id:z.string().uuid().optional(),
 }).refine((a) => a.status !== "concluida" || !!a.evidencia, "Concluir exige evidência do trabalho entregue");
 export const reminderSchema = z.object({ tarefa_id: z.number().int().positive(), horario: timestamp, chave: z.string().min(1).max(200).optional() });
 export const editReminderSchema = z.object({ id: z.number().int().positive(), cancelar: z.boolean().optional(), horario: timestamp.optional() })
@@ -51,9 +62,9 @@ export async function updateWorkTask(db: Db, input: unknown) {
     if (a[from] !== undefined) patch[to] = a[from];
   }
   if (!Object.keys(patch).length) throw new Error("Nenhuma alteração informada");
-  const r = await db.from("work_tasks").update(patch).eq("id", a.id).eq("revision", a.revisao).select("*").maybeSingle();
+  const r = await db.from("work_tasks").update(patch).eq("id", a.id).eq("revision", a.revisao).is("responsible_person_id",null).select("*").maybeSingle();
   check(r.error);
-  if (!r.data) throw new Error("Tarefa inexistente ou alterada por outra pessoa; consulte a revisão atual");
+  if (!r.data) throw new Error("Tarefa inexistente, alterada por outra pessoa ou colaborativa; consulte Meu dia para usar o fluxo e a revisão atuais");
   return r.data as WorkTask;
 }
 export async function createReminder(db: Db, input: unknown, sourceTaskId?: number) {
@@ -85,11 +96,79 @@ export async function workTasksView(db: Db, now = new Date()) {
   return { tasks: (tasks.data as WorkTask[]).map((t) => ({ ...t, overdue: isOverdue(t, now) })), reminders: reminders.data ?? [], limit: 200 };
 }
 
+async function createAuthorizedTask(db:Db,input:unknown,sourceTaskId:number|undefined,requesterNumber:string,oneTimeApproval=false){
+  const a=createWorkSchema.parse(input),identity=await identityByNumber(db,requesterNumber);
+  if(!identity.owner&&identity.permissionModes.get("tarefas.criar")==="bloqueado")throw new Error("Criação bloqueada individualmente");
+  // Esta função só é chamada pelo adaptador MCP depois da política do agente permitir
+  // a chamada ou consumir o OK pontual vinculado a este payload.
+  if(!identity.owner&&!hasPermission(identity,"tarefas.criar",a.cliente_id??null)&&!oneTimeApproval)throw new Error("Sem permissão para criar tarefa");
+  const responsibleId=a.responsavel_pessoa_id??identity.personId;
+  if(!identity.owner&&responsibleId!==identity.personId&&!identity.teams.some(team=>team.id===a.equipe_id&&team.membershipRole==="coordenador")&&!identity.roles.some((r)=>r.role==="coordenador"&&r.teamId===a.equipe_id))throw new Error("Responsável fora do escopo coordenado");
+  if(!identity.owner&&a.equipe_id&&!identity.teams.some((team)=>team.id===a.equipe_id)&&!identity.roles.some((r)=>r.teamId===a.equipe_id))throw new Error("Equipe fora do escopo autorizado");
+  if(a.equipe_id){
+    const team=await db.from("work_teams").select("id,active").eq("id",a.equipe_id).maybeSingle();check(team.error);
+    if(!team.data?.active)throw new Error("Equipe não encontrada ou inativa");
+    if(!identity.owner&&responsibleId!==identity.personId){
+      const member=await db.from("work_team_members").select("person_id").eq("team_id",a.equipe_id).eq("person_id",responsibleId).eq("active",true).maybeSingle();check(member.error);
+      if(!member.data)throw new Error("Responsável não pertence à equipe escolhida");
+    }
+  }
+  if(!identity.owner&&a.projeto_id){
+    const project=await db.from("work_projects").select("id,client_id,responsible_team_id").eq("id",a.projeto_id).maybeSingle();check(project.error);
+    if(!project.data)throw new Error("Projeto não encontrado");
+    if(a.cliente_id&&String(project.data.client_id)!==a.cliente_id)throw new Error("Projeto e cliente informados não correspondem");
+    if(!identity.roles.some((r)=>r.projectId===a.projeto_id||r.clientId===String(project.data!.client_id))
+      &&!identity.groupPermissions.some((grant)=>grant.code==="tarefas.criar"&&(grant.clientId===null||grant.clientId===String(project.data!.client_id))))throw new Error("Projeto fora do escopo autorizado");
+  }
+  if(!identity.owner&&a.cliente_id&&!identity.roles.some((r)=>r.clientId===a.cliente_id||r.projectId===a.projeto_id)
+    &&!identity.groupPermissions.some((grant)=>grant.code==="tarefas.criar"&&(grant.clientId===null||grant.clientId===a.cliente_id)))throw new Error("Cliente fora do escopo autorizado");
+  const peopleIds=[...new Set([responsibleId,...[a.revisor_id,a.aprovador_id].filter((id):id is string=>!!id)])];
+  const people=await db.from("people").select("id,name,active").in("id",peopleIds);check(people.error);
+  const activePeople=new Map((people.data??[]).filter((row)=>row.active).map((row)=>[String(row.id),row]));
+  const person=activePeople.get(responsibleId);
+  if(!person)throw new Error("Responsável não corresponde a uma pessoa ativa");
+  for(const reviewerId of [a.revisor_id,a.aprovador_id].filter((id):id is string=>!!id)){
+    if(!activePeople.has(reviewerId))throw new Error("Revisor ou aprovador não corresponde a uma pessoa ativa");
+    if(!identity.owner&&reviewerId!==identity.personId&&!identity.teams.some(team=>team.id===a.equipe_id&&team.membershipRole==="coordenador")&&!identity.roles.some(role=>role.role==="coordenador"&&role.teamId===a.equipe_id))throw new Error("Somente a coordenação pode designar revisor ou aprovador");
+  }
+  const key=a.chave??requestKey(`exec:${sourceTaskId??0}`,a);if(!a.chave&&!sourceTaskId)throw new Error("Criação exige chave de idempotência");
+  const inserted=await db.from("work_tasks").upsert({title:a.titulo,responsible:String(person.name),responsible_person_id:responsibleId,responsible_team_id:a.equipe_id??null,reviewer_person_id:a.revisor_id??null,approver_person_id:a.aprovador_id??null,deliverable_id:a.entregavel_id??null,area:a.area??null,client_ref_id:a.cliente_id??null,project_ref_id:a.projeto_id??null,objective:a.objetivo??null,briefing:a.briefing??null,acceptance_criteria:a.criterios_aceite??null,estimated_effort_hours:a.esforco_horas??null,due_at:a.prazo??null,committed_due_at:a.prazo??null,request_key:key,source_task_id:sourceTaskId||null,origin_kind:"whatsapp",created_by_person_id:identity.personId,...(a.tipo?{tipo:a.tipo}:{})},{onConflict:"request_key",ignoreDuplicates:true}).select("*");check(inserted.error);
+  const result=inserted.data?.[0]??(await db.from("work_tasks").select("*").eq("request_key",key).single()).data;
+  if(!result)throw new Error("Não consegui conferir a tarefa criada");return result;
+}
+
+async function updateAuthorizedTask(db:Db,input:unknown,requesterNumber:string,oneTimeApproval=false){
+  const a=updateWorkSchema.parse(input),identity=await identityByNumber(db,requesterNumber);
+  const found=await db.from("work_tasks").select("*").eq("id",a.id).maybeSingle();check(found.error);if(!found.data)throw new Error("Tarefa não encontrada");
+  const task=found.data as CollaborativeTask;
+  if(identity.owner&&task.origin_kind==="legacy"&&!task.responsible_person_id&&!a.estado&&!a.resultado_revisao&&!a.aprovar&&!a.responsavel_pessoa_id&&!a.equipe_id&&!a.prioridade)return updateWorkTask(db,input);
+  let operation:"status"|"review"|"approve"|"edit"|"reassign"|"prioritize"="status",payload:Record<string,unknown>={};
+  if(a.responsavel!==undefined&&!a.responsavel_pessoa_id)throw new Error("Use o ID da pessoa cadastrada; nome não identifica responsável com segurança");
+  if(a.aprovar){operation="approve";payload={evidence:a.evidencia};}
+  else if(a.resultado_revisao){operation="review";payload={outcome:a.resultado_revisao,return_reason:a.motivo_devolucao,comment:a.evidencia??a.motivo};}
+  else if(a.responsavel_pessoa_id||a.equipe_id){operation="reassign";payload={person_id:a.responsavel_pessoa_id,team_id:a.equipe_id,reason:a.motivo};}
+  else if(a.prioridade!==undefined){operation="prioritize";payload={priority:a.prioridade,reason:a.motivo};}
+  else if(a.titulo!==undefined||a.prazo!==undefined||a.objetivo!==undefined||a.briefing!==undefined||a.criterios_aceite!==undefined||a.esforco_horas!==undefined){operation="edit";payload=Object.fromEntries(Object.entries({title:a.titulo,committed_due_at:a.prazo,objective:a.objetivo,briefing:a.briefing,acceptance_criteria:a.criterios_aceite,estimated_effort_hours:a.esforco_horas,reason:a.motivo}).filter(([,value])=>value!==undefined));}
+  else {const state=a.estado??(a.status==="em_andamento"?"in_progress":a.status==="concluida"?"completed":a.status==="pendente"?"pending":undefined);if(!state)throw new Error("Informe o estado colaborativo");payload={status:state,reason:a.motivo,waiting_kind:a.espera,evidence:a.evidencia};}
+  const capability=operation==="review"?"trabalho.revisar":operation==="approve"?"trabalho.aprovar":operation==="reassign"?"trabalho.redistribuir":operation==="prioritize"?"trabalho.planejar":"trabalho.atualizar";
+  if(identity.permissionModes.get(capability)==="bloqueado")throw new Error("Acesso bloqueado individualmente");
+  if(!canAccessTask(identity,task,capability,oneTimeApproval))throw new Error("Tarefa fora do escopo autorizado");
+  return executeCollaborationCommand(db,identity,{action:"task_action",taskId:a.id,revision:a.revisao,operation,payload},"whatsapp",oneTimeApproval);
+}
+
 // Os dois SDKs recebem os mesmos schemas e executores; nenhuma chave vai ao modelo.
 export const workTools = [
-  { name: "tarefas_listar", description: "Lista tarefas reais com responsável, prazo, revisão, evidência informada e lembretes. Dados privados do owner.", schema: z.object({}), run: (db: Db) => workTasksView(db) },
-  { name: "tarefa_criar", description: "Cria tarefa de trabalho pendente; prazo ISO com -03:00. Prazo gera lembrete privado ao owner automaticamente.", schema: createWorkSchema, run: (db: Db, a: unknown, taskId?: number) => createWorkTask(db, a, taskId) },
-  { name: "tarefa_atualizar", description: "Edita título, responsável, prazo ou estado. Consulte revisão antes; concluir exige evidência informada, não prova de verificação externa.", schema: updateWorkSchema, run: (db: Db, a: unknown) => updateWorkTask(db, a) },
+  { name: "tarefas_listar", description: "Lista tarefas reais somente no escopo autorizado da pessoa, com próximas ações, prazo, revisão, bloqueios e evidências.", schema: z.object({}), run: async (db: Db,a:unknown,taskId?:number,requesterNumber?:string) => { const permit=requireWorkPermit("tarefas_listar",a,taskId,requesterNumber); return scopedWorkTasksView(db,await identityByNumber(db,requesterNumber!),permit.oneTimeApproval); } },
+  { name:"trabalho_contexto",description:"Consulta trabalho autorizado com IDs de pessoas, clientes, equipes, projetos, entregáveis, prioridades, compromissos e capacidade. Use para esclarecer o cadastro antes de alterar; memória ou nome parecido não concedem acesso.",schema:z.object({}),run:async(db:Db,a:unknown,taskId?:number,requesterNumber?:string)=>{requireWorkPermit("trabalho_contexto",a,taskId,requesterNumber);const identity=await identityByNumber(db,requesterNumber!);const view=await collaborationView(db,identity,new Date(),"maia");return {tasks:view.tasks,people:view.people,teams:view.teams,projects:view.projects,clients:view.clients,deliverables:view.deliverables,plans:view.plans,planItems:view.planItems,capacity:view.capacity,load:view.load};} },
+  { name: "tarefa_criar", description: "Cria tarefa persistida pelo WhatsApp para pessoa/equipe cadastrada. Não associa por semelhança de nome; usa IDs ou o próprio solicitante.", schema: createWorkSchema, run: (db: Db, a: unknown, taskId?: number,requesterNumber?:string) => { const permit=requireWorkPermit("tarefa_criar",a,taskId,requesterNumber); return createAuthorizedTask(db,a,taskId,requesterNumber!,permit.oneTimeApproval); } },
+  { name: "tarefa_atualizar", description: "Atualiza estado, bloqueio, revisão ou conclusão no escopo autorizado. Exige revisão atual e evidência para concluir; aprovar qualidade não autoriza publicação.", schema: updateWorkSchema, run: (db: Db, a: unknown,taskId?:number,requesterNumber?:string) => { const permit=requireWorkPermit("tarefa_atualizar",a,taskId,requesterNumber); return updateAuthorizedTask(db,a,requesterNumber!,permit.oneTimeApproval); } },
   { name: "lembrete_criar", description: "Agenda lembrete persistido de tarefa ao owner no WhatsApp, com horário ISO e fuso. Não envia a terceiros.", schema: reminderSchema, run: (db: Db, a: unknown, taskId?: number) => createReminder(db, a, taskId) },
   { name: "lembrete_editar", description: "Reagenda ou cancela lembrete ainda pendente. Envios incertos não são repetidos.", schema: editReminderSchema, run: (db: Db, a: unknown) => editReminder(db, a) },
 ] as const;
+
+function requireWorkPermit(tool:string,args:unknown,taskId:number|undefined,requesterNumber:string|undefined){
+  if(!requesterNumber||!taskId)throw new Error("Identidade autenticada e tarefa de execução são obrigatórias");
+  const permit=consumeWorkToolPermit({number:requesterNumber,taskId,tool:`mcp__maia__${tool}`,args});
+  if(!permit)throw new Error("Chamada da ferramenta sem autorização vigente ou já consumida");
+  return permit;
+}

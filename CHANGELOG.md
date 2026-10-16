@@ -8,6 +8,17 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-16 — Painel colaborativo, carteira e planejamento concluídos
+
+- Implementados API autenticada, identidade por login vinculada a pessoa cadastrada, papéis operacionais por escopo, RLS/RPCs, workflow e painel com Meu dia/Equipe/Coordenação/Planejamento/Indicadores/Direção.
+- Reutiliza `work_tasks`, `people`, `maia_clients`, grupos/permissões e navegação existentes; adiciona migrations aditivas para relações, histórico, baseline, capacidade e catálogo de métricas. Criação manual no painel continua restrita.
+- Concluídos editores de plano existente, contrato/projeto/entregável, calendário mensal, filtros, briefing, critérios, esforço, comentários, artefatos e dependências. Baseline original preservada após urgência/remoção e revisão de concorrência capturada ao editar.
+- Corrigidos parâmetro SQL de redistribuição, atalhos de revisão/aprovação, inferência de acesso por equipe e exposição de projetos/entregáveis não necessários. Nova consulta `trabalho_contexto` nos dois executores e capacidade de revisão reconhecida na política do WhatsApp.
+- Capacidade usa compromissos e disponibilidade da mesma semana; ausência de alocação/esforço não vira sobrecarga. Indicadores sem fontes configuradas exibem indisponibilidade, com catálogo completo.
+- `db:guard` inclui worktree e arquivos novos; leitura de drift pode usar CLI autenticada, com projeto conferido e search_path fixado na transação de leitura.
+- Verificação local: regras, tipos, 552 testes Vitest + 67 de banco, validação/guard das migrations e build aprovados. Aplicação remota e integração foram autorizadas pelo proprietário; evidência final no documento do painel. Worker não reiniciado nesta etapa.
+- Matriz, métricas, limites e rollout: `docs/painel-colaborativo.md`.
+
 ## 2026-10-16 — Aplicação das migrações do núcleo e preparação do rollout
 
 - **Banco:** após autorização do owner, reconciliados dois pares de versões com SQL idêntico (`20261015131351`/`20261015123609` e `20261015131420`/`20261015124400`); aplicadas em ordem as migrations `20261016120000`, `20261016130000`, `20261016140000` e `20261016150000` no Supabase configurado no `.env` local.

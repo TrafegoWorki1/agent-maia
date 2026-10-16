@@ -21,7 +21,17 @@ const git = (...args: string[]) => execFileSync("git", args, { encoding: "utf8" 
 
 let diff: string;
 try {
-  diff = git("diff", "--name-status", "--no-renames", `${base}...HEAD`);
+  const committed = git("diff", "--name-status", "--no-renames", `${base}...HEAD`);
+  const working = git("diff", "--name-status", "--no-renames");
+  const untracked = git("ls-files", "--others", "--exclude-standard").split("\n").filter(Boolean).map((file) => `A\t${file}`).join("\n");
+  const statuses = new Map<string, string>();
+  for (const line of `${committed}\n${working}\n${untracked}`.split("\n").filter(Boolean)) {
+    const [status, file] = line.split("\t");
+    if (!file) continue;
+    const prior = statuses.get(file);
+    statuses.set(file, prior === "A" && status !== "D" ? "A" : status);
+  }
+  diff = [...statuses].map(([file, status]) => `${status}\t${file}`).join("\n");
 } catch {
   console.log(`Sem base de comparação (${base}); guarda ignorada.`);
   process.exit(0);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseRoute, routeHash, sections } from "../src/lib/navigation";
 describe("organização do painel", () => {
-  it("tem dez áreas e uma única posição para cada página", () => {
-    expect(sections).toHaveLength(10);
+  it("tem onze áreas e uma única posição para cada página", () => {
+    expect(sections).toHaveLength(11);
     const pages = sections.flatMap((s) => s.pages.map((p) => p.id));
     expect(new Set(pages).size).toBe(pages.length);
     expect(sections.find((s) => s.id === "sistema")!.pages.map((p) => p.id)).toEqual(["conexoes", "modelos"]);
@@ -26,5 +26,9 @@ describe("organização do painel", () => {
     for (const s of sections) for (const p of s.pages) {
       expect(parseRoute(`#${s.id}/${p.id}`, false)).toEqual({ section:"acessos",screen:"pessoas" });
     }
+  });
+  it("membro recebe somente as telas colaborativas autorizadas", () => {
+    expect(parseRoute("#trabalho/meu-dia",["meu-dia"])).toEqual({section:"trabalho",screen:"meu-dia"});
+    expect(parseRoute("#trabalho/direcao",["meu-dia"])).toEqual({section:"trabalho",screen:"meu-dia"});
   });
 });

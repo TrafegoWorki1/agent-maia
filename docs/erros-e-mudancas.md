@@ -4,6 +4,13 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-16 — Conclusão do painel colaborativo
+
+- **Mudança:** painéis operacionais usam backend e registros compartilhados com escopo de pessoa/equipe/cliente/projeto, workflow, revisões, baseline e capacidade; leitura autenticada e polling reconciliador.
+- **Segurança:** revisão separada de administração; catálogo financeiro restrito; tarefas WhatsApp validam projeto/cliente/equipe; alterações de plano filtram IDs fora do escopo.
+- **Correções:** redistribuição referenciava um parâmetro SQL inexistente; transições genéricas podiam pular revisão; associação à equipe ampliava indevidamente o contexto. Corrigidos e testados. Baseline original agora sobrevive à remoção de compromisso, com motivo/impacto/autoria.
+- **Entrega:** editores de carteira/planos/tarefas, calendário, carga semanal e consulta compartilhada da Maia. 552 testes de aplicação e 67 de banco, regras, tipos, migrations e build aprovados. Aplicação remota e merge autorizados; evidências finais em `docs/painel-colaborativo.md`. Novas fontes externas e reinício do worker não foram ativados nesta etapa.
+
 ## 2026-10-16 — Núcleo publicado e worker atualizado
 
 - Dois pares de versões de migration foram reconciliados somente após comparação de SQL idêntico e autorização do owner. As quatro migrations do núcleo e de acessos (`20261016120000` a `20261016150000`) foram aplicadas ao Supabase configurado no projeto.

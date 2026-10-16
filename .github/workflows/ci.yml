@@ -25,6 +25,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Tipos
         run: pnpm typecheck
+      - name: Catálogo de regras e documento gerado
+        run: pnpm rules:check
       - name: Migrações aplicam do zero e o código só usa o que elas criam
         run: pnpm db:validate
       - name: Guarda de migrações (imutabilidade, destrutivo, CHANGELOG)
@@ -34,3 +36,5 @@ jobs:
         run: pnpm db:guard
       - name: Testes (inclui testes de banco e de integração)
         run: pnpm test
+      - name: Build do painel
+        run: pnpm build
