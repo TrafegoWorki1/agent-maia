@@ -9,9 +9,10 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Testes de permissão, isolamento, revogação, concorrência/revisão, indicadores e banco temporário.
 - [x] Concluir edição de planos existentes/baseline, carteira de contrato/projeto/entregável, calendário real e detalhe de tarefas com artefatos/dependências.
 - [x] Validar sincronização nos dois sentidos com banco temporário e KPIs com população superior a mil itens.
-- [x] Commit `eceac39` enviado no PR #21, com a matriz, métricas e evidências de teste.
+- [x] PR #21 integrado na main pelo squash `2fcd839`, com matriz, métricas e evidências de teste.
 - [x] Aplicar migrations `20261016160000` e `20261016161000` no Supabase do projeto antes do merge; drift sem divergência (1697 objetos) e 40 regras alinhadas.
-- [ ] Confirmar publicação do frontend/API após merge e atualizar/reiniciar uma única instância do worker.
+- [x] Publicação frontend/API Production Ready, CI da main aprovado e novas rotas recusando acesso sem login.
+- [ ] Reiniciar uma única instância do worker local para carregar o checkout já atualizado.
 - [ ] Validar operacionalmente com contas de teste por perfil, sem mensagens reais ou publicações.
 - [ ] Configurar fontes externas e mapeamento por IDs de cliente/recurso; sem essa dependência, indicadores correspondentes permanecem indisponíveis.
 

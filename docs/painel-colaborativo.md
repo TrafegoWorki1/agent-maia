@@ -1,6 +1,6 @@
 # Painel colaborativo da Maia
 
-Estado em 16/10/2026: implementação concluída, commit `eceac39` enviado no PR [#21](https://github.com/TrafegoWorki1/agent-maia/pull/21). As duas migrations foram aplicadas no Supabase do ambiente local com autorização do proprietário, antes do merge. Drift: 1697 objetos esperados e remotos, sem divergência. As 40 regras ativas correspondem ao catálogo `2026-10-16.1`. O worker exige atualização e reinício separado.
+Estado em 16/10/2026: implementação integrada na main pelo PR [#21](https://github.com/TrafegoWorki1/agent-maia/pull/21), squash `2fcd83943d87d515633f1f641b3d44da1b93fa82`. As duas migrations foram aplicadas no Supabase do ambiente local com autorização do proprietário, antes do merge. Drift: 1697 objetos esperados e remotos, sem divergência. As 40 regras ativas correspondem ao catálogo `2026-10-16.1`. CI da main aprovado e deploy Production Ready. O checkout local já está atualizado; o processo worker ainda precisa ser reiniciado para carregar o código.
 
 ## Funcionalidades e uso
 
@@ -80,6 +80,10 @@ Executados com serviços simulados e PGlite temporário, sem mensagens reais, pu
 - Simulação remota: somente as migrations abaixo. Advisor remoto de segurança no nível erro: sem ocorrências antes da aplicação.
 - Aplicação remota: `supabase db push --linked --yes` aplicou as versões `20261016160000` e `20261016161000` com sucesso.
 - Conferência posterior: `MAIA_DB_READ_VIA_CLI=1 pnpm db:drift` comparou 1697 objetos em cada lado, sem divergência; `pnpm rules:verify` confirmou 40 regras alinhadas à versão `2026-10-16.1`.
+- Advisor remoto de segurança após aplicação: nenhuma ocorrência no nível erro.
+- CI do merge aprovado: [execução 38930204145](https://github.com/TrafegoWorki1/agent-maia/actions/runs/38930204145).
+- Deployment Production `dpl_6TM2KjN68WATuGyEt8WPTrhooKHw`: Ready, domínio [agent-maia.vercel.app](https://agent-maia.vercel.app).
+- Leitura externa sem login: página inicial HTTP 200; `/api/collaboration` e `/api/collaboration?identity=1` HTTP 401 `login_required`. Nenhuma mensagem/publicação/imagem ou teste com cliente real.
 
 ## Implantação, reversão e reinício
 
