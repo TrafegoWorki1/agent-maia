@@ -1,5 +1,9 @@
 # Migrações do banco (Supabase)
 
+## Pendente — regras de vibecoding
+
+`20261016223848_maia_vibecoding_access_retention.sql` cria autorizações por recurso, auditoria, registro de permissões do Drive e a limpeza configurável de mensagens brutas. É aditiva, mantém RLS habilitada e concede acesso somente ao `service_role`. Aplicar na ordem do diretório antes de habilitar acesso Drive de membros; depois executar `pnpm rules:verify`. Reversão deve ser por migration compensatória, preservando registros de autorização e auditoria.
+
 Regra permanente: **as migrações em `supabase/migrations/` são a fonte de verdade do esquema.** Toda mudança estrutural
 no banco entra em uma migração SQL versionada, **no mesmo PR** que altera o código dependente. Uma funcionalidade que
 mexe no banco sem migração não está concluída.

@@ -888,4 +888,19 @@ describe("estruturas usadas pelos módulos (integração)", () => {
     const jev = (await q("select column_name from information_schema.columns where table_name = 'jev_triage'")).map((r) => r.column_name);
     assert.ok(jev.includes("intencao"));
   });
+
+  it("escopo por recurso e retenção: RLS fechada, grant válido e memória durável preservada", async () => {
+    const person = (await q("insert into public.people(name,role) values('Recurso','equipe') returning id"))[0].id;
+    const grant = (await q("insert into public.maia_resource_access(person_id,resource_type,resource_id,capability,decision,source) values($1,'drive_file','file-1','read','allow','direct') returning id", [person]))[0];
+    assert.ok(grant.id);
+    await rejects(local.db.exec("insert into public.maia_resource_access(person_id,resource_type,resource_id,capability,decision,source) values('00000000-0000-0000-0000-000000000000','drive_file','x','read','maybe','direct')"), /check|foreign key/i);
+    await local.db.exec("insert into public.messages(channel,author,text,at) values('whatsapp','owner','antiga',now()-interval '91 days')");
+    const memory = (await q("insert into public.owner_memories(title,detail) values('Decisão durável','não apagar com mensagem') returning id"))[0].id;
+    const cleaned = (await q("select public.purge_maia_raw_messages(now()-interval '90 days',now()-interval '7 days') as value"))[0].value as { messages: number };
+    assert.equal(Number(cleaned.messages), 1);
+    assert.equal((await q("select count(*)::int as n from public.owner_memories where id=$1", [memory]))[0].n, 1);
+    await local.db.exec("set role authenticated");
+    try { await rejects(q("select * from public.maia_resource_access"), /permission denied/i); }
+    finally { await local.db.exec("reset role"); }
+  });
 });

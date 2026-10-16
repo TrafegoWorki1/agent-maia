@@ -2,6 +2,7 @@ import { canonicalPhone, samePhone } from "./evolutionWebhook.ts";
 import { requiresApproval } from "./approvalPolicy.ts";
 import type { Db } from "./store.ts";
 import { groupToolDenial, type GroupScope } from "./groupScope.ts";
+import { isKnownMcpTool } from "./toolPolicy.ts";
 
 // Quem pediu e o que pode. O sistema decide por código (não pela conversa): dono faz tudo que é interno e privado;
 // membro faz o que a permissão dele cobre; o resto vira pedido de OK ao dono. Ação pública ou de risco sempre pede OK.
@@ -9,6 +10,7 @@ import { groupToolDenial, type GroupScope } from "./groupScope.ts";
 export type Role = "owner" | "member" | "guest";
 
 export interface Requester {
+  personId?: string;
   role: Role;
   name: string;
   number: string;
@@ -56,7 +58,7 @@ export async function resolveRequester(db: Db, number: string, pushName: string,
   const effective = new Set([...(perms ?? []).map((p) => String(p.permission_code)), ...(grants.data ?? []).map((p) => String(p.permission_code))]);
   for (const code of [...blocked, ...approval]) effective.delete(code);
   for (const p of overrides.data ?? []) if (p.mode === "permitido") effective.add(String(p.permission_code));
-  return { role: "member", name: String(person.name), number: digits,
+  return { role: "member", personId: String(hit.person_id), name: String(person.name), number: digits,
     accessGroups: (groups.data ?? []).map((g) => String(g.id)), clientIds: (groups.data ?? []).filter((g) => g.client_id).map((g) => String(g.client_id)),
     permissions: effective, approvalPermissions: approval, blockedPermissions: blocked };
 }
@@ -100,6 +102,14 @@ const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_a
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
 const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|contato_salvar|plano_criar|plano_atualizar|planos_ativos|operacao_resumo|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor|prospeccao_preparar|prospeccao_enviar_proximo|prospeccao_descadastrar)$/;
+const PERMISSIONLESS_READS = new Set([
+  "mcp__maia__buscar_conhecimento", "mcp__maia__contato_buscar", "mcp__maia__artes_recentes",
+  "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__grupo_ler_enquetes",
+  "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar",
+  "mcp__maia__instagram_desempenho", "mcp__maia__instagram_stories", "mcp__maia__instagram_stories_metricas",
+  "mcp__maia__instagram_musica_buscar", "mcp__maia__instagram_musica_detalhar", "mcp__maia__instagram_seguidor_status",
+  "mcp__maia__linkedin_contas", "mcp__maia__linkedin_organizacoes", "mcp__maia__linkedin_desempenho",
+]);
 
 // Quem pode conversar com a Maia no privado: o dono sempre; membro só com a permissão conversa.maia.
 export function canConverse(who: Requester): boolean {
@@ -116,6 +126,8 @@ function readPermission(toolName: string): string | null {
 }
 
 export function decideAccess(toolName: string, who: Requester, ctx: AccessContext, readOnly: boolean): AccessDecision {
+  if (toolName.startsWith("mcp__") && !isKnownMcpTool(toolName)) return { decision: "deny", reason: "ferramenta sem política explícita no inventário" };
+  if (toolName === "mcp__claude_ai_Google_Drive__share_file") return { decision: "deny", reason: "compartilhamento direto do conector bloqueado: use o fluxo gerenciado que registra e confere o permissionId" };
   if (/^mcp__maia__membro_acesso_(localizar|consultar|definir)$/.test(toolName)) return who.role === "owner" && !who.groupScope ? { decision: "allow", reason: "administração privada do proprietário" } : { decision: "deny", reason: "administração exclusiva do proprietário no privado" };
   if (toolName === "mcp__maia__skill_propor" && (who.role !== "owner" || !!who.groupScope)) return { decision: "deny", reason: "proposta de skill só no privado do owner" };
   const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
@@ -147,7 +159,9 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (/^mcp__maia__integracao_chamar$/.test(toolName)) return who.permissions.has("integracao.usar") ? { decision: "allow", reason: "tem integracao.usar" } : { decision: "approve", reason: "sem a permissão integracao.usar" };
   if (readOnly) {
     const needed = readPermission(toolName);
-    if (!needed || who.permissions.has(needed)) return { decision: "allow", reason: "consulta permitida" };
+    if (PERMISSIONLESS_READS.has(toolName)) return { decision: "allow", reason: "consulta interna com política explícita" };
+    if (!needed) return { decision: "deny", reason: "ferramenta de leitura sem política explícita" };
+    if (who.permissions.has(needed)) return { decision: "allow", reason: "consulta permitida" };
     return { decision: "approve", reason: `sem a permissão ${needed}` };
   }
   if (isGroupSend || DIRECT_SEND.test(toolName) || EMAIL_SEND.test(toolName)) {

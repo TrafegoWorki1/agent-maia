@@ -1,4 +1,5 @@
 import { addTaskEvent, createTask, failTask, kvGet, kvSet, pendingApprovals, readSnapshots, setTaskStatus, tasksBetween, type Db, type StoredSnapshot } from "./store.ts";
+import { expireStalePlans } from "./plans.ts";
 
 // Avisos proativos da Maia para o dono. Tudo é gerado localmente, a partir do banco e das
 // fontes em cache: não consome o plano do Claude. Cada aviso é enviado uma vez por ocorrência.
@@ -90,6 +91,9 @@ export async function deliverProactive(db: Db, kind: string, send: ProactiveSend
 
 export async function runProactive(db: Db, send: ProactiveSender, now = new Date()): Promise<void> {
   const notify = (kind: string, text: string) => deliverProactive(db, kind, send, text);
+  for (const plan of await expireStalePlans(db, now)) {
+    await notify("plano_expirado", `O plano #${plan.id} (${plan.title}) venceu após sete dias e foi encerrado sem retomada automática. Estava aguardando ${plan.waiting}.${plan.lastCompletedStep ? ` Última etapa concluída: ${plan.lastCompletedStep}.` : " Nenhuma etapa concluída foi registrada."} Para continuar, faça um novo pedido autorizado.`);
+  }
   // Resumo diário: uma vez por dia, a partir da hora configurada.
   if (brtHour(now) >= SUMMARY_HOUR_BRT && (await kvGet(db, "summary:last_day")) !== brtDay(now)) {
     await notify("resumo_diario", await buildDailySummary(db, now));

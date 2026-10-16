@@ -1,5 +1,11 @@
 # Agent · Maia
 
+## Segurança por recurso e retenção
+
+O limite geral de execução fica em `config/ai-routing.json`. Acesso de membros ao Google Drive exige a capacidade base `sheets.ler` e uma autorização vigente para arquivo, pasta, cliente ou projeto; buscas globais e ferramentas não mapeadas são bloqueadas. Compartilhamentos só podem ser confirmados pelo fluxo gerenciado que persiste e confere o `permissionId`.
+
+A retenção operacional fica em `config/data-retention.json`. Mensagens brutas do owner têm janela padrão de 90 dias; memória durável, auditoria e recibos não são removidos junto com esse conteúdo. Veja `docs/MAIA_IMPLEMENTACAO_REGRAS_VIBECODING.md` para implantação e reversão.
+
 Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo WhatsApp, usa ferramentas com permissões por pessoa e registra execução, aprovação e resultado. O painel apresenta pessoas, conexões, tarefas, indicadores e ocorrências reais.
 
 ## Funcionamento

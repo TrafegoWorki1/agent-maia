@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-16 — regras de execução, recurso e retenção
+
+- Centralizado em `config/ai-routing.json` o limite de 30 passos usado por Claude CLI, Agent SDK e chamadas MCP observáveis do Codex.
+- Leituras desconhecidas agora falham fechadas; Drive/Sheets para membros exige concessão por recurso além de `sheets.ler`.
+- Adicionados rastreio seguro de compartilhamentos Drive, retenção configurável de mensagens brutas e aviso único de planos vencidos.
+- Documentos humanos de regras passaram a ser gerados do catálogo normativo.
+- Migration aditiva `20261016223848_maia_vibecoding_access_retention.sql` preparada; não aplicada automaticamente.
+
 Registro do que foi feito no projeto, dos bugs resolvidos e das mudanças de código.
 Atualize este arquivo a cada alteração no código (ver regra em `CLAUDE.md`).
 

@@ -9,5 +9,6 @@
   "health": { "cooldownMs": 900000, "degradedAfter": 2, "unavailableAfter": 5 },
   "fallback": { "enabled": true, "categories": ["conversa", "consulta", "resumo", "analise", "tarefa_tecnica", "escrita_externa", "geral", "carrossel"] },
   "jev": { "activeRouting": false, "minConfidence": 0.8 },
-  "images": { "dailyLimit": 10 }
+  "images": { "dailyLimit": 10 },
+  "execution": { "maxSteps": 30 }
 }

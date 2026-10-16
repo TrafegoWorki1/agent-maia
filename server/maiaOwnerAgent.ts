@@ -4,10 +4,11 @@ import { sendOwnerText, DeliveryError } from "./evolutionSend.ts";
 import { deliverResponse } from "./responseDelivery.ts";
 import { createImageServer, IMAGE_TOOL, isLocalSafeTool, KNOWLEDGE_TOOL } from "./maiaImageTool.ts";
 import { agreement, toolLabels, recordJev, triageText, type JevResult } from "./jev.ts";
-import { approverNumbers, approvalBinding, consumeApproval, createApproval, openApprovals, waitApproval } from "./approvals.ts";
+import { approverNumbers, approvalBinding, consumeApproval, createApproval, hasInFlightToolApproval, openApprovals, waitApproval } from "./approvals.ts";
 import { buildSystemPrompt } from "./rules.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { canConverse, decideAccess, decideBuiltin, ownerRequester, resolveRequester, type Requester } from "./access.ts";
+import { decideDriveToolAccess } from "./resourceAccess.ts";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MEDIA_DIR, MEMBER_MEDIA_DIR } from "./media.ts";
@@ -103,7 +104,11 @@ function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(
       return { behavior: "deny", message: `Não permitido: ${builtin.reason}.` };
     }
     const readOnly = isReadTool(toolName) || isLocalSafeTool(toolName);
-    const verdict = decideAccess(toolName, who, await accessContext(getDb(), taskId, toolName, input), readOnly);
+    const baseVerdict = decideAccess(toolName, who, await accessContext(getDb(), taskId, toolName, input), readOnly);
+    const resourceVerdict = await decideDriveToolAccess(getDb(), who, toolName, input, "whatsapp");
+    const verdict = resourceVerdict?.decision === "deny" || baseVerdict.decision === "deny" ? (resourceVerdict?.decision === "deny" ? resourceVerdict : baseVerdict)
+      : resourceVerdict?.decision === "approve" || baseVerdict.decision === "approve" ? (resourceVerdict?.decision === "approve" ? resourceVerdict : baseVerdict)
+      : baseVerdict;
     if (verdict.decision === "deny") {
       await addTaskEvent(getDb(), taskId, "access_denied", toolName, verdict.reason);
       return { behavior: "deny", message: verdict.reason };
@@ -117,7 +122,7 @@ function makeWhatsAppPermission(taskId: number, who: Requester = ownerRequester(
     const requester = showRequester ? who.name || "Alguém" : undefined;
     const local = inGroup ? "no grupo" : "no privado";
     const db = getDb();
-    if ((await openApprovals(db)).some((r) => r.kind === "ferramenta")) {
+    if (hasInFlightToolApproval(await openApprovals(db), taskId)) {
       await addTaskEvent(db, taskId, "access_denied", toolName, "outra aprovação já pendente");
       return { behavior: "deny", message: "Já existe outra ação aguardando aprovação do dono." };
     }
@@ -144,7 +149,9 @@ Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 1
     if (outcome === "approved") {
       try { who = await refreshGroupRequester(db, who); }
       catch (error) { return { behavior: "deny", message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
-      const latest = decideAccess(toolName, who, await accessContext(db, taskId, toolName, input), readOnly);
+      const latestBase = decideAccess(toolName, who, await accessContext(db, taskId, toolName, input), readOnly);
+      const latestResource = await decideDriveToolAccess(db, who, toolName, input, "whatsapp");
+      const latest = latestResource?.decision === "deny" || latestBase.decision === "deny" ? { decision: "deny" as const } : latestBase;
       if (latest.decision === "deny" || !await consumeApproval(db, approval.id, binding)) return { behavior: "deny", message: "Acesso revogado, aprovação expirada ou já utilizada." };
     }
     return outcome === "approved"
@@ -159,12 +166,18 @@ Responda OK para aprovar só esta ação ou NÃO para recusar. Sem resposta em 1
 // Conversa do painel: mantém as ferramentas locais/consultas permitidas; outras escritas vão pelo WhatsApp.
 function makePanelPermission(taskId: number,who:Requester=ownerRequester()): CanUseTool {
   return async (toolName, input) => {
-    if (isReadTool(toolName) || isLocalSafeTool(toolName)) {
+    try { who = await resolveRequester(getDb(), who.number, who.name); }
+    catch (error) { return { behavior: "deny", message: error instanceof Error ? error.message : "Identidade indisponível." }; }
+    const readOnly = isReadTool(toolName) || isLocalSafeTool(toolName);
+    const base = decideAccess(toolName, who, await accessContext(getDb(), taskId, toolName, input), readOnly);
+    const resource = await decideDriveToolAccess(getDb(), who, toolName, input, "painel");
+    if (readOnly && base.decision === "allow" && (!resource || resource.decision === "allow")) {
       if(isCollaborativeWorkTool(toolName))issueWorkToolPermit({number:who.number,taskId,tool:toolName,args:input,oneTimeApproval:false});
       return { behavior: "allow", updatedInput: input };
     }
-    await addTaskEvent(getDb(), taskId, "access_denied", toolName, "escrita pelo painel não permitida");
-    return { behavior: "deny", message: "Peça essa ação pelo WhatsApp; as permissões e aprovações necessárias serão verificadas lá." };
+    const reason = resource?.decision === "deny" ? resource.reason : base.reason;
+    await addTaskEvent(getDb(), taskId, "access_denied", toolName, reason || "escrita pelo painel não permitida");
+    return { behavior: "deny", message: readOnly ? reason : "Peça essa ação pelo WhatsApp; as permissões e aprovações necessárias serão verificadas lá." };
   };
 }
 
@@ -224,7 +237,7 @@ async function runClaudeOnce(
         systemPrompt,
         model: opts.model,
         maxBudgetUsd: opts.maxBudgetUsd,
-        maxTurns: 30,
+        maxTurns: loadRoutingConfig().execution.maxSteps,
         timeoutMs: opts.timeoutMs,
         // Busca na web só para o dono; para os demais a ferramenta nem é oferecida.
         tools: isOwner ? CLI_OWNER_TOOLS : undefined,
@@ -263,7 +276,7 @@ async function runClaudeViaSdk(
         systemPrompt,
         ...(opts.model ? { model: opts.model } : {}),
         abortController: controller,
-        maxTurns: 30,
+        maxTurns: loadRoutingConfig().execution.maxSteps,
         maxBudgetUsd: opts.maxBudgetUsd,
         persistSession: false,
         canUseTool: permission,
@@ -316,6 +329,7 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: n
     prompt,
     timeoutMs: cfg.timeoutMs.codex,
     model: cfg.providers.codex.model,
+    maxSteps: cfg.execution.maxSteps,
     mcp: { taskId, channel, requester: who, inGroup, imageAllowed: who.role === "owner" && isImageCreationRequest(text), preferenceAllowed: who.role === "owner" && isPersistentPreferenceRequest(text), onToolUse: async (tool, failed) => {
       await markTaskKind(db, taskId, "operacional");
       await addTaskEvent(db, taskId, "tool_use", tool, null);
