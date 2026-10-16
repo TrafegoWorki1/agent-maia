@@ -88,3 +88,5 @@ plataforma, acrescente aqui (e explique no PR).
 # Migração de administração de acessos
 
 `20261016150000_maia_member_access_modes.sql` foi aplicada depois das migrações do núcleo, em 16/10/2026, antes de iniciar código novo. Cria modos individuais, trilha de auditoria e a função transacional `set_maia_member_access_mode`; amplia os estados de aprovação com `consumed`. A existência das tabelas, da função e da RLS foi conferida no remoto; o comportamento com dados reais requer validação operacional depois do deploy. Reversão operacional: voltar o código anterior, manter tabelas e auditoria para preservar evidências; qualquer remoção de esquema exige migração posterior e backup.
+
+Exceção histórica do guard: essa versão já aplicada substitui a constraint `approvals_status_check` usando `DROP CONSTRAINT IF EXISTS`, mas foi aplicada sem a marca textual de ação destrutiva. Como uma migração aplicada é imutável, `scripts/db/guard.ts` aceita somente o SHA-256 exato desse arquivo, autorizado pelo owner em 16/10/2026. Qualquer byte diferente ou futura migração destrutiva continua exigindo a marca e aprovação próprias.

@@ -13,6 +13,7 @@ bug, qual era o sintoma e a causa.
 - **Banco:** após autorização do owner, reconciliados dois pares de versões com SQL idêntico (`20261015131351`/`20261015123609` e `20261015131420`/`20261015124400`); aplicadas em ordem as migrations `20261016120000`, `20261016130000`, `20261016140000` e `20261016150000` no Supabase configurado no `.env` local.
 - **Verificação:** o histórico remoto contém as versões locais; tabelas principais, função de acesso e RLS foram conferidas por leitura. Documentação de implantação atualizada para distinguir esquema aplicado de código publicado e worker atualizado.
 - **Limite:** nenhuma mensagem, imagem ou publicação externa foi gerada; o worker não foi reiniciado. Testes comportamentais operacionais ainda dependem do código publicado e do worker atualizado.
+- **Guard de migração:** a versão de acessos já aplicada troca `approvals_status_check` sem a marca textual; para não alterar SQL aplicado, o guard aceita apenas o hash SHA-256 exato dessa versão autorizada. Novas migrações destrutivas continuam bloqueadas sem aprovação e marcação.
 
 ---
 
