@@ -144,8 +144,10 @@ Rollout: as quatro migrations do núcleo/acessos (`20261016120000` a
 `20261016150000`) foram aplicadas ao Supabase do projeto em 16/10/2026,
 na ordem de versão, após reconciliação autorizada de dois pares de versões
 com SQL idêntico. O código dependente ainda precisa ser publicado; flags e
-conexões opcionais não são ativadas automaticamente. Atualizar/reiniciar um
-único worker depois do deploy. Verificar uma sessão
+conexões opcionais não são ativadas automaticamente. O código foi integrado na
+`main` pelo PR #19, commit `a5e31e4`, e o deploy de produção da Vercel terminou
+com sucesso. Um único worker foi reiniciado em 16/10/2026 e voltou a aguardar a
+fila sem interromper a transcrição local. Ainda é necessário verificar uma sessão
 de membro e sua revogação, leases e entregas antes de ampliar flags. Reversão:
 desligar flags e voltar código/worker à versão compatível; manter dados
 históricos e criar migration compensatória se for necessário ajustar esquema.
