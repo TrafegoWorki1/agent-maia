@@ -1,7 +1,9 @@
 import { supabase } from "./supabaseBrowser";
+import type { DepartmentMetric } from "./departmentMetrics";
 
 export type WorkflowStatus = "pending"|"in_progress"|"review"|"awaiting_approval"|"blocked"|"completed"|"cancelled";
 export interface CollaborationTask {
+  area?:string|null;
   objective:string|null;briefing:string|null;acceptance_criteria:string|null;deliverable_id:string|null;origin_kind:string;source_task_id:number|null;
   id:number; title:string; responsible:string; responsible_person_id:string|null; responsible_team_id:string|null;
   reviewer_person_id:string|null; approver_person_id:string|null; client_ref_id:string|null; project_ref_id:string|null;
@@ -10,6 +12,7 @@ export interface CollaborationTask {
   allowedActions:{update:boolean;review:boolean;approve:boolean;reassign:boolean;prioritize:boolean};
 }
 export interface CollaborationData {
+  departmentRecords?:DepartmentRecord[];departmentHistory?:Array<Record<string,unknown>>;departmentMetrics?:DepartmentMetric[];
   planningTeamIds:string[];portfolioClientIds:string[];
   baselines:Array<{plan_id:string;task_snapshots:Array<{id:number;priority:number;committed_due_at:string|null}>}>;
   portfolioHistory:Array<Record<string,unknown>>;
@@ -21,6 +24,13 @@ export interface CollaborationData {
   planChanges:Array<Record<string,unknown>>; capacity:Array<Record<string,unknown>>; load:Array<{personId:string;assigned:number;estimatedHours:number|null;availableHours:number|null;utilization:number|null;unavailableReason:string|null}>;
   dashboards:{myDay:{priorities:CollaborationTask[];dueSoon:CollaborationTask[];blocked:CollaborationTask[];reviews:CollaborationTask[];approvals:CollaborationTask[]};team:{tasks:CollaborationTask[];blocked:CollaborationTask[]};coordination:{deadlineRisks:CollaborationTask[];reviewQueue:CollaborationTask[];approvalQueue:CollaborationTask[];unplanned:CollaborationTask[]};direction:{tasks:CollaborationTask[];metrics:Metric[]} | null};
   metrics:Metric[]; metricCatalog:Array<Record<string,unknown>>; externalMetrics:Array<Record<string,unknown>>;
+}
+export interface DepartmentRecord {
+ id:string;kind:"opportunity"|"cs";client_id:string;project_id:string|null;contract_id:string|null;work_task_id:number|null;
+ responsible_person_id:string;responsible_team_id:string|null;title:string;details:string;status:string;
+ next_action:string;next_action_at:string|null;waiting_kind:string|null;evidence:string|null;loss_reason:string|null;
+ converted_project_id:string|null;origin:string;source_task_id:number|null;created_at:string;updated_at:string;revision:number;
+ canUpdate:boolean;canConvert:boolean;canViewMetrics?:boolean;
 }
 export interface Metric {code:string;label:string;value:number|string|null;unit:string;available:boolean;unavailableReason:string|null;recordIds:number[]}
 

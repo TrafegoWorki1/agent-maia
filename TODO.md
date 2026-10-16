@@ -2,6 +2,21 @@
 
 Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-da-maia.md). Entregas anteriores e seus resultados estão no [changelog](CHANGELOG.md).
 
+## Integração das áreas — branch local, sem rollout
+
+- [x] Projetos/Implementações conectados à carteira e tarefas reais da Central.
+- [x] Trabalho/calendário de Marketing sobre os mesmos registros; snapshots gerais mantidos separados e restritos.
+- [x] Oportunidades/funil internos e combinados de CS com fonte, próxima ação, revisão, auditoria e conversão idempotente em projeto.
+- [x] Ferramentas comuns Claude/Codex; escrita pelo painel e WhatsApp usa as mesmas RPCs, com revalidação de capacidade/escopo.
+- [x] Remover editor duplicado da área técnica e abrir áreas operacionais somente por telas autorizadas.
+- [x] Financeiro lê observações autorizadas persistidas; sem coletor novo, sem somar períodos/moedas incompatíveis.
+- [x] Aplicar `20261016180722_maia_department_workspace.sql` no projeto Supabase `Agent Maia` antes da publicação dependente; dry-run listou somente essa migration e o ledger local/remoto está alinhado.
+- [ ] Revalidar drift do schema remoto: `pnpm db:drift` respondeu HTTP 401 na Management API; corrigir/renovar credencial de leitura e executar após a integração.
+- [ ] Autorizar push/PR/merge/deploy; atualizar e reiniciar uma única instância do worker, em etapa separada.
+- [ ] Validar visualmente com logins de homologação e fontes externas configuradas. Nenhum envio/publicação real foi usado como teste.
+
+Mapa, matriz, catálogo e evidências: [integração do painel](docs/integracao-painel-maia.md).
+
 ## Painel colaborativo (implementação e integração autorizadas)
 
 - [x] Backend autenticado, escopos por pessoa/equipe/cliente/projeto, papéis operacionais e restrição individual prevalecendo sobre herança.
@@ -53,12 +68,12 @@ Detalhes: [docs/painel-colaborativo.md](docs/painel-colaborativo.md).
 - [x] Expor sessões do owner, planos, subagentes, skills e rotinas no painel autenticado, com estados vazios honestos.
 - [x] Integrar subagentes textuais isolados ao Codex sem ferramentas; ativação do worker e consumo pago permanecem pendentes.
 
-**Etapa 2 — pendente** (Plano 02: dados reais nos novos departamentos)
-- [ ] Clientes e CS: vincular `maia_clients` e grupos com dados reais
-- [ ] Comercial: funil e oportunidades com fonte identificada
-- [ ] Projetos: cadastro via Maia, marcos, progresso
+**Etapa 2 — implementação local; implantação departamental pendente** (Plano 02)
+- [x] Clientes e CS: cadastro real reutilizado; acompanhamento e combinados persistidos preparados
+- [x] Comercial: funil interno e oportunidades com origem e histórico; sem CRM externo ativado
+- [x] Projetos: carteira/entregáveis/tarefas compartilhados com a Central
 - [ ] Financeiro: fonte Google Sheets ou sistema de cobrança
-- [ ] APIs autenticadas para cada departamento; RLS por cliente
+- [x] Contrato autenticado compartilhado e RPCs com autorização por escopo; tabela departamental sem acesso direto do navegador
 
 **Limpeza do painel — concluída (13/10/2026)**
 - [x] Apagar perfil "Aprovador" (`people.id = 0cfd12b8`)

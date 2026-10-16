@@ -8,6 +8,16 @@ bug, qual era o sintoma e a causa.
 
 ---
 
+## 2026-10-16 — Integração departamental do painel (local, não publicada)
+
+- Corrigidas telas estáticas de Projetos e Comercial: carteira, entregáveis e tarefas usam a API compartilhada da Central; oportunidades e combinados de CS têm persistência, origem, próxima ação, revisão e histórico.
+- Migração aditiva `20261016180722_maia_department_workspace.sql`, sem alterar versões aplicadas. RPCs revalidam identidade, capacidade e escopo; RLS fecha acesso direto. Conversão comercial é atômica/idempotente e não aceita cliente/projeto incompatível.
+- Ferramentas `area_registro_salvar` e `oportunidade_converter` nos catálogos comuns de Claude/Codex, com permit de chamada vinculado ao payload. Novas escritas exigem capacidade vigente; não promovem OK pontual a acesso permanente.
+- Marketing usa tarefas/calendário reais; fontes gerais da Meta continuam separadas e exclusivas do proprietário. Financeiro lê observações autorizadas, inclusive concessão herdada por cliente, sem coletor novo ou totais incompatíveis.
+- Removido editor de tarefas duplicado da área técnica. Navegação começa em Meu dia, preserva links e libera somente as telas operacionais autorizadas; cadastros globais e administração não são liberados.
+- Métricas de Comercial/CS têm fórmula, população, fonte e IDs detalhados, com cálculo comum no backend/frontend e indisponibilidade sem denominador. Identidade entra na versão de cache para impedir reaproveitamento entre pessoas com permissões iguais.
+- Testes locais com mocks e PGlite, sem produção ou serviços pagos; resultados e limites em `docs/integracao-painel-maia.md`. Banco remoto, push/merge, deploy e reinício não executados nesta etapa.
+
 ## 2026-10-16 — Painel colaborativo, carteira e planejamento concluídos
 
 - Implementados API autenticada, identidade por login vinculada a pessoa cadastrada, papéis operacionais por escopo, RLS/RPCs, workflow e painel com Meu dia/Equipe/Coordenação/Planejamento/Indicadores/Direção.

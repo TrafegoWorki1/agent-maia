@@ -97,9 +97,14 @@ export function hasPermission(identity: PanelIdentity, code: string, clientId: s
 }
 
 export function identityScreens(identity: PanelIdentity): string[] {
-  if (identity.owner) return ["meu-dia","minha-equipe","coordenacao","direcao","planejamento","metricas"];
+  if (identity.owner) return ["meu-dia","minha-equipe","coordenacao","direcao","planejamento","metricas","projetos-lista","implementacoes","trabalho-marketing","oportunidades","funil","acompanhamento"];
   if (!hasPermission(identity, "painel.ver")) return [];
   const result = new Set<string>(["meu-dia"]);
+  const financialScope=identity.roles.some(role=>role.role==="financeiro"&&(role.clientId||role.projectId));
+  const canReadFinance=hasPermission(identity,"financeiro.ver")||identity.groupPermissions.some(grant=>grant.code==="financeiro.ver"&&hasPermission(identity,"financeiro.ver",grant.clientId));
+  if(financialScope&&canReadFinance)for(const screen of ["receitas","custos","metricas"])result.add(screen);
+  const canReadWork=hasPermission(identity,"trabalho.ver")||identity.groupPermissions.some(grant=>grant.code==="trabalho.ver"&&hasPermission(identity,"trabalho.ver",grant.clientId));
+  if(canReadWork)for(const screen of ["projetos-lista","implementacoes","trabalho-marketing","oportunidades","funil","acompanhamento"])result.add(screen);
   if (identity.teams.length || identity.roles.some((role) => role.role === "membro")) result.add("minha-equipe");
   const coordinator=identity.roles.some((role) => role.role === "coordenador")||identity.teams.some((team)=>team.membershipRole==="coordenador");
   if (coordinator&&hasPermission(identity,"trabalho.ver")) result.add("coordenacao");

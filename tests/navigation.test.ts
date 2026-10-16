@@ -20,7 +20,7 @@ describe("organização do painel", () => {
     expect(parseRoute("#grupos-clientes/grupos")).toEqual({ section:"clientes-cs",screen:"grupos" });
     expect(parseRoute("#grupos-clientes/clientes")).toEqual({ section:"clientes-cs",screen:"clientes" });
     expect(parseRoute("#grupos-clientes")).toEqual({ section:"clientes-cs",screen:"clientes" });
-    expect(parseRoute("#desconhecido")).toEqual({ section:"visao-geral",screen:"resumo" });
+    expect(parseRoute("#desconhecido")).toEqual({ section:"trabalho",screen:"meu-dia" });
   });
   it("membro abre somente os próprios acessos", () => {
     for (const s of sections) for (const p of s.pages) {
@@ -30,5 +30,12 @@ describe("organização do painel", () => {
   it("membro recebe somente as telas colaborativas autorizadas", () => {
     expect(parseRoute("#trabalho/meu-dia",["meu-dia"])).toEqual({section:"trabalho",screen:"meu-dia"});
     expect(parseRoute("#trabalho/direcao",["meu-dia"])).toEqual({section:"trabalho",screen:"meu-dia"});
+  });
+  it("áreas especializadas respeitam telas concedidas sem liberar administração",()=>{
+    const access=["meu-dia","acompanhamento","projetos-lista","trabalho-marketing"];
+    expect(parseRoute("#clientes-cs",access)).toEqual({section:"clientes-cs",screen:"acompanhamento"});
+    expect(parseRoute("#projetos/projetos-lista?task=42",access)).toEqual({section:"projetos",screen:"projetos-lista"});
+    expect(parseRoute("#clientes-cs/clientes",access)).toEqual({section:"trabalho",screen:"meu-dia"});
+    expect(parseRoute("#marketing/campanhas",access)).toEqual({section:"trabalho",screen:"meu-dia"});
   });
 });

@@ -4,7 +4,7 @@ Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo Wha
 
 ## Funcionamento
 
-Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel publicado usa autenticação do proprietário e RLS.
+Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel usa login vinculado ao cadastro real, autorização por escopo no backend e RLS.
 
 O registro de recibos distingue aceite pela Evolution de entrega/leitura; o painel de tarefas mostra os status recebidos. Reenvios de texto idêntico ao mesmo destino em até 24 h exigem OK do owner. Para ativar callbacks, configure `MESSAGES_UPDATE` na Evolution e atualize/reinicie o worker local conforme [confiabilidade dos envios WhatsApp](docs/confiabilidade-envio-whatsapp.md); instalar apenas a Vercel não atualiza o worker local.
 
@@ -12,9 +12,11 @@ Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Code
 
 ## Organização do painel
 
-O menu reúne as telas em sete áreas: Visão geral; Marketing; Execução; Grupos e clientes; Equipe e acessos; Agente Maia; Sistema e integrações. As páginas de cada área aparecem em abas. Links antigos continuam funcionando. O cabeçalho usa a identidade do login e o proprietário tem acesso ao painel operacional também na versão publicada.
+O menu usa a Central de Trabalho como entrada. Projetos, Marketing, Comercial e Clientes/CS oferecem visões dos mesmos registros autorizados. Saúde da Maia e Operação da Maia mantêm diagnósticos técnicos exclusivos do proprietário; Financeiro depende da competência e do escopo financeiro. Cadastros globais, acessos, regras e integrações continuam administrativos. Links antigos são preservados; membros não recebem acesso às páginas administrativas por terem acesso à área operacional.
 
-Em Grupos e clientes, cadastre o cliente e associe os grupos reais do WhatsApp. Em Equipe e acessos, crie equipes com membros e permissões compartilhadas. Grupos de acesso vinculados a clientes concedem permissões somente nos grupos desse cliente; equipes internas somam permissões em toda a operação. Aprovação de ações continua individual. Novos grupos são cadastrados com atendimento pausado, salvo ativação explícita.
+Na branch de integração departamental, Projetos/Implementações consultam a carteira da Central; Marketing filtra tarefas e calendário; Comercial e CS usam registros internos persistidos com próxima ação, revisão e histórico. As ferramentas `area_registro_salvar` e `oportunidade_converter` são compartilhadas por Claude/Codex, revalidam acesso no banco e não ativam CRM externo. Criação permanece pelo WhatsApp; o painel altera registros existentes. Migração `20261016180722_maia_department_workspace.sql` preparada **somente localmente**: aplicar antes de publicar o código dependente, após autorização. Detalhes, matriz e limites em [integração do painel](docs/integracao-painel-maia.md).
+
+Em Clientes e CS, o proprietário administra clientes e grupos reais do WhatsApp; o acompanhamento operacional segue o escopo da pessoa. Em Equipe e acessos, grupos de permissão compartilham concessões. Eles são distintos das equipes operacionais de planejamento e responsabilidade. Grupos de acesso vinculados a clientes limitam concessões ao cliente correspondente; uma associação operacional não concede administração. Aprovação de ações continua individual. Novos grupos são cadastrados com atendimento pausado, salvo ativação explícita.
 
 O contexto dos grupos de clientes não recebe o histórico privado do proprietário nem conversas de outros grupos. Ferramentas que consultam dados gerais da operação ficam bloqueadas nesse contexto. As permissões são conferidas novamente antes de executar ferramentas, após aprovação e antes de cada parte da resposta, inclusive na retomada da fila. Ao mudar o cliente ou os acessos de um grupo, pedidos anteriores precisam ser refeitos. Documentos de clientes continuam fora da busca do projeto.
 
@@ -106,4 +108,4 @@ A interface não substitui as permissões do servidor. Aprovações valem para u
 
 O proprietário autenticado pelo número do servidor pode pedir à Maia para localizar um membro existente, consultar suas capacidades e definir uma capacidade como `permitido`, `bloqueado` ou `aprovacao`. A Maia usa o ID da pessoa cadastrada; nomes ambíguos exigem escolha. Bloqueios individuais prevalecem sobre concessões de equipes. O painel de Pessoas relê os modos salvos no banco. A alteração vale para o acesso **via Maia**; não remove compartilhamentos diretos no Google Drive. A função depende da migração `20261016150000_maia_member_access_modes.sql` e de implantação posterior; não está ativa só por existir no repositório.
 
-A ferramenta recusa capacidades do catálogo que ainda não têm política de execução comprovada (como `painel.ver`). Para `conversa.maia` e `escrita.aprovar`, permite conceder ou bloquear, mas recusa `aprovacao`: um OK pontual não pode substituir a autorização de entrada ou a de aprovar outros pedidos.
+A ferramenta recusa capacidades do catálogo que ainda não têm política de execução comprovada. Entrada (`painel.ver`, `conversa.maia`), decisão de aprovar (`escrita.aprovar`) e leitura de indicadores/financeiro não admitem OK pontual: use concessão ou bloqueio explícitos. Nos novos registros de Comercial/CS e na conversão em projeto, a competência deve estar vigente; OK pontual não substitui o escopo nem cria concessão permanente.

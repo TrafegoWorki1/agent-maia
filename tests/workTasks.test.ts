@@ -28,7 +28,8 @@ describe("tarefas reais e avaliação humana", () => {
   it("dados e escrita de trabalho não são liberados automaticamente a membros", () => {
     for (const t of workTools) {
       expect(decideAccess(`mcp__maia__${t.name}`,ownerRequester(),{},t.name === "tarefas_listar").decision).toBe("allow");
-      expect(decideAccess(`mcp__maia__${t.name}`,{ role:"guest",name:"X",number:"",permissions:new Set() },{},t.name === "tarefas_listar").decision).toBe("approve");
+      const expected=["area_registro_salvar","oportunidade_converter"].includes(t.name)?"deny":"approve";
+      expect(decideAccess(`mcp__maia__${t.name}`,{ role:"guest",name:"X",number:"",permissions:new Set() },{},t.name === "tarefas_listar").decision).toBe(expected);
     }
   });
   it("sem avaliação é sem nota, parcial não é resolvido", () => {

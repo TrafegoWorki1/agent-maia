@@ -30,6 +30,7 @@ const ImplementacoesPage = lazy(() => import("./features/departments/DepartmentP
 const ReceitasPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.ReceitasPage })));
 const CustosPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.CustosPage })));
 const CollaborationPage = lazy(() => import("./features/collaboration/CollaborationPage").then((m) => ({ default: m.CollaborationPage })));
+const DepartmentWorkspace = lazy(() => import("./features/departments/DepartmentWorkspace").then((m) => ({ default: m.DepartmentWorkspace })));
 const HOSTED = import.meta.env.VITE_MAIA_HOSTED === "1";
 const icons = { work: BriefcaseBusiness, home: Home, marketing: Megaphone, execution: ShieldCheck, groups: Users, access: KeyRound, agent: Bot, system: Plug, comercial: TrendingUp, projetos: Layers, financeiro: Landmark };
 type AppIdentity = { owner:boolean;name:string;screens:string[];accessVersion:string };
@@ -67,7 +68,7 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
     const change = () => {
       const next = parseRoute(window.location.hash, routeAccess);
       setRoute(next); setMobileOpen(false);
-      if (window.location.hash !== routeHash(next)) window.history.replaceState(null, "", routeHash(next));
+      if (window.location.hash.split("?")[0] !== routeHash(next)) window.history.replaceState(null, "", routeHash(next));
     };
     change(); window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
@@ -77,7 +78,7 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
   }, [mobileOpen]);
-  const nav = sections.filter((s) => identity.owner || (s.id==="trabalho"&&s.pages.some((page)=>identity.screens.includes(page.id))));
+  const nav = sections.filter((s) => identity.owner || s.pages.some((page)=>identity.screens.includes(page.id)));
   return <div className="app-frame">
     <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
       <div className="brand-lockup"><div className="brand-mark"><span /><span /><i /></div><div className="brand-wordmark"><strong>Maia</strong><small>WORKI DIGITAL</small></div><button type="button" className="mobile-close" onClick={() => setMobileOpen(false)} aria-label="Fechar navegação"><X size={18} /></button></div>
@@ -85,7 +86,8 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
       <div className="nav-section-label">SEU PAINEL</div>
       <nav className="primary-nav" aria-label="Navegação principal">{nav.map((section) => {
         const NavIcon = icons[section.icon];
-        return <a key={section.id} className={`nav-link ${route.section === section.id ? "nav-link-active" : ""}`} href={routeHash({ section: section.id, screen: section.pages[0].id })} onClick={() => setMobileOpen(false)} aria-current={route.section === section.id ? "page" : undefined}><NavIcon size={17} /><span>{section.label}</span></a>;
+        const first=section.pages.find(page=>identity.owner||identity.screens.includes(page.id))!;
+        return <a key={section.id} className={`nav-link ${route.section === section.id ? "nav-link-active" : ""}`} href={routeHash({ section: section.id, screen: first.id })} onClick={() => setMobileOpen(false)} aria-current={route.section === section.id ? "page" : undefined}><NavIcon size={17} /><span>{section.label}</span></a>;
       })}</nav>
       <div className="sidebar-spacer" />
       {identity.owner && <><a href="#sistema/conexoes" className="sidebar-status"><span className="status-orbit"><Activity size={16} /></span><div><strong>Sistema</strong><small>{status.label}</small></div><DotStatus tone={status.tone} /></a><a className="sidebar-help" href="#agente-maia/manual"><CircleHelp size={16} /> Manual de continuidade</a></>}
@@ -94,7 +96,7 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
     {mobileOpen && <button className="mobile-scrim" aria-label="Fechar menu" onClick={() => setMobileOpen(false)} />}
     <main className="main-area"><header className="topbar"><div className="topbar-left"><button type="button" className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Abrir navegação" aria-expanded={mobileOpen}><Menu size={20} /></button><div className="breadcrumb"><span>{current.label}</span><span className="breadcrumb-separator">/</span><strong><Icon size={14} /> {activePage.label}</strong></div></div><div className="topbar-right"><span className="account-name">{identity.name}<small>{identity.owner ? "Proprietário" : "Seu acesso"}</small></span><Avatar initials={identity.name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase()} color="#74572c" size="sm" /></div></header>
       <div className="page-content"><nav className="section-nav" aria-label={`Páginas de ${current.label}`}>{current.pages.filter((p) => identity.owner || identity.screens.includes(p.id)).map((page) => <a key={page.id} href={routeHash({ section: current.id, screen: page.id })} aria-current={route.screen === page.id ? "page" : undefined}>{page.label}</a>)}</nav>
-        <Suspense fallback={<p role="status" className="empty-note">Carregando página…</p>}><Screen id={route.screen} /></Suspense>
+        <Suspense fallback={<p role="status" className="empty-note">Carregando página…</p>}><Screen key={route.screen} id={route.screen} /></Suspense>
         <footer className="page-footer"><span>Maia · Worki Digital</span><span>{snapshot ? `Última leitura: ${new Date(snapshot.generatedAt).toLocaleTimeString("pt-BR")}` : "Dados da operação"}</span></footer>
       </div></main>
   </div>;
@@ -110,6 +112,8 @@ function Screen({ id }: { id: ScreenId }) {
     case "resumo": return <ResumoPage />;
     case "indicadores": return <IndicadoresPage />;
     case "campanhas": return <CampanhasPage />;
+    case "trabalho-marketing": return <DepartmentWorkspace mode="marketing" />;
+    case "acompanhamento": return <DepartmentWorkspace mode="cs" />;
     case "vendas": return <VendasPage />;
     case "insights": return <InsightsPage />;
     case "tom": return <TomPage />;

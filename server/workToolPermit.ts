@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 type Permit = { expiresAt: number; oneTimeApproval: boolean };
 const permits = new Map<string, Permit>();
 const TTL_MS = 30_000;
-export const isCollaborativeWorkTool = (tool:string):boolean => /^mcp__maia__(tarefas_listar|trabalho_contexto|tarefa_criar|tarefa_atualizar)$/.test(tool);
+export const isCollaborativeWorkTool = (tool:string):boolean => /^mcp__maia__(tarefas_listar|trabalho_contexto|tarefa_criar|tarefa_atualizar|area_registro_salvar|oportunidade_converter)$/.test(tool);
 
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);

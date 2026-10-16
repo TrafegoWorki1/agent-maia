@@ -1,5 +1,7 @@
 # Painel colaborativo da Maia
 
+Complemento local posterior: [integração das abas departamentais](integracao-painel-maia.md). O rollout descrito abaixo corresponde ao PR #21, não à nova branch `feat/integrated-workspace`, cuja migration e publicação ainda aguardam autorização. Projetos/Comercial legados não estavam integrados apenas pela entrega da Central.
+
 Estado em 16/10/2026: implementação integrada na main pelo PR [#21](https://github.com/TrafegoWorki1/agent-maia/pull/21), squash `2fcd83943d87d515633f1f641b3d44da1b93fa82`. As duas migrations foram aplicadas no Supabase do ambiente local com autorização do proprietário, antes do merge. Drift: 1697 objetos esperados e remotos, sem divergência. As 40 regras ativas correspondem ao catálogo `2026-10-16.1`. CI da main aprovado e deploy Production Ready. O checkout local já está atualizado; o processo worker ainda precisa ser reiniciado para carregar o código.
 
 ## Funcionalidades e uso

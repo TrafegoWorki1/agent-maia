@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { canManagePortfolio, portfolioCommandSchema, savePortfolio } from "./workPortfolio.ts";
+import { departmentSaveSchema, opportunityConvertSchema, executeDepartmentCommand, scopedDepartmentRecords, type DepartmentRecord } from "./departmentWork.ts";
+import { calculateDepartmentMetrics } from "../src/lib/departmentMetrics.ts";
 import type { Db } from "./store.ts";
 import { hasPermission, identityScreens, type PanelIdentity } from "./panelIdentity.ts";
 
@@ -105,7 +107,7 @@ export function calculateMetrics(tasks: CollaborativeTask[], planItems: Array<Re
 }
 
 export function serializeIdentity(identity: PanelIdentity) {
-  const accessVersion=createHash("sha256").update(JSON.stringify({owner:identity.owner,direct:[...identity.directPermissions].sort(),modes:[...identity.permissionModes].sort(),grants:identity.groupPermissions.map(row=>JSON.stringify(row)).sort(),teams:identity.teams.map(row=>JSON.stringify(row)).sort(),roles:identity.roles.map(row=>JSON.stringify(row)).sort()})).digest("hex");
+  const accessVersion=createHash("sha256").update(JSON.stringify({personId:identity.personId,owner:identity.owner,direct:[...identity.directPermissions].sort(),modes:[...identity.permissionModes].sort(),grants:identity.groupPermissions.map(row=>JSON.stringify(row)).sort(),teams:identity.teams.map(row=>JSON.stringify(row)).sort(),roles:identity.roles.map(row=>JSON.stringify(row)).sort()})).digest("hex");
   return { accessVersion,personId: identity.personId, name: identity.name, owner: identity.owner, teams: identity.teams, roles: identity.roles,
     screens: identityScreens(identity), permissions: [...new Set([...identity.directPermissions, ...identity.groupPermissions.map((grant) => grant.code)])]
       .filter((code) => identity.permissionModes.get(code) !== "bloqueado") };
@@ -113,7 +115,7 @@ export function serializeIdentity(identity: PanelIdentity) {
 
 export async function collaborationView(db: Db, identity: PanelIdentity, now = new Date(),purpose:"panel"|"maia"="panel") {
   if (purpose==="panel"&&!identity.owner && !hasPermission(identity, "painel.ver")) throw new Error("panel_access_denied");
-  const [taskRows, people, teams, teamMembers, clients, contracts, projects, scopeRoles, deliverables, dependencies, artifacts, histories, reviews, plans, planItems, planChanges, capacities, metricCatalog, observations, baselines, portfolioHistory] = await Promise.all([
+  const [taskRows, people, teams, teamMembers, clients, contracts, projects, scopeRoles, deliverables, dependencies, artifacts, histories, reviews, plans, planItems, planChanges, capacities, metricCatalog, observations, baselines, portfolioHistory, departmentRows] = await Promise.all([
     allRows(db,"work_tasks",TASK_SELECT),
     allRows(db,"people","id,name,role,active","name"),
     allRows(db,"work_teams","id,name,active,revision,access_group_id","name"),
@@ -135,7 +137,10 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
     allRows(db,"external_metric_observations","id,metric_code,client_id,project_id,period_start,period_end,value,unit,source_name,source_ref,last_attempt_at,last_success_at,unavailable_reason,created_at","created_at"),
     allRows(db,"work_plan_baselines","plan_id,task_snapshots,created_by,created_at","plan_id"),
     allRows(db,"work_portfolio_history","id,entity_kind,entity_id,actor_person_id,at,reason,prior_value,new_value","id"),
+    allRows(db,"work_department_records","*"),
   ]);
+  const departmentRecords=scopedDepartmentRecords(identity,departmentRows as DepartmentRecord[]);
+  const departmentIds=new Set(departmentRecords.map(row=>row.id));
   const tasks = (taskRows as CollaborativeTask[]).filter((task) => canAccessTask(identity,task,"trabalho.ver")).map((task) => ({ ...task,
     allowedActions: {
       update: canAccessTask(identity,task,"trabalho.atualizar"), review: canAccessTask(identity,task,"trabalho.revisar"),
@@ -155,7 +160,7 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
   const baselinePlanIds=new Set(visiblePlans.filter(plan=>plan.period_kind==="weekly"&&plan.baseline_at&&String(plan.period_start)<=week.endDate&&String(plan.period_end)>=week.startDate).map(plan=>String(plan.id)));
   const metricPlanItems=baselines.filter(b=>baselinePlanIds.has(String(b.plan_id))).flatMap(b=>(Array.isArray(b.task_snapshots)?b.task_snapshots:[]).filter((s:Record<string,any>)=>ids.has(Number(s.id))).map((s:Record<string,any>)=>({work_task_id:Number(s.id),baseline_snapshot:s,added_after_baseline:false})));
   for(const task of tasks)task.added_after_baseline=visiblePlanItems.some(item=>Number(item.work_task_id)===task.id&&item.added_after_baseline&&baselinePlanIds.has(String(item.plan_id)));
-  const canViewMetrics=identity.owner||tasks.some(task=>canAccessTask(identity,task,"indicadores.ver"))||hasPermission(identity,"indicadores.ver");
+  const canViewMetrics=identity.owner||tasks.some(task=>canAccessTask(identity,task,"indicadores.ver"))||hasPermission(identity,"indicadores.ver")||departmentRecords.some(row=>row.canViewMetrics);
   const relevantPeople = new Set<string>([identity.personId]);
   for (const task of tasks) for (const value of [task.responsible_person_id,task.reviewer_person_id,task.approver_person_id]) if (value) relevantPeople.add(value);
   const teamIds = new Set(tasks.map((task) => task.responsible_team_id).filter(Boolean));
@@ -165,14 +170,17 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
   const explicitClientIds=new Set(identity.roles.filter(role=>role.clientId&&role.role!=="financeiro"&&hasPermission(identity,"trabalho.ver",role.clientId)).map(role=>role.clientId!));
   const explicitProjectIds=new Set(identity.roles.filter(role=>role.projectId&&role.role!=="financeiro").map(role=>role.projectId!));
   const visibleProjects=projects.filter(project=>identity.owner||hasPermission(identity,"trabalho.ver",String(project.client_id))&&(explicitClientIds.has(String(project.client_id))||explicitProjectIds.has(String(project.id))||tasks.some(task=>task.project_ref_id===project.id)||identity.teams.some(team=>team.id===project.responsible_team_id&&team.membershipRole==="coordenador")||identity.roles.some(role=>role.role==="coordenador"&&!!role.teamId&&role.teamId===project.responsible_team_id)));
+  for(const project of projects)if(!visibleProjects.includes(project)&&departmentRecords.some(row=>row.project_id===project.id||row.converted_project_id===project.id))visibleProjects.push(project);
   const projectIds=new Set(visibleProjects.map(project=>String(project.id)));
   const clientIds=new Set([...explicitClientIds,...tasks.map(task=>task.client_ref_id).filter((id):id is string=>!!id),...visibleProjects.map(project=>String(project.client_id))]);
+  for(const row of departmentRecords){clientIds.add(row.client_id);relevantPeople.add(row.responsible_person_id);if(row.responsible_team_id)teamIds.add(row.responsible_team_id);}
   const visibleContracts=contracts.filter(contract=>identity.owner||explicitClientIds.has(String(contract.client_id))||visibleProjects.some(project=>project.contract_id===contract.id));
   const visibleDeliverables=deliverables.filter(row=>identity.owner||explicitProjectIds.has(String(row.project_id))||visibleProjects.some(project=>project.id===row.project_id&&canManagePortfolio(identity,String(project.client_id),String(project.id),project.responsible_team_id?String(project.responsible_team_id):null))||tasks.some(task=>task.deliverable_id===row.id));
   const portfolioIds=new Set([...visibleContracts,...visibleProjects,...visibleDeliverables].map(row=>String(row.id)));
-  const visibleCatalog=metricCatalog.filter(row=>row.active&&(!row.financial||identity.owner||hasPermission(identity,"financeiro.ver")&&identity.roles.some(role=>role.role==="financeiro"&&(role.clientId||role.projectId))));
+  const canReadFinancialCatalog=identity.owner||identity.roles.some(role=>role.role==="financeiro"&&(role.clientId||role.projectId)&&hasPermission(identity,"financeiro.ver",role.clientId??projects.find(project=>project.id===role.projectId)?.client_id??null));
+  const visibleCatalog=metricCatalog.filter(row=>row.active&&(!row.financial||canReadFinancialCatalog));
   const metricTasks=tasks.filter(task=>identity.owner||canAccessTask(identity,task,"indicadores.ver"));
-  const completeMetrics=(personId?:string)=>{const calculated=calculateMetrics(metricTasks,metricPlanItems,visibleReviews,now,personId,baselinePlanIds.size>0);const codes=new Set(calculated.map(row=>row.code));return [...calculated,...visibleCatalog.filter(row=>!codes.has(String(row.code))).map(row=>metric(String(row.code),String(row.label),null,String(row.unit),String(row.coverage_rule),[]))];};
+  const completeMetrics=(personId?:string)=>{const calculated=calculateMetrics(metricTasks,metricPlanItems,visibleReviews,now,personId,baselinePlanIds.size>0);const codes=new Set(calculated.map(row=>row.code));return [...calculated,...visibleCatalog.filter(row=>!codes.has(String(row.code))&&row.source!=="work_department_records").map(row=>metric(String(row.code),String(row.label),null,String(row.unit),String(row.coverage_rule),[]))];};
   const visibleObservations=observations.filter(row=>{if(identity.owner)return true;const catalog=visibleCatalog.find(item=>item.code===row.metric_code);if(!catalog)return false;const scope=identity.roles.some(role=>(!!role.clientId&&role.clientId===row.client_id||!!role.projectId&&role.projectId===row.project_id)&&(!catalog.financial||role.role==="financeiro"));return scope&&hasPermission(identity,catalog.financial?"financeiro.ver":"indicadores.ver",row.client_id?String(row.client_id):null);});
   const dueSoon = tasks.filter((task) => task.workflow_status !== "completed" && task.workflow_status !== "cancelled" && task.committed_due_at && Date.parse(task.committed_due_at) <= now.getTime()+7*86_400_000);
   const mine = tasks.filter((task) => task.responsible_person_id === identity.personId);
@@ -196,6 +204,9 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
 
   return {
     generatedAt: now.toISOString(), staleAfterMs: 45_000, identity: serializeIdentity(identity),
+    departmentRecords,
+    departmentMetrics:canViewMetrics?calculateDepartmentMetrics(departmentRecords,now.toISOString()):[],
+    departmentHistory:portfolioHistory.filter(row=>departmentIds.has(String(row.entity_id))&&["opportunity","cs"].includes(String(row.entity_kind))),
     tasks, people: people.filter((person) => relevantPeople.has(String(person.id)) || identity.owner), teamMembers: teamMembers.filter((member) => teamIds.has(String(member.team_id)) || identity.owner),
     teams: teams.filter((team) => teamIds.has(String(team.id)) || identity.teams.some((own) => own.id === team.id) || identity.owner),
     clients: clients.filter((client)=>clientIds.has(String(client.id))||identity.owner),
@@ -217,7 +228,7 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
       coordination: { deadlineRisks:dueSoon, reviewQueue, approvalQueue, unplanned:tasks.filter((task) => task.added_after_baseline) },
       direction: identity.owner ? { tasks, metrics:completeMetrics() } : null,
     },
-    metrics:canViewMetrics?completeMetrics(identity.personId):[],metricCatalog:canViewMetrics?visibleCatalog:[],
+    metrics:canViewMetrics?completeMetrics(identity.personId):[],metricCatalog:canViewMetrics?visibleCatalog:visibleCatalog.filter(row=>row.financial),
     externalMetrics:visibleObservations,
     planningTeamIds:teams.filter(team=>team.active&&canPlanTeam(String(team.id))).map(team=>String(team.id)),
     portfolioClientIds:clients.filter(client=>canManagePortfolio(identity,String(client.id),null,null)).map(client=>String(client.id)),
@@ -230,11 +241,12 @@ const capacitySchema = z.object({ action:z.literal("capacity_save"), personId:z.
 const planSchema = z.object({ action:z.literal("plan_save"), id:z.string().uuid().optional(), revision:z.number().int().positive().optional(), periodKind:z.enum(["monthly","weekly","daily"]), periodStart:z.string().date(), periodEnd:z.string().date(), teamId:z.string().uuid(), objective:z.string().max(1000).optional(), taskIds:z.array(z.number().int().positive()).max(300), baseline:z.boolean().default(false),reason:z.string().trim().min(3).max(500).optional() }).refine((value) => !value.id || !!value.revision,"Edição de plano exige revisão");
 const teamSchema = z.object({ action:z.literal("team_save"), id:z.string().uuid().optional(), revision:z.number().int().positive().optional(), name:z.string().trim().min(1).max(100), accessGroupId:z.string().uuid().nullable().optional(), active:z.boolean().default(true), members:z.array(z.object({ personId:z.string().uuid(), role:z.enum(["membro","coordenador"]) })).max(200) }).refine((value) => !value.id || !!value.revision,"Edição de equipe exige revisão");
 const roleSchema = z.object({ action:z.literal("scope_role_save"), personId:z.string().uuid(), role:z.enum(["membro","coordenador","responsavel_cliente","revisor","aprovador","financeiro"]), teamId:z.string().uuid().nullable().optional(), clientId:z.string().uuid().nullable().optional(), projectId:z.string().uuid().nullable().optional(), active:z.boolean().default(true) });
-export const collaborationCommandSchema = z.discriminatedUnion("action",[taskActionSchema,capacitySchema,planSchema,teamSchema,roleSchema,portfolioCommandSchema]);
+export const collaborationCommandSchema = z.discriminatedUnion("action",[taskActionSchema,capacitySchema,planSchema,teamSchema,roleSchema,portfolioCommandSchema,departmentSaveSchema,opportunityConvertSchema]);
 
 export async function executeCollaborationCommand(db: Db, identity: PanelIdentity, raw: unknown, origin:"panel"|"whatsapp"|"maia"="panel", oneTimeApproval=false) {
   if(origin==="panel"&&!identity.owner&&!hasPermission(identity,"painel.ver"))throw new Error("Acesso ao painel revogado");
   const command = collaborationCommandSchema.parse(raw);
+  if(command.action==="department_save"||command.action==="opportunity_convert")return executeDepartmentCommand(db,identity,command,origin);
   if(command.action==="portfolio_save")return savePortfolio(db,identity,command);
   if (command.action === "task_action") {
     const taskResult = await db.from("work_tasks").select(TASK_SELECT).eq("id",command.taskId).maybeSingle(); check(taskResult.error);

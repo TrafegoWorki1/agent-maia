@@ -14,6 +14,7 @@ import { assertReadOnly } from "../../scripts/db/remote.ts";
 import { RULE_CATALOG, validateRules } from "../../server/ruleCatalog.ts";
 import { readFileSync } from "node:fs";
 import { missingStructures, scanSource, scanUsage } from "../../scripts/db/usage.ts";
+import {executeDepartmentCommand} from "../../server/departmentWork.ts";
 
 let local: LocalDb;
 before(async () => {
@@ -25,6 +26,112 @@ after(async () => {
 
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
+
+describe("integração departamental: mesma carteira, autorização e auditoria",()=>{
+ let owner:string,member:string,other:string,clientA:string,clientB:string,team:string,authId:string;
+ let db:ReturnType<typeof temporarySupabase>;
+ const payload=(extra:Record<string,unknown>={})=>({client_id:clientA,project_id:null,contract_id:null,work_task_id:null,responsible_person_id:member,responsible_team_id:team,title:"Retorno do cliente",details:"Briefing confirmado",status:"pending",next_action:"Revisar briefing",next_action_at:"2026-10-20T15:00:00-03:00",...extra});
+ const save=async(actor:string,data:Record<string,unknown>,id:string|null=null,revision:number|null=null,kind="cs",origin="whatsapp")=>(await q("select save_work_department_record($1,$2,$3,$4,$5::jsonb,'Teste de integração',$6,null) as result",[actor,id,revision,kind,JSON.stringify(data),origin]))[0].result as Record<string,any>;
+ before(async()=>{
+  db=temporarySupabase(local);
+  owner=String((await q("insert into people(name,role) values('Owner departamentos','proprietario') returning id"))[0].id);
+  authId=String((await q("insert into auth.users(email) values('departments@example.test') returning id"))[0].id);
+  member=String((await q("insert into people(name,role,auth_user_id) values('Membro departamentos','equipe',$1) returning id",[authId]))[0].id);
+  other=String((await q("insert into people(name,role) values('Outra pessoa departamentos','equipe') returning id"))[0].id);
+  clientA=String((await q("insert into maia_clients(name) values('Cliente departamentos A') returning id"))[0].id);
+  clientB=String((await q("insert into maia_clients(name) values('Cliente departamentos B') returning id"))[0].id);
+  team=String((await q("insert into work_teams(name) values('Equipe departamentos') returning id"))[0].id);
+  await q("insert into work_team_members(team_id,person_id) values($1,$2)",[team,member]);
+  await q("insert into work_scope_roles(person_id,role,client_id) values($1,'membro',$2)",[member,clientA]);
+  await q("insert into person_permissions(person_id,permission_code) values($1,'painel.ver'),($1,'trabalho.ver'),($1,'trabalho.atualizar'),($1,'tarefas.criar')",[member]);
+ });
+ it("WhatsApp grava, painel lê e alteração do painel aparece na próxima consulta da Maia",async()=>{
+  const row=await save(member,payload({request_key:"dept:sync"}));
+  const identity=await identityByAuthUser(db,authId);
+  const panel=await collaborationView(db,identity);
+  assert.equal(panel.departmentRecords.find(record=>record.id===row.id)?.next_action,"Revisar briefing");
+  await executeCollaborationCommand(db,identity,{action:"department_save",kind:"cs",id:row.id,revision:1,reason:"Retorno atualizado no painel",payload:payload({next_action:"Conferir arte",status:"in_progress"})});
+  const next=await collaborationView(db,await identityByAuthUser(db,authId),new Date(),"maia");
+  assert.equal(next.departmentRecords.find(record=>record.id===row.id)?.next_action,"Conferir arte");
+  assert.equal(next.departmentHistory.filter(event=>event.entity_id===row.id).length,2);
+  await rejects(save(member,payload({next_action:"Escrita antiga"}),String(row.id),1),/outra sessão/);
+  assert.equal((await q("select count(*)::int as n from work_department_records where request_key='dept:sync'"))[0].n,1);
+ });
+ it("restrição herdada e revogação durante trabalho pendente bloqueiam novas leituras/escritas",async()=>{
+  const row=await save(member,payload({request_key:"dept:revoked"}));
+  const group=String((await q("insert into maia_access_groups(name,client_id) values('Herança departamentos',$1) returning id",[clientA]))[0].id);
+  await q("insert into maia_access_group_members(access_group_id,person_id) values($1,$2)",[group,member]);
+  await q("insert into maia_access_group_permissions(access_group_id,permission_code) values($1,'trabalho.atualizar')",[group]);
+  await q("delete from person_permissions where person_id=$1 and permission_code='trabalho.atualizar'",[member]);
+  assert.equal((await q("select maia_department_scope($1,$2,null,$3,$1,'trabalho.atualizar') as ok",[member,clientA,team]))[0].ok,true);
+  await q("insert into maia_member_access_modes(person_id,permission_code,mode,updated_by) values($1,'trabalho.atualizar','bloqueado','teste')",[member]);
+  await rejects(save(member,payload(),String(row.id),1),/fora do escopo/);
+  await q("delete from maia_member_access_modes where person_id=$1 and permission_code='trabalho.atualizar'",[member]);
+  await q("update people set active=false where id=$1",[member]);
+  await rejects(save(member,payload(),String(row.id),1),/fora do escopo/);
+  await rejects(identityByAuthUser(db,authId),/revogado/);
+  await q("update people set active=true where id=$1",[member]);
+ });
+ it("não cruza cliente/projeto/tarefa nem dá administração por pertencer à equipe",async()=>{
+  await rejects(save(member,payload({client_id:clientB,request_key:"dept:other-client"})),/fora do escopo/);
+  await rejects(save(member,payload({responsible_person_id:other,request_key:"dept:other-member"})),/fora do escopo/);
+  const project=String((await q("insert into work_projects(client_id,name) values($1,'Outro projeto') returning id",[clientB]))[0].id);
+  await rejects(save(owner,payload({project_id:project,request_key:"dept:cross-project"})),/não pertence/);
+  await rejects(save(owner,payload({request_key:"dept:manual"}),null,null,"cs","panel"),/somente pela Maia/);
+  const identity=await identityByAuthUser(db,authId);
+  await rejects(executeDepartmentCommand(db,identity,{action:"department_save",kind:"cs",reason:"Teste manual",payload:payload()},"panel"),/somente pela Maia/);
+ });
+ it("converte uma vez e preserva origem, cliente, revisão e histórico",async()=>{
+  const opportunity=await save(owner,payload({status:"qualified",request_key:"dept:convert"}),null,null,"opportunity");
+  const concurrent=await Promise.all([q("select convert_work_opportunity($1,$2,1,'Proposta aceita','whatsapp') as result",[owner,opportunity.id]),q("select convert_work_opportunity($1,$2,1,'Evento repetido','whatsapp') as result",[owner,opportunity.id])]);
+  const project=concurrent[0][0].result as Record<string,unknown>;
+  assert.equal((concurrent[1][0].result as Record<string,unknown>).id,project.id);
+  const retry=(await q("select convert_work_opportunity($1,$2,1,'Retomada segura','whatsapp') as result",[owner,opportunity.id]))[0].result as Record<string,unknown>;
+  assert.equal(retry.id,project.id);assert.equal(retry.alreadyConverted,true);
+  assert.equal((await q("select client_id from work_projects where id=$1",[project.id]))[0].client_id,clientA);
+  assert.equal((await q("select count(*)::int as n from work_portfolio_history where entity_id=$1",[opportunity.id]))[0].n,2);
+  await rejects(save(owner,payload({status:"lost",loss_reason:"Mudou escopo"}),String(opportunity.id),2,"opportunity"),/já convertida/);
+  await rejects(q("select convert_work_opportunity($1,$2,1,'Sem competência','panel')",[member,opportunity.id]),/fora do escopo/);
+ });
+ it("idempotência de criação não duplica e CS não conclui trabalho vinculado ainda aberto",async()=>{
+  const task=String((await q("insert into work_tasks(title,responsible,request_key,client_ref_id,responsible_person_id,origin_kind) values('Execução vinculada','Membro','dept:linked-task',$1,$2,'whatsapp') returning id",[clientA,member]))[0].id);
+  const input=payload({work_task_id:Number(task),request_key:"dept:once"});
+  const first=await save(member,input),second=await save(member,input);assert.equal(first.id,second.id);
+  await rejects(save(member,{...input,status:"completed",evidence:"Texto não prova execução"},String(first.id),1),/tarefa vinculada encerrada/);
+  assert.equal((await q("select workflow_status from work_tasks where id=$1",[task]))[0].workflow_status,"pending");
+  await rejects(save(member,{...input,status:"waiting"},String(first.id),1),/check constraint/);
+  assert.equal((await q("select revision from work_department_records where id=$1",[first.id]))[0].revision,1);
+ });
+ it("banco recusa acesso direto a dados e RPCs por roles públicas",async()=>{
+  for(const role of ["anon","authenticated"]){
+   await local.db.exec("set role "+role);
+   try{
+    await rejects(q("select * from work_department_records"),/permission denied/);
+    await rejects(q("select convert_work_opportunity($1,gen_random_uuid(),1,'Ataque direto','panel')",[owner]),/permission denied/);
+    await rejects(q("select save_work_department_record($1,null,null,'cs','{}'::jsonb,'Ataque direto','whatsapp',null)",[owner]),/permission denied/);
+   }finally{await local.db.exec("reset role");}
+  }
+ });
+ it("escopo com responsável nulo é falso, não NULL autorizador; redistribuição exige competência",async()=>{
+  assert.equal((await q("select maia_department_scope($1,$2,null,$3,null,'trabalho.redistribuir') as ok",[member,clientA,team]))[0].ok,false);
+  const row=await save(member,payload({request_key:"dept:reassign"}));
+  await rejects(save(member,payload({responsible_person_id:other}),String(row.id),1),/Redistribuição fora do escopo/);
+ });
+ it("financeiro herdado vê somente observações e catálogo do cliente atribuído",async()=>{
+  const financeAuth=String((await q("insert into auth.users(email) values('department-finance@example.test') returning id"))[0].id);
+  const person=String((await q("insert into people(name,role,auth_user_id) values('Financeiro departamentos','equipe',$1) returning id",[financeAuth]))[0].id);
+  const group=String((await q("insert into maia_access_groups(name,client_id) values('Financeiro cliente A',$1) returning id",[clientA]))[0].id);
+  await q("insert into person_permissions(person_id,permission_code) values($1,'painel.ver')",[person]);
+  await q("insert into maia_access_group_members(access_group_id,person_id) values($1,$2)",[group,person]);
+  await q("insert into maia_access_group_permissions(access_group_id,permission_code) values($1,'financeiro.ver')",[group]);
+  await q("insert into work_scope_roles(person_id,role,client_id) values($1,'financeiro',$2)",[person,clientA]);
+  for(const client of [clientA,clientB])await q("insert into external_metric_observations(metric_code,client_id,period_start,period_end,value,unit,source_name,last_attempt_at,last_success_at) values('finance.received',$1,'2026-10-01','2026-10-31',123,'BRL','Fonte simulada',now(),now())",[client]);
+  const view=await collaborationView(db,await identityByAuthUser(db,financeAuth));
+  assert.equal(view.externalMetrics.length,1);assert.equal(view.externalMetrics[0].client_id,clientA);
+  assert.ok(view.metricCatalog.some(row=>row.code==="finance.received"));
+  assert.equal(view.departmentRecords.length,0);assert.equal(view.tasks.length,0);
+ });
+});
 
 describe("painel colaborativo: escopo, concorrência e revogação",()=>{
   let member:unknown,reviewer:unknown,coordinator:unknown,teamA:unknown,teamB:unknown,clientA:unknown,taskA:unknown;

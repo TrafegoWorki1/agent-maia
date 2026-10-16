@@ -4,6 +4,14 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
+## 2026-10-16 — Áreas integradas à Central (preparadas localmente)
+
+- **Causa:** as abas legadas de Projetos/Comercial exibiam textos estáticos e não acompanhavam os registros da Central; a área técnica ainda tinha outro editor de tarefas.
+- **Correção:** visões compartilham carteira, tarefas, detalhe, API e permissões. Comercial/CS têm registros internos auditados, não cópias de tarefas; conversão gera projeto uma única vez. Marketing usa calendário de trabalho; financeiro lê somente observações autorizadas.
+- **Segurança:** RLS fechada, RPCs exclusivas do backend com revisão e revalidação, bloqueio individual sobre herança e cache identificado por pessoa. Capacidade sem escopo não concede acesso. Correção de expressão SQL nullable evita autorização acidental na redistribuição.
+- **Verificação:** novos testes de interface, permissões e banco temporário, incluindo edição cruzada, revogação, conversão concorrente/idempotente e população acima de mil registros. Evidências em `docs/integracao-painel-maia.md`.
+- **Não ativado:** migração remota, deploy, reinício, conectores novos, mensagens reais, publicação e geração de imagens. Alterar esta documentação não ativa regras.
+
 ## 2026-10-16 — Conclusão do painel colaborativo
 
 - **Mudança:** painéis operacionais usam backend e registros compartilhados com escopo de pessoa/equipe/cliente/projeto, workflow, revisões, baseline e capacidade; leitura autenticada e polling reconciliador.

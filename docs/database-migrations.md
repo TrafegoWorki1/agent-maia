@@ -57,6 +57,8 @@ No `.env` local o nome gravado hoje é `SUPABASE_ACCESS_TOKKEN` (com erro de dig
 
 ## Fluxo de uma mudança no banco
 
+`20261016180722_maia_department_workspace.sql` foi aplicada ao projeto Supabase `Agent Maia` em 16/10/2026, antes do merge do código dependente. O dry-run listou somente essa versão pendente e `supabase migration list --linked` confirmou igualdade local/remota. Adiciona `work_department_records`, autorização por escopo, gravação auditada e conversão idempotente em projeto; reutiliza carteira, tarefas e histórico existentes. `pnpm db:drift` não concluiu: a Management API respondeu HTTP 401, portanto a comparação de schema remoto segue pendente. Nenhuma migration aplicada foi editada. Rollback de código preserva registros e trilha; remoção exige nova migração e autorização. Detalhes em [integração do painel](integracao-painel-maia.md).
+
 1. `pnpm db:new descricao_da_mudanca` e escreva o SQL (compatível com o código antigo).
 2. Escreva o código que usa a estrutura nova e o teste.
 3. `pnpm typecheck && pnpm db:validate && pnpm test`. Atualize o `CHANGELOG.md`.
