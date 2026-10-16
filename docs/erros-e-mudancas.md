@@ -4,10 +4,10 @@ Resumo para consulta rápida. O histórico oficial continua no `CHANGELOG.md`.
 
 As entradas são históricas e refletem a data indicada; não são regras ativas. Comportamento vigente: `docs/regras-da-maia.md`. Pendências atuais: `TODO.md`.
 
-## 2026-10-16 — Esquema remoto aplicado, ativação do worker pendente
+## 2026-10-16 — Núcleo publicado e worker atualizado
 
 - Dois pares de versões de migration foram reconciliados somente após comparação de SQL idêntico e autorização do owner. As quatro migrations do núcleo e de acessos (`20261016120000` a `20261016150000`) foram aplicadas ao Supabase configurado no projeto.
-- Histórico remoto, tabelas, RPC e RLS principais foram conferidos. O esquema aplicado não equivale a código/worker implantado; testes reais de WhatsApp e entrega seguem pendentes.
+- Histórico remoto, tabelas, RPC e RLS principais foram conferidos. O código foi integrado pelo PR #19 no commit `a5e31e4`, o deploy Production da Vercel passou e um único worker foi reiniciado, voltando a aguardar a fila. Testes reais de WhatsApp e entrega seguem pendentes.
 
 ## 2026-10-16 — Gatilho de horário e métricas de cache
 

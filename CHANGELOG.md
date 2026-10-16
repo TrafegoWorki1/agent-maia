@@ -14,6 +14,8 @@ bug, qual era o sintoma e a causa.
 - **Verificação:** o histórico remoto contém as versões locais; tabelas principais, função de acesso e RLS foram conferidas por leitura. Documentação de implantação atualizada para distinguir esquema aplicado de código publicado e worker atualizado.
 - **Limite:** nenhuma mensagem, imagem ou publicação externa foi gerada; o worker não foi reiniciado. Testes comportamentais operacionais ainda dependem do código publicado e do worker atualizado.
 - **Guard de migração:** a versão de acessos já aplicada troca `approvals_status_check` sem a marca textual; para não alterar SQL aplicado, o guard aceita apenas o hash SHA-256 exato dessa versão autorizada. Novas migrações destrutivas continuam bloqueadas sem aprovação e marcação.
+- **Rollout concluído:** PR #19 integrado na `main` no commit `a5e31e4`; CI e deploy Production da Vercel aprovados. Um único worker local foi reiniciado em 16/10/2026, carregou a nova versão e voltou a aguardar a fila; a transcrição local permaneceu ativa.
+- **Ainda pendente:** validação operacional controlada dos fluxos de histórico de membro, revogação e aprovação pontual. Nenhuma mensagem real foi enviada durante o reinício.
 
 ---
 

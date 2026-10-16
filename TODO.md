@@ -6,7 +6,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 
 - [x] Persistência/busca de sessões de owner e membros com revalidação, migrações locais, painel autenticado, reserva atômica de planos/rotinas/subagentes e testes em banco temporário.
 - [x] Aplicar no Supabase do projeto as migrações `20261016120000`, `20261016130000`, `20261016140000` e `20261016150000`; histórico remoto conferido em 16/10/2026.
-- [ ] Publicar o código dependente e atualizar/reiniciar um único worker; a aplicação das migrações não ativa o código local.
+- [x] Publicar o código dependente (`a5e31e4`) e atualizar/reiniciar um único worker; reinício verificado em 16/10/2026, com uma instância aguardando a fila.
 - [ ] Validar recuperação de membro e revogação de `conversa.maia` e acesso ao grupo em ambiente operacional; não usar clientes reais como teste automático.
 - [ ] Habilitar separadamente resumos, skills, subagentes e rotinas após revisão de limites, custos e entregas; MCP externo continua fora do catálogo dos executores.
 - [x] Retomar planos por horário ISO futuro (até sete dias) com reserva idempotente no worker.
@@ -26,7 +26,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Contratos de sessão, histórico pesquisável e resumo com cobertura em `maia_nucleus_v1`
 - [x] Dependências, leases, evidência e estado externo incerto para etapas de plano
 - [x] Contratos de rotinas com intervalo/cron, fuso e distinção entre execução e entrega
-- [ ] Aplicar migration no ambiente autorizado e ligar retomadas ao worker operacional
+- [x] Aplicar migrations no ambiente autorizado e ligar as retomadas implementadas ao worker operacional.
 - [ ] `automation_rules`: gatilhos por evento com contexto departamental opcional
 
 **Evolução do núcleo — código preparado, ativação pendente**
@@ -141,6 +141,6 @@ As ferramentas Instagram agora estão disponíveis nos executores Claude e Codex
 
 - Integrar as capacidades do catálogo ainda sem política efetiva (incluindo `painel.ver`) antes de permitir sua administração por linguagem natural; criar fluxo próprio para entrada com OK pontual se esse modo for necessário.
 - [x] Aplicar `20261016150000_maia_member_access_modes.sql` no Supabase do projeto; tabelas, função e RLS verificadas por leitura.
-- [ ] Verificar auditoria com dados de teste e reiniciar o worker somente depois do rollout do código.
+- [ ] Verificar auditoria com dados de teste; o rollout e o reinício do worker já foram concluídos.
 - Validar manualmente no WhatsApp owner: nome ambíguo, equipe herdada, bloqueio e aprovação pontual; confirmar no painel após leitura do banco.
 - Validar operacionalmente, com autorização do owner, a corrida residual entre a checagem imediatamente anterior e a aceitação de um efeito externo; efeitos já aceitos não são reversíveis.
