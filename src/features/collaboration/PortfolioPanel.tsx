@@ -5,9 +5,9 @@ import { mutateCollaboration, type CollaborationData } from "../../lib/collabora
 type Kind="contract"|"project"|"deliverable";
 const names:Record<Kind,string>={contract:"Contrato",project:"Projeto",deliverable:"Entregável"};
 const statuses:Record<Kind,string[]>={contract:["draft","active","paused","ended","cancelled"],project:["planned","active","on_hold","completed","cancelled"],deliverable:["pending","in_progress","review","awaiting_approval","completed","cancelled"]};
-export function PortfolioPanel({data,reload}:{data:CollaborationData;reload:()=>Promise<void>}){
- const [kind,setKind]=useState<Kind>("project"),[id,setId]=useState(""),[revision,setRevision]=useState<number|undefined>();
- const [form,setForm]=useState<Record<string,string>>({status:"planned",reason:""}),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
+export function PortfolioPanel({data,reload,initialKind="project",onOpenProject}:{data:CollaborationData;reload:()=>Promise<void>;initialKind?:Kind;onOpenProject?:(id:string)=>void}){
+ const [kind,setKind]=useState<Kind>(initialKind),[id,setId]=useState(""),[revision,setRevision]=useState<number|undefined>();
+ const [form,setForm]=useState<Record<string,string>>({status:statuses[initialKind][0],reason:""}),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
  const rows=kind==="contract"?data.contracts:kind==="project"?data.projects:data.deliverables;
  const canCreate=kind==="deliverable"?data.projects.some(project=>project.canManage):data.portfolioClientIds.length>0;
  const canEdit=id?rows.some(row=>row.id===id&&row.canManage):canCreate;
@@ -29,6 +29,7 @@ export function PortfolioPanel({data,reload}:{data:CollaborationData;reload:()=>
  return <Panel title="Contratos, projetos e entregáveis" caption="Os vínculos usam IDs cadastrados. Alterar a qualidade de uma entrega não autoriza publicação.">
   <div className="collab-view-switch" role="group" aria-label="Tipo de registro">{(["contract","project","deliverable"] as Kind[]).map(value=><button key={value} aria-pressed={kind===value} onClick={()=>select(value)}>{names[value]}s</button>)}</div>
   {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
+  {onOpenProject&&<nav aria-label="Abrir contexto do projeto" className="collab-view-switch">{data.projects.map(project=><button key={String(project.id)} onClick={()=>onOpenProject(String(project.id))}>Abrir {String(project.name)}</button>)}</nav>}
   {rows.length?<div className="table-wrap"><table><thead><tr><th>Registro</th><th>Cliente / projeto</th><th>Estado</th><th>Revisão</th><th>Ação</th></tr></thead><tbody>{rows.map(row=><tr key={String(row.id)}><td>{String(row.name??row.title)}</td><td>{kind==="deliverable"?String(data.projects.find(project=>project.id===row.project_id)?.name??"Projeto autorizado"):data.clients.find(client=>client.id===row.client_id)?.name??"Cliente autorizado"}</td><td>{String(row.status)}</td><td>{String(row.revision)}</td><td>{row.canManage?<button onClick={()=>select(kind,row)}>Editar {names[kind].toLowerCase()}</button>:"Consulta"}</td></tr>)}</tbody></table></div>:<EmptyState title={"Nenhum "+names[kind].toLowerCase()+" neste escopo"} detail="Os registros aparecerão após seu cadastro autorizado."/>}
   {(canEdit||canCreate)&&<form className="work-form" onSubmit={event=>void save(event)}>
    <h3>{id?"Editar":"Novo"} {names[kind].toLowerCase()}</h3>

@@ -82,6 +82,8 @@ export function neededPermission(toolName: string, readOnly: boolean, input:Reco
   if (toolName === "mcp__maia__integracao_chamar") return "integracao.usar";
   if (toolName === "mcp__maia__tarefas_listar" || toolName === "mcp__maia__trabalho_contexto") return "trabalho.ver";
   if (toolName === "mcp__maia__tarefa_criar") return "tarefas.criar";
+  if (toolName === "mcp__maia__area_registro_salvar") return input.id?"trabalho.atualizar":"tarefas.criar";
+  if (toolName === "mcp__maia__oportunidade_converter") return "trabalho.planejar";
   if (toolName === "mcp__maia__tarefa_atualizar") return input.resultado_revisao?"trabalho.revisar":input.aprovar?"trabalho.aprovar":input.responsavel_pessoa_id||input.equipe_id?"trabalho.redistribuir":input.prioridade!==undefined?"trabalho.planejar":"trabalho.atualizar";
   if (readOnly) {
     if (toolName.startsWith("mcp__claude_ai_Gmail__")) return "gmail.ler";
@@ -118,6 +120,11 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (toolName === "mcp__maia__skill_propor" && (who.role !== "owner" || !!who.groupScope)) return { decision: "deny", reason: "proposta de skill só no privado do owner" };
   const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
   if (scopeDenial) return { decision: "deny", reason: scopeDenial };
+  // Estes novos fluxos não consomem OK pontual: exigem capacidade vigente na transação.
+  if(/^mcp__maia__(area_registro_salvar|oportunidade_converter)$/.test(toolName)&&who.role!=="owner"){
+    const capability=neededPermission(toolName,false,ctx.toolInput)!;
+    if(!who.permissions.has(capability)||who.blockedPermissions?.has(capability)||who.approvalPermissions?.has(capability))return {decision:"deny",reason:`O fluxo exige competência vigente ${capability}; OK pontual não altera acesso.`};
+  }
   if (toolName === "mcp__maia__mensagem_status" && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "status de mensagens privadas só pode ser consultado pelo owner no privado" };
   if (/^mcp__maia__(grupos_clientes_listar|grupo_cliente_classificar)$/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "cadastro de clientes e acessos exclusivo do owner no privado" };
   if (who.role === "member") {

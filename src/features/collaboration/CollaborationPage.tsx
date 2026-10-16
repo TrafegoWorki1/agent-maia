@@ -19,7 +19,7 @@ const titles:Record<CollaborationMode,[string,string,string]>={
   metricas:["INDICADORES","Indicadores auditáveis","Cada valor abre os registros da população; falta de fonte aparece como indisponível."],
 };
 
-function useCollaboration(){
+export function useCollaboration(){
   const [data,setData]=useState<CollaborationData|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[stale,setStale]=useState(false);
   const sequence=useRef(0), controller=useRef<AbortController|null>(null);
   const reload=useCallback(async()=>{
@@ -38,8 +38,8 @@ function useCollaboration(){
   return{data,error,loading,stale,reload};
 }
 
-function Tasks({items,reload,people=[],data,empty="Nenhum item neste recorte."}:{items:CollaborationTask[];reload:()=>Promise<void>;data?:CollaborationData;people?:CollaborationData["people"];empty?:string}){
-  const [busy,setBusy]=useState<number|null>(null),[error,setError]=useState(""),[detailId,setDetailId]=useState<number|null>(null);
+export function Tasks({items,reload,people=[],data,empty="Nenhum item neste recorte."}:{items:CollaborationTask[];reload:()=>Promise<void>;data?:CollaborationData;people?:CollaborationData["people"];empty?:string}){
+  const [busy,setBusy]=useState<number|null>(null),[error,setError]=useState(""),[detailId,setDetailId]=useState<number|null>(()=>{const value=new URLSearchParams(window.location.hash.split("?")[1]??"").get("task");return value?Number(value):null;});
   async function act(task:CollaborationTask,operation:"status"|"review"|"approve"|"reassign"|"prioritize"|"edit",payload:Record<string,unknown>){
     setBusy(task.id);setError("");try{await mutateCollaboration({action:"task_action",taskId:task.id,revision:task.revision,operation,payload});await reload();}catch(err){setError(err instanceof Error?err.message:"Falha ao salvar");}finally{setBusy(null);}
   }
@@ -71,6 +71,7 @@ export function CollaborationPage({mode}:{mode:CollaborationMode}){
   if(loading&&!data)return <p role="status" className="empty-note">Carregando seu escopo de trabalho…</p>;
   return <><PageHeader eyebrow={eyebrow} title={title} subtitle={subtitle}/>{error&&<p role="alert">{error} <button onClick={()=>void reload()}>Tentar novamente</button></p>}{stale&&data&&<p role="status">Dados podem estar desatualizados; a última leitura permanece visível.</p>}
   {data&&<>
+    {mode==="meu-dia"&&(data.departmentRecords??[]).some(row=>row.responsible_person_id===data.identity.personId)&&<Panel title="Combinados de CS e próximas ações comerciais" caption="Registros compartilhados com as áreas, sem criar tarefas duplicadas."><ul>{(data.departmentRecords??[]).filter(row=>row.responsible_person_id===data.identity.personId&&!["won","lost","completed","cancelled"].includes(row.status)).map(row=><li key={row.id}><a href={row.kind==="cs"?"#clientes-cs/acompanhamento":"#comercial/oportunidades"}>{row.title}</a> · {row.next_action} · {row.next_action_at?new Date(row.next_action_at).toLocaleString("pt-BR"):"Prazo não informado"}</li>)}</ul></Panel>}
     {["meu-dia","minha-equipe","coordenacao"].includes(mode)&&<div className="work-form"><label>Equipe<select value={teamFilter} onChange={event=>setTeamFilter(event.target.value)}><option value="">Todas no seu escopo</option>{data.teams.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Cliente<select value={clientFilter} onChange={event=>setClientFilter(event.target.value)}><option value="">Todos no seu escopo</option>{data.clients.map(client=><option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Responsável<select value={personFilter} onChange={event=>setPersonFilter(event.target.value)}><option value="">Todos no seu escopo</option>{data.people.map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label></div>}
     {["minha-equipe","coordenacao"].includes(mode)&&<Panel title="Planejado e realizado"><div className="metrics-grid">{(()=>{const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(data.generatedAt));const plans=new Set(data.plans.filter(plan=>plan.period_kind==="weekly"&&String(plan.period_start)<=today&&String(plan.period_end)>=today).map(plan=>String(plan.id)));const baselines=data.baselines.filter(row=>plans.has(row.plan_id));const baselineIds=new Set(baselines.flatMap(row=>row.task_snapshots.map(task=>task.id)));const baseline=items.filter(task=>baselineIds.has(task.id));return [["Compromissos da baseline",baselines.length?baseline.length:"Indisponível"],["Compromissos concluídos",baselines.length?baseline.filter(task=>task.workflow_status==="completed").length:"Indisponível"],["Acrescentados após baseline",items.filter(task=>task.added_after_baseline).length],["Bloqueados",items.filter(task=>task.workflow_status==="blocked").length],["Em revisão / aprovação",items.filter(task=>["review","awaiting_approval"].includes(task.workflow_status)).length]].map(([label,value])=><article className="metric-card" key={String(label)}><span className="metric-label">{label}</span><strong className="metric-value">{value}</strong></article>);})()}</div><p>Registros do quadro abaixo, limitados pelos filtros e pelas permissões atuais. Sem baseline, compromissos previstos não estão disponíveis.</p></Panel>}
     {["minha-equipe","coordenacao","direcao"].includes(mode)&&<PortfolioPanel data={data} reload={reload}/>}
