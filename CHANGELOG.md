@@ -19,6 +19,7 @@ bug, qual era o sintoma e a causa.
 - Verificação local: regras, tipos, 552 testes Vitest + 67 de banco, validação/guard das migrations e build aprovados. Aplicação remota e integração foram autorizadas pelo proprietário; evidência final no documento do painel. Worker não reiniciado nesta etapa.
 - Matriz, métricas, limites e rollout: `docs/painel-colaborativo.md`.
 - Banco aplicado por CLI com autorização do proprietário antes do merge do PR #21: duas migrations, 1697 objetos sem drift e 40 regras alinhadas ao catálogo. Sem publicação de conteúdo, mensagens reais ou reinício do worker.
+- PR #21 integrado em `2fcd839`; CI da main aprovado, Vercel Production Ready e rotas de colaboração retornando 401 sem login. Checkout local atualizado; reinício do worker continua separado.
 
 ## 2026-10-16 — Aplicação das migrações do núcleo e preparação do rollout
 
