@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — aplicação autorizada das regras e worker local
+
+- Aplicada a migration `20261016223848` por `supabase db push`, após dry-run: 51 versões local/remoto alinhadas, 40 regras alinhadas e drift de 1.850 objetos sem diferenças.
+- Iniciado o worker local atualizado do commit `6309ca2` pelo launcher headless; primeiro ciclo de retenção confirmado no banco sem fallback ou remoção de registros.
+- Corrigida a orientação operacional: o worker deste projeto roda no computador do proprietário, conforme `CLAUDE.md`; EasyPanel não é necessário para esse processo.
+
 ## 2026-10-16 — regras de execução, recurso e retenção
 
 - Centralizado em `config/ai-routing.json` o limite de 30 passos usado por Claude CLI, Agent SDK e chamadas MCP observáveis do Codex.
