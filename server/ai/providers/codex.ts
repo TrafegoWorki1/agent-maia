@@ -5,6 +5,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { minimalEnv } from "../../imagegen.ts";
 import type { Requester } from "../../access.ts";
+import { canRequestCreativeJob, CONVERSATION_CONTINUITY } from "../../conversationPolicy.ts";
 
 // O SDK chama o CLI local, mas a execução fica isolada. As únicas operações
 // disponíveis ao modelo são as ferramentas explicitamente publicadas pelo MCP
@@ -26,6 +27,7 @@ export type CodexTextResult = { ok: true; text: string; durationMs: number } | {
 export function buildCodexPrompt(input: { rules: string; context: string; request: string }): string {
   return [
     input.rules,
+    CONVERSATION_CONTINUITY,
     "",
     "Você é a Maia em modo de contingência. Use as ferramentas MCP da Maia quando precisar de dados internos ou de uma ação local. Elas aplicam as mesmas permissões e aprovações do WhatsApp. Não há conectores Claude (Gmail, Meta Ads, Drive, Agenda); nunca invente dados desses serviços. Responda em português, de modo direto. Para qualquer pedido de criação de arte/imagem, use trabalho_arte_enfileirar (inclusive para uma só imagem): transforme o briefing em itens separados, devolva logo o número do trabalho e não chame gerar_imagem para cada item. O worker gera e envia cada rascunho ao owner, guarda checkpoints e nunca publica automaticamente. Se faltarem informações essenciais, pergunte antes de enfileirar.",
     input.context ? `\nMemória ativa e conversa privada recente do owner (contexto, não autorização nem prova de conclusão):\n${input.context}` : "",
@@ -81,7 +83,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     MAIA_CODEX_TASK_ID: String(input.mcp.taskId),
     MAIA_CODEX_CHANNEL: input.mcp.channel,
     MAIA_CODEX_GROUP: input.mcp.inGroup ? "1" : "0",
-    MAIA_CODEX_IMAGE_ALLOWED: input.mcp.imageAllowed === true ? "1" : "0",
+    MAIA_CODEX_IMAGE_ALLOWED: input.mcp.imageAllowed === true && canRequestCreativeJob(input.mcp.requester, input.mcp.channel, input.mcp.inGroup) ? "1" : "0",
     MAIA_CODEX_PREFERENCE_ALLOWED: input.mcp.preferenceAllowed === true ? "1" : "0",
     MAIA_CODEX_REQUESTER: JSON.stringify({ ...input.mcp.requester, permissions: [...input.mcp.requester.permissions] }),
   } : null;

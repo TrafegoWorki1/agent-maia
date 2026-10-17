@@ -70,7 +70,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           itens: z.array(z.object({ briefing: z.string().trim().min(1).max(2000), formato: z.enum(["feed", "story", "quadrado"]), referencias: z.array(z.string()).max(4).optional() })).min(1).max(10),
         },
         async ({ titulo, itens }) => {
-          if (!allowImageGeneration || !isOwner) return { content: [{ type: "text" as const, text: "Só o owner pode enfileirar arte, e apenas quando a mensagem atual pedir explicitamente criação." }], isError: true };
+          if (!allowImageGeneration || !isOwner || channel !== "whatsapp") return { content: [{ type: "text" as const, text: "Criação de artes disponível somente ao proprietário autenticado no WhatsApp privado." }], isError: true };
           if (!taskId) return { content: [{ type: "text" as const, text: "Não consegui associar o trabalho criativo a uma tarefa rastreável." }], isError: true };
           try {
             const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: titulo, items: itens.map((item) => ({ briefing: item.briefing, format: item.formato, refs: item.referencias ?? [] })) });
@@ -131,8 +131,8 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           referencias: z.array(z.string()).max(4).optional().describe("Nomes de arquivos que já estão em data/arte/fotos ou data/arte/referencias. Opcional."),
         },
         async (args) => {
-          if (!allowImageGeneration) {
-            return { content: [{ type: "text", text: "A mensagem atual não pediu a criação de uma imagem. Não gere a arte; responda ao pedido recebido e, se fizer sentido, pergunte se o owner quer que você crie." }], isError: true };
+          if (!allowImageGeneration || !isOwner || channel !== "whatsapp") {
+            return { content: [{ type: "text", text: "Criação de artes disponível somente ao proprietário autenticado no WhatsApp privado." }], isError: true };
           }
           try {
             if (!taskId) throw new Error("Não consegui associar o trabalho criativo a uma tarefa rastreável.");

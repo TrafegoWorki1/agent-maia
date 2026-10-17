@@ -11,7 +11,6 @@ import { recordConvMessage } from "./conversations.ts";
 import { loadGroupScope, scopeIncludesMessage } from "./groupScope.ts";
 import { recordReceivedMedia } from "./receivedMedia.ts";
 import { uploadReceivedMedia } from "./mediaStorage.ts";
-import { handleDirectImage, isDirectImageRequest } from "./creative/creativeRouter.ts";
 import { parseGroupIntent, requestCreateGroup } from "./groups.ts";
 import { getDb, recordMessage } from "./store.ts";
 import { resumePlans, waitingForFile } from "./plans.ts";
@@ -54,8 +53,8 @@ export async function routeOwnerText(text: string): Promise<number | null> {
   }
   // Pedidos de tarefa passam pelas ferramentas persistidas: não criam um log de IA
   // disfarçado de tarefa nem interpretam "prazo" como parte do título.
-  // Pedido de arte vai direto ao executor criativo, sem passar pelo Claude.
-  if (isDirectImageRequest(text)) return handleDirectImage({ db, notifyOwner }, text);
+  // Artes também passam pelo agente com contexto: o roteiro pode completar um
+  // pedido anterior. O roteador escolhe o executor e a ferramenta persiste a fila.
   return handleOwnerMessage(text);
 }
 

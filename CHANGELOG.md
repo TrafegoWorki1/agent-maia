@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17 — continuidade na execução de pedidos
+
+- Causa: Claude e Codex recebiam a conversa anterior, mas a fila criativa era liberada somente quando a mensagem atual passava em uma expressão de pedido de imagem. Um roteiro que completava um pedido anterior era recusado.
+- Corrigido o vínculo entre interpretação e execução: a capacidade criativa depende do proprietário autenticado no WhatsApp privado; o executor interpreta pedido, complementos, correções e cancelamentos no contexto. O classificador continua apenas como atalho de roteamento. Não é necessário repetir o comando nem usar um formato de roteiro específico.
+- Pedidos diretos de arte também passam pelo executor com contexto e pela fila retomável; o atalho que gerava imediatamente sem diálogo foi retirado da entrada do WhatsApp. A seleção configurada do Codex para essa categoria foi preservada.
+- Conversa recente do mesmo canal tem prioridade no orçamento, antes de memórias extensas. Contexto de painel não é usado como comando do WhatsApp. Autoria, permissões, cotas, resultados incertos e aprovações públicas continuam nos controles existentes.
+- Testes offline cobrem contexto em ambos os executores, chamada MCP real com fila simulada, recusa de membros/painel/grupos e transmissão da capacidade ao Codex. Não medem compreensão de um modelo real nem geram imagens ou enviam mensagens.
+
 ## 2026-10-16 — aplicação autorizada das regras e worker local
 
 - Aplicada a migration `20261016223848` por `supabase db push`, após dry-run: 51 versões local/remoto alinhadas, 40 regras alinhadas e drift de 1.850 objetos sem diferenças.
