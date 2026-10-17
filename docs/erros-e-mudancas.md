@@ -1,5 +1,11 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-17 — snapshot de erro falso para conectores do platform
+
+- **Causa:** `refreshJob` grava `status: "error"` em `snapshots` quando o subprocesso `claude -p --restricted` não encontra as ferramentas `mcp__claude_ai_*` (que só existem na sessão interativa). O painel e o `operationalSummary` liam esse erro e reportavam Gmail/Meta Ads/Sheets como desativados.
+- **Correção:** `runSource` não grava mais snapshot de erro; `clearErrorSnapshots` limpa entradas `status: "error"` na inicialização do worker.
+- **Evidência:** `pnpm typecheck` limpo.
+
 ## 2026-10-17 — fechamento operacional da idempotência no reenvio de artes
 
 - **Causa:** registros `failed`/`pending` sem limpeza automática e painel sem ação de retry controlada.

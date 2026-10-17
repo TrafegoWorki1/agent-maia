@@ -108,7 +108,10 @@ async function runSource(db: Db, source: SourceId): Promise<void> {
     await finishRun(db, runId, "ok", costUsd, null);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await saveSnapshot(db, source, { status: "error", error: message });
+    // Não marca o conector como "error": falha no refresh em background indica que os
+    // conectores do platform (mcp__claude_ai_*) não estão acessíveis no subprocesso,
+    // não que o conector está quebrado. O status anterior é preservado; agent_runs registra.
+    console.error(`[refresh:${source}]`, message);
     await finishRun(db, runId, "error", costUsd, message);
   }
 }
@@ -131,6 +134,17 @@ export async function refreshAll(db: Db): Promise<boolean> {
   }
 }
 
+// Remove snapshots com status "error" das fontes gerenciadas. Esses erros são produzidos pelo
+// refresh em background, que não tem acesso aos conectores do platform no subprocesso, e não
+// refletem o estado real do conector. Limpa na inicialização para que o painel não mostre
+// erros falsos de execuções anteriores.
+async function clearErrorSnapshots(db: Db): Promise<void> {
+  const sources = Object.keys(SOURCES) as SourceId[];
+  const { error } = await db.from("snapshots").delete().in("source", sources).eq("status", "error");
+  if (error) console.error("[refresh] não consegui limpar snapshots de erro:", error.message);
+  else console.log("[refresh] snapshots de erro limpos na inicialização");
+}
+
 // Ao subir, atualiza só se o último dado tiver mais de 30 minutos. Depois, a cada 30 minutos.
 export function scheduleRefresh(db: Db): () => void {
   const isStale = async (): Promise<boolean> => {
@@ -138,6 +152,7 @@ export function scheduleRefresh(db: Db): () => void {
     if (snapshots.length < Object.keys(SOURCES).length) return true;
     return snapshots.some((s) => Date.now() - Date.parse(s.fetched_at) > INTERVAL_MS);
   };
+  void clearErrorSnapshots(db).catch((e) => console.error("[refresh]", e instanceof Error ? e.message : e));
   const tick = () => {
     void (async () => {
       if (await isStale()) await refreshAll(db);

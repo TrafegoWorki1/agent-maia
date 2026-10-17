@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-17 — criar endpoint /api/refresh para o botão "Atualizar fontes"
+
+- Causa: `requestRefresh()` no painel chamava `POST /api/refresh`, mas o arquivo `api/refresh.ts` não existia, resultando em HTTP 404 ao clicar no botão.
+- `api/refresh.ts` (novo): autentica o proprietário com o mesmo padrão de `api/snapshot.ts`, retorna 409 se o refresh já está em curso, e dispara `refreshAll` em background respondendo 200 imediatamente.
+- Verificação: `pnpm typecheck` limpo.
+
+## 2026-10-17 — corrigir snapshot de erro falso para conectores do platform
+
+- Causa: `refreshJob.ts` salva `status: "error"` na tabela `snapshots` quando falha ao atualizar Gmail/Meta Ads/Sheets. Essa falha não indica que o conector está quebrado — indica que o subprocesso `claude -p --restricted` do worker não tem acesso aos conectores `mcp__claude_ai_*`, que só existem na sessão interativa autenticada. O painel e a Maia liam esse `status: "error"` e reportavam os conectores como desativados, conflitando com o comportamento real (que funciona ao chamar diretamente).
+- `server/refreshJob.ts`: (1) `runSource` parou de chamar `saveSnapshot` com `status: "error"` no catch — registra o erro só em `agent_runs` via `finishRun`; o snapshot anterior é preservado. (2) `clearErrorSnapshots` apaga snapshots com `status: "error"` das fontes gerenciadas ao subir o worker, limpando o estado falso deixado por execuções anteriores.
+- Verificação: `pnpm typecheck` limpo.
+
 ## 2026-10-17 — atualização imediata do status no painel após reenvio de arte
 
 - Causa: ao retornar sucesso, `retryCreativeSend` só atualizava `retryPhase` para `"sent"`, mas o label do item ainda exibia o status antigo (`"Falhou"` ou `"Incerto"`) até o próximo polling de 30 s.
