@@ -27,9 +27,9 @@ export function classifyByRules(text: string): Classification {
   return make("geral", "intermediaria", "baixo", "sem categoria específica");
 }
 
-// A criação de imagem é um efeito local com custo/tempo. Não basta o tema da conversa
-// mencionar Stories ou a Maia oferecer uma possibilidade: a mensagem original precisa
-// conter um pedido afirmativo de criação.
+// Atalho de roteamento para pedidos diretos. Complementos e continuações são
+// interpretados pelo executor com o histórico autorizado, não por esta expressão.
+// O resultado não concede nem recusa a capacidade de usar a fila criativa.
 export function isImageCreationRequest(text: string): boolean {
   const t = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/\b(nao|nunca|sem)\b.{0,60}\b(crie|criar|faca|fazer|gere|gerar|monte|montar)\b/.test(t)) return false;

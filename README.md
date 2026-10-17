@@ -10,6 +10,8 @@ Painel e assistente operacional da Worki Digital. A Maia atende pedidos pelo Wha
 
 ## Funcionamento
 
+A Maia interpreta cada mensagem como parte do diálogo autorizado: “produza as artes, vou enviar o roteiro” seguido do roteiro não exige repetir “crie”. O executor acompanha complementos, correções e cancelamentos. A classificação por palavras orienta a rota, não autoriza nem recusa a fila criativa. Essa capacidade é restrita ao proprietário no WhatsApp privado; publicações seguem aprovação no backend. A conversa recente do mesmo canal tem prioridade no orçamento de contexto. Testes offline verificam esse contrato e os bloqueios; não comprovam a qualidade semântica de respostas de modelos reais.
+
 Evolution recebe mensagens e chama `api/webhook.ts` na Vercel. A rota valida o evento e grava na fila do Supabase. O worker local processa essa fila, chama o executor de IA e entrega a resposta pelo WhatsApp. O painel usa login vinculado ao cadastro real, autorização por escopo no backend e RLS.
 
 O registro de recibos distingue aceite pela Evolution de entrega/leitura; o painel de tarefas mostra os status recebidos. Reenvios de texto idêntico ao mesmo destino em até 24 h exigem OK do owner. Para ativar callbacks, configure `MESSAGES_UPDATE` na Evolution e atualize/reinicie o worker local conforme [confiabilidade dos envios WhatsApp](docs/confiabilidade-envio-whatsapp.md); instalar apenas a Vercel não atualiza o worker local.

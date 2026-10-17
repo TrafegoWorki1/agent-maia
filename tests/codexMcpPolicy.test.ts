@@ -37,6 +37,13 @@ describe("SDK delega autorização somente à ponte Maia",()=>{
       if (resolve(folder).startsWith(resolve(tmpdir()) + "\\") || resolve(folder).startsWith(resolve(tmpdir()) + "/")) rmSync(folder,{ recursive:true,force:true });
     }
   });
+  it.each(["owner", "member"] as const)("recebe a capacidade criativa do servidor sem depender de verbo no roteiro (%s)", async (role) => {
+    const requester = { ...ownerRequester(), role };
+    await runCodexText({ prompt:buildCodexPrompt({ rules:"Regras",context:"Dono: Crie as artes.\nMaia: Envie o roteiro.",request:"Lâmina 01: Nosso Tesla." }),timeoutMs:1000,model:null,mcp:{ taskId:9,channel:"whatsapp",requester,inGroup:false,imageAllowed:true } });
+    expect(spies.config).toHaveBeenLastCalledWith(expect.objectContaining({ config:expect.objectContaining({
+      mcp_servers:{ maia:expect.objectContaining({ env:expect.objectContaining({ MAIA_CODEX_IMAGE_ALLOWED:role === "owner" ? "1" : "0" }) }) },
+    }) }));
+  });
   it("grupo de cliente desliga ferramentas locais, conectores, memória e delegação",async()=>{
     const who = { ...ownerRequester(), groupScope: { jid:"50@g.us",name:"Cliente",clientId:"client",clientName:"Cliente",accessGroupId:null } };
     await runCodexText({ prompt:"Grupo",timeoutMs:1000,model:null,mcp:{ taskId:0,channel:"whatsapp",requester:who,inGroup:true } });

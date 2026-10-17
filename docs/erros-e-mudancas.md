@@ -1,5 +1,12 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-17 — roteiro recusado após pedido de criação
+
+- **Causa:** o histórico chegava ao executor, mas o backend recusava a fila quando o roteiro não repetia um verbo de criação. A tentativa de reconhecer “LÂMINA/Visual” não resolvia continuidade e foi substituída.
+- **Correção:** interpretação pelo executor com contexto da conversa; autorização da capacidade pela identidade e canal, sem expressão regular sobre a última mensagem. Roteiros, respostas curtas e correções podem completar o pedido anterior; análise de texto não é, por si, pedido de geração.
+- **Contexto:** conversa recente do canal tem prioridade sobre memória extensa. Publicação depende do OK aplicado à operação e ao conteúdo exatos; histórico não concede permissão.
+- **Evidência:** regressões offline de contexto Claude/Codex, protocolo MCP e capacidade herdada do servidor, sem chamada paga nem efeito externo. A compreensão semântica ao vivo ainda depende da avaliação das respostas reais.
+
 ## 2026-10-16 — divergência de limite e leitura sem política
 
 - Problema: o catálogo dizia 12 passos enquanto os executores Claude usavam 30; leituras MCP desconhecidas podiam ser liberadas por omissão.
