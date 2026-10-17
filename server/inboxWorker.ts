@@ -27,6 +27,7 @@ import { recoverDeliveries, runTaskReminders } from "./taskReminders.ts";
 import { runResponseDeliveries } from "./responseDelivery.ts";
 import { applyDeliveryUpdates, type DeliveryUpdate } from "./outboundReceipts.ts";
 import { recoverStaleCreativeItems, runCreativeQueueOnce } from "./creativeJobs.ts";
+import { purgeExpiredIdempotencyRecords } from "./creativeIdempotencyCleanup.ts";
 import { recoverStaleScheduleRuns, runDueSchedules } from "./scheduler.ts";
 import { runCodexText } from "./ai/providers/codex.ts";
 import { samePhone } from "./evolutionWebhook.ts";
@@ -451,6 +452,8 @@ async function main(): Promise<void> {
         else if (receiptsPurged.data) console.log(`[worker] ${receiptsPurged.data} recibo(s) de envio com mais de 30 dias removido(s)`);
         const adsMediaPurged = await purgeTempAdMedia(db).catch((error) => { console.error("[worker] limpeza do bucket de anúncios:", error instanceof Error ? error.message : error); return 0; });
         if (adsMediaPurged > 0) console.log(`[worker] ${adsMediaPurged} arquivo(s) temporário(s) de anúncio apagado(s) do Supabase`);
+        const idempPurged = await purgeExpiredIdempotencyRecords(db).catch((error) => { console.error("[worker] limpeza de idempotência:", error instanceof Error ? error.message : error); return null; });
+        if (idempPurged && (idempPurged.failedPurged + idempPurged.pendingPurged) > 0) console.log(`[worker] idempotência: ${idempPurged.failedPurged} failed e ${idempPurged.pendingPurged} pending expirado(s) removido(s)`);
       }
     } catch (error) {
       console.error("[worker] erro no ciclo:", error instanceof Error ? error.message : error);

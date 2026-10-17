@@ -31,7 +31,7 @@ export function requiresApproval(toolName: string): boolean {
   return NEEDS_APPROVAL.some((pattern) => pattern.test(toolName));
 }
 
-const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(mensagem_status|instagram_desempenho|artes_recentes|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
+const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(mensagem_status|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);

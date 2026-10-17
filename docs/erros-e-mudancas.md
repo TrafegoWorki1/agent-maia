@@ -1,5 +1,26 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-17 — fechamento operacional da idempotência no reenvio de artes
+
+- **Causa:** registros `failed`/`pending` sem limpeza automática e painel sem ação de retry controlada.
+- **Correção:** `creativeIdempotencyCleanup.ts` com `purgeExpiredIdempotencyRecords` (failed > 48 h, pending > 1 h, uncertain nunca); worker integrado ao ciclo de purga; `retryCreativeSendFromPanel` em `creativeAssetResolver.ts`; ação `retry_creative_send` em `workspaceApi.ts`.
+- **Segurança:** retry revalida `EVOLUTION_OWNER_NUMBER` antes de agir; `uncertain` exige `confirmUncertain=true`; `retryKey` fornecida pelo cliente preserva idempotência em double-click; nenhum registro de auditoria é removido.
+- **Evidência:** 11 novos testes em `tests/idempotencyCleanup.test.ts`. Total: 643 passando. `pnpm typecheck`, `pnpm rules:check`, `pnpm db:validate` 53 migrações OK.
+
+## 2026-10-17 — idempotência no reenvio de artes criativas
+
+- **Causa:** `resendCreativeArt` sem chave de idempotência permitia dois envios na mesma sessão com o mesmo item.
+- **Correção:** parâmetro `idempotencyKey?` em `resendCreativeArt`; consulta `creative_resend_idempotency` antes de enviar; persiste ok/uncertain/failed (não persiste blocked); handlers geram `task-{taskId}-item-{itemId}` automaticamente. Migração `20261017000000` com bloco `DO` para compatibilidade local.
+- **Segurança:** resultado `uncertain` armazenado nunca é re-tentado com a mesma chave; blocked (validação pré-envio) não persiste para não congelar chave se problema for corrigido.
+- **Evidência:** 17 testes de integração (subiu de 12). `pnpm typecheck`, `pnpm test` (623 passando), `pnpm rules:check` OK.
+
+## 2026-10-17 — autonomia para localizar e reenviar artes criativas
+
+- **Causa:** sem `arte_buscar` e `arte_reenviar`, o executor não conseguia localizar artes por linguagem natural nem reenviar um arquivo sem um caminho explícito.
+- **Correção:** `resolveCreativeAsset` + `resendCreativeArt` em `creativeAssetResolver.ts`; ferramentas espelhadas em `maiaImageTool.ts` e `codexMaiaMcp.ts`.
+- **Segurança:** double-check de acesso (parâmetros de sessão + banco), rejeição de estado incerto, verificação de arquivo em disco, receipt em `outbound_receipts`, eventos de estado rastreados.
+- **Evidência:** 24 testes (12 unitários + 12 de integração) sem chamada paga nem envio real. `pnpm typecheck`, `pnpm test`, `pnpm rules:check` OK.
+
 ## 2026-10-17 — roteiro recusado após pedido de criação
 
 - **Causa:** o histórico chegava ao executor, mas o backend recusava a fila quando o roteiro não repetia um verbo de criação. A tentativa de reconhecer “LÂMINA/Visual” não resolvia continuidade e foi substituída.

@@ -6,7 +6,8 @@ export interface ReviewRow { task_id: number; relevant: boolean; resolution: str
 export interface Candidate { id: number; summary: string; status: string; created_at: string; request: string | null; response: string; events: { type: string; operation: string | null; detail: string | null }[] }
 export interface MemoryRow { id: number; created_at: string; updated_at: string; title: string; detail: string; kind: "compromisso" | "contexto" | "preferencia"; status: "active" | "completed" | "archived"; due_at: string | null; source_task_id: number | null; created_by: "maia" | "owner"; completed_at: string | null; revision: number }
 export interface OutboundReceiptRow { messageId: string; destination: string; status: "accepted" | "delivered" | "read" | "played" | "failed"; updatedAt: string }
-export interface CreativeItemRow { seq: number; format: "feed" | "story" | "quadrado"; status: "queued" | "generating" | "artifact_ready" | "preview_sending" | "ready_for_review" | "failed" | "uncertain"; artifact_name: string | null; error: string | null }
+export interface CreativeItemRow { id: number; seq: number; format: "feed" | "story" | "quadrado"; status: "queued" | "generating" | "artifact_ready" | "preview_sending" | "ready_for_review" | "failed" | "uncertain"; artifact_name: string | null; error: string | null }
+export type ResendResult = { ok: true; messageId: string } | { ok: false; state: "uncertain" | "failed" | "blocked"; message: string }
 export interface CreativeJobRow { id: number; title: string; status: "queued" | "running" | "review" | "partial" | "uncertain"; created_at: string; updated_at: string; source_task_id: number; items: CreativeItemRow[] }
 export interface WorkspaceData {
   work: { tasks: WorkRow[]; reminders: ReminderRow[]; limit: number };
@@ -24,4 +25,12 @@ export async function workspaceRequest(action?: string, input?: unknown): Promis
   const body = await r.json();
   if (!r.ok) throw new Error(body.error ?? `Falha HTTP ${r.status}`);
   return body;
+}
+export async function retryCreativeSend(itemId: number, confirmUncertain: boolean, retryKey: string): Promise<ResendResult> {
+  const session = await supabase?.auth.getSession();
+  const token = session?.data.session?.access_token;
+  const r = await fetch("/api/workspace", { method: "POST", cache: "no-store", headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" }, body: JSON.stringify({ action: "retry_creative_send", input: { item_id: itemId, confirm_uncertain: confirmUncertain, retry_key: retryKey } }) });
+  const body = await r.json();
+  if (!r.ok) throw new Error(body.error ?? `Falha HTTP ${r.status}`);
+  return body.result as ResendResult;
 }

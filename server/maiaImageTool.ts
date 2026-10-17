@@ -2,11 +2,12 @@ import { relative } from "node:path";
 import { readFileSync } from "node:fs";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { sendFile, sendOwnerImage, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact, saveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
+import { resolveCreativeAsset, formatAssetSummary, resendCreativeArt, buildIdempotencyKey } from "./creativeAssetResolver.ts";
 import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInstagramPost, recentArts, resolveArtPath, resolveVideoPath, cancelScheduledPost, updateScheduledPost, uploadImage, ARTE_ROOT, listInstagramStories, getStoryInsights, searchInstagramAudio, getInstagramAudioDetail, getFollowStatus, listInboxConversations, getConversationMessages, sendInboxMessage, dmWindowOpen, listCommentAutomations, getCommentAutomation, createCommentAutomation, setCommentAutomationActive, deleteCommentAutomation, getCommentAutomationLogs, listLinkedInAccounts, listLinkedInOrganizations, linkedinPerformance, publishLinkedInPost, ZernioError } from "./integrations/zernio.ts";
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
@@ -39,7 +40,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__arte_buscar", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -1284,6 +1285,53 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             return { content: [{ type: "text", text: `Não consegui preparar o link: ${error instanceof Error ? error.message : String(error)}.` }], isError: true };
           }
+        },
+      ),
+      tool(
+        "arte_buscar",
+        "Busca artes criativas geradas pela Maia por referência do contexto ('lâmina 8', 'a capa', 'aquele Tesla', 'a que faltou'). Devolve uma arte, pede esclarecimento se ambíguo, ou informa o que buscou se não achar. Só leitura.",
+        {
+          consulta: z.string().trim().min(1).max(200).describe("Referência em linguagem natural, ex.: 'lâmina 8', 'a capa', 'aquele Tesla', 'a que falhou'."),
+          trabalho_id: z.number().int().positive().optional().describe("ID do trabalho criativo para restringir a busca (opcional)."),
+        },
+        async ({ consulta, trabalho_id }) => {
+          try {
+            const res = await resolveCreativeAsset(getDb(), consulta, trabalho_id);
+            if (res.kind === "not_found") return { content: [{ type: "text" as const, text: `Nenhuma arte encontrada para "${consulta}".` }] };
+            if (res.kind === "multiple") return { content: [{ type: "text" as const, text: res.question }] };
+            const a = res.asset;
+            return { content: [{ type: "text" as const, text: `${formatAssetSummary(a)}\nitem_id=${a.itemId}  trabalho_id=${a.jobId}` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui buscar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "arte_reenviar",
+        "Reenvia ao owner, no WhatsApp privado, uma arte criativa gerada pela Maia. Revalida o acesso antes de ler e antes de enviar. Nunca repete automaticamente um envio incerto. Use arte_buscar antes para confirmar o item_id.",
+        {
+          item_id: z.number().int().positive().describe("ID do item criativo, como devolvido por arte_buscar."),
+          legenda: z.string().trim().max(500).optional().describe("Legenda opcional para o arquivo enviado."),
+        },
+        async ({ item_id, legenda }) => {
+          if (!isOwner || channel !== "whatsapp") {
+            return { content: [{ type: "text" as const, text: "Reenvio de arte disponível somente ao proprietário no WhatsApp privado." }], isError: true };
+          }
+          const ownerNumber = process.env.EVOLUTION_OWNER_NUMBER;
+          if (!ownerNumber) return { content: [{ type: "text" as const, text: "EVOLUTION_OWNER_NUMBER não configurado." }], isError: true };
+          try {
+            const actor = await resolveRequester(getDb(), requesterNumber, "");
+            if (actor.role !== "owner") {
+              if (taskId) await addTaskEvent(getDb(), taskId, "access_denied", "arte_reenviar", "papel não é owner").catch(() => {});
+              return { content: [{ type: "text" as const, text: "Acesso negado: proprietário não encontrado no banco." }], isError: true };
+            }
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não foi possível revalidar o acesso: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+          const idemKey = buildIdempotencyKey(taskId, item_id, ownerNumber);
+          const result = await resendCreativeArt(getDb(), item_id, ownerNumber, taskId, legenda, idemKey);
+          if (!result.ok) return { content: [{ type: "text" as const, text: result.message }], isError: true };
+          return { content: [{ type: "text" as const, text: `Arte reenviada (mensagem ${result.messageId}).` }] };
         },
       ),
     ],

@@ -24,6 +24,7 @@ import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { recentOutboundReceipts, summarizeReceipt } from "./outboundReceipts.ts";
+import { resolveCreativeAsset, formatAssetSummary, resendCreativeArt, buildIdempotencyKey } from "./creativeAssetResolver.ts";
 import { fetchGroupInfo, fetchGroupInviteCode, fetchGroupParticipants, participantsWithOwner, registerGroup, requestCreateGroup, sendGroupInvite, updateGroupParticipants, updateGroupPicture, type ParticipantAction } from "./groups.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
 import { approverNumbers, approvalBinding, consumeApproval, createApproval, hasInFlightToolApproval, openApprovals, waitApproval } from "./approvals.ts";
@@ -602,6 +603,24 @@ server.registerTool("arquivo_reenviar", { description: "Reenvia ao owner, no Wha
   await addTaskEvent(getDb(), taskId, "external_done", "arquivo_reenviar", found.fromName || found.fromNumber).catch(() => {});
   if (id) await addTaskEvent(getDb(), taskId, "task_verified", "arquivo_reenviar", `mensagem ${id}`).catch(() => {});
   return `Reenviei${id ? ` (mensagem ${id})` : ""} o arquivo de ${found.fromName || `+${found.fromNumber}`} (${found.receivedAt.slice(0, 16).replace("T", " ")} UTC).`;
+}));
+
+server.registerTool("arte_buscar", { description: "Busca artes criativas geradas pela Maia por referência do contexto ('lâmina 8', 'a capa', 'aquele Tesla', 'a que faltou'). Só leitura.", inputSchema: { consulta: z.string().trim().min(1).max(200), trabalho_id: z.number().int().positive().optional() }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } }, async ({ consulta, trabalho_id }) => guarded("mcp__maia__arte_buscar", { consulta, trabalho_id }, async () => {
+  const res = await resolveCreativeAsset(getDb(), consulta, trabalho_id);
+  if (res.kind === "not_found") return `Nenhuma arte encontrada para "${consulta}".`;
+  if (res.kind === "multiple") return res.question;
+  const a = res.asset;
+  return `${formatAssetSummary(a)}\nitem_id=${a.itemId}  trabalho_id=${a.jobId}`;
+}));
+
+server.registerTool("arte_reenviar", { description: "Reenvia ao owner, no WhatsApp privado, uma arte criativa gerada pela Maia. Revalida acesso antes de ler e antes de enviar. Nunca repete automaticamente um envio incerto.", inputSchema: { item_id: z.number().int().positive(), legenda: z.string().trim().max(500).optional() } }, async ({ item_id, legenda }) => guarded("mcp__maia__arte_reenviar", { item_id, legenda }, async () => {
+  if (channel !== "whatsapp" || inGroup) throw new Error("Reenvio de arte disponível somente ao proprietário no WhatsApp privado.");
+  const ownerNumber = process.env.EVOLUTION_OWNER_NUMBER;
+  if (!ownerNumber) throw new Error("EVOLUTION_OWNER_NUMBER não configurado.");
+  const idemKey = buildIdempotencyKey(taskId, item_id, ownerNumber);
+  const result = await resendCreativeArt(getDb(), item_id, ownerNumber, taskId, legenda, idemKey);
+  if (!result.ok) throw new Error(result.message);
+  return `Arte reenviada (mensagem ${result.messageId}).`;
 }));
 
 await server.connect(new StdioServerTransport());

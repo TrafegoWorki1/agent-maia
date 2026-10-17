@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-10-17 — atualização imediata do status no painel após reenvio de arte
+
+- Causa: ao retornar sucesso, `retryCreativeSend` só atualizava `retryPhase` para `"sent"`, mas o label do item ainda exibia o status antigo (`"Falhou"` ou `"Incerto"`) até o próximo polling de 30 s.
+- `src/features/operacao/TarefasPage.tsx`: adicionado `effectiveStatus` derivado do `retryPhase`; quando `phase === "sent"` o label muda imediatamente para `"Enviado · aguardando confirmação"`. O erro do item fica oculto no estado `"sent"`. O span de `phase === "sent"` exibe apenas o `messageId`, sem duplicar "Enviado". Adicionados `sent` e `accepted` ao mapa `creativeItemLabel`. Polling continua como sincronização de segurança; como `retryPhase` é estado separado de `data`, nenhum ciclo sobrescreve o estado confirmado localmente.
+- 4 novos testes em `tests/tarefasPage.test.ts`: status local muda para `sent` após sucesso; botão "Tentar novamente" removido após sucesso; retorno `uncertain` do backend mantém botão ativo; polling não sobrescreve estado `sent`. Total de testes: 654.
+- `pnpm typecheck` limpo, `pnpm test` 654 passando, `pnpm rules:check` OK.
+
+## 2026-10-17 — fechamento operacional da idempotência no reenvio de artes
+
+- Causa: os registros `failed` e `pending` da tabela `creative_resend_idempotency` não tinham limpeza automática, e o painel não expunha ação de retry com controle explícito de `uncertain`.
+- `server/creativeIdempotencyCleanup.ts` (novo): `purgeExpiredIdempotencyRecords` apaga `failed` > 48 h e `pending` órfão > 1 h. Nunca toca em `uncertain` (auditoria permanente) nem em `result_ok=true` (envio confirmado).
+- `server/inboxWorker.ts`: chamada de `purgeExpiredIdempotencyRecords` no ciclo de limpeza periódica (a cada 10 min, junto das demais purgas).
+- `server/creativeAssetResolver.ts`: nova função exportada `retryCreativeSendFromPanel` — revalida proprietário contra env, verifica último estado de idempotência, bloqueia `uncertain` sem `confirmUncertain=true`, gera nova chave (`retryKey` fornecida pelo cliente ou `panel-retry-{ts}-item-{id}`), e delega para `resendCreativeArt`.
+- `server/workspaceApi.ts`: nova ação `retry_creative_send` com parâmetros `item_id`, `confirm_uncertain?` e `retry_key?`.
+- 11 testes adicionados em `tests/idempotencyCleanup.test.ts`: limpeza de failed expirado, pending órfão, preservação de auditoria, sem registros expirados, retry após failed, confirmação de uncertain, bloqueio sem permissão, retry com uncertain confirmado, nova chave no retry, ausência de duplicidade, env owner ausente. Total de testes: 643.
+- `pnpm typecheck` limpo, `pnpm test` 643 passando, `pnpm rules:check` OK, `pnpm db:validate` 53 migrações OK.
+
+## 2026-10-17 — política de recuperação de falhas no reenvio de artes
+
+- Causa: a política de idempotência não documentava explicitamente o caminho de recuperação após `failed` nem garantia cobertura de testes para todos os estados relevantes.
+- Política formal dos estados: `sent`/`delivered` (result_ok=true) → reutilizar resultado; `pending` → bloquear (lock ativo); `uncertain` → bloquear (nunca repetir automaticamente); `failed` → reutilizar para a mesma chave; recuperação via novo pedido explícito com nova chave (`buildIdempotencyKey` com novo `taskId`).
+- Adicionados 4 testes em `tests/arteReenviar.test.ts`: `failed reutilizado somente quando for a mesma operação`; `novo pedido explícito após failed gera chave nova via taskId diferente`; `novo envio após failed com nova chave chama sendOwnerImage novamente`; `uncertain continua sem retry automático`. Total: 28 testes no arquivo.
+- `pnpm typecheck` limpo, `pnpm test` 632 passando, `pnpm rules:check` OK, `pnpm db:validate` 53 migrações OK.
+
+## 2026-10-17 — idempotência no reenvio de artes criativas
+
+- Causa: `resendCreativeArt` sem controle de chave permitia que duas chamadas com o mesmo contexto resultassem em dois envios independentes, sem comprovação de que o primeiro não chegou.
+- `resendCreativeArt` recebe agora `idempotencyKey?: string`. Quando fornecida: consulta `creative_resend_idempotency` antes de chamar `sendOwnerImage`; se houver registro anterior retorna o resultado salvo sem re-enviar; se não houver executa e persiste o resultado (ok/uncertain/failed). Erros de validação pré-envio (`blocked`) não são persistidos — nova chamada com a mesma chave pode ter sucesso se o problema foi corrigido.
+- Resultado `uncertain` armazenado sob uma chave nunca é repetido automaticamente: nova chamada com a mesma chave devolve o `uncertain` anterior.
+- Handlers `arte_reenviar` em `maiaImageTool.ts` e `codexMaiaMcp.ts` geram a chave `task-{taskId}-item-{itemId}` automaticamente quando `taskId` está disponível.
+- Adicionada migração `20261017000000_creative_resend_idempotency.sql` com tabela `creative_resend_idempotency` (key PK, item_id, owner_number, result_ok, message_id, state, error_message). RLS aplicada via bloco `DO` com tratamento de `undefined_function` para não quebrar banco local de testes.
+- Testes em `tests/arteReenviar.test.ts` atualizados: 17 casos cobrindo resultado ok/uncertain/failed reutilizado, chaves diferentes gerando dois envios, persistência na tabela, blocked sem persistência, sem acesso à tabela quando key ausente, e todos os cenários anteriores preservados. `pnpm typecheck` limpo, `pnpm test` 623 passando, `pnpm rules:check` OK.
+
+## 2026-10-17 — autonomia operacional para localizar e reenviar artes criativas
+
+- Causa: Claude e Codex não tinham como localizar artes por linguagem natural nem reenviar um arquivo ao owner sem referência direta ao caminho.
+- Adicionada `resolveCreativeAsset` em `server/creativeAssetResolver.ts`: resolve referências como "lâmina 8", "a capa", "o Tesla", "o arquivo que faltou" contra `creative_job_items` com join em `creative_jobs(title)`. Retorna `found` (1 match), `multiple` (pergunta objetiva) ou `not_found` (informa o que foi buscado).
+- Adicionada `resendCreativeArt` (mesma classe): lógica central testável para reenvio seguro — revalida acesso, nega estado incerto, verifica arquivo em disco, registra eventos `arte_preparada / external_done / task_verified / arte_incerta / tool_failed`, grava receipt em `outbound_receipts`, nunca repete automaticamente um envio incerto.
+- Ferramentas `arte_buscar` (read-only, em `LOCAL_SAFE_TOOLS`) e `arte_reenviar` (owner no WhatsApp privado) adicionadas em `maiaImageTool.ts` e `codexMaiaMcp.ts` com paridade verificada.
+- `approvalPolicy.ts` e `toolPolicy.ts` atualizados com as novas ferramentas.
+- 12 testes unitários do resolver (`tests/creativeAssetResolver.test.ts`) + 12 testes de integração do reenvio (`tests/arteReenviar.test.ts`) cobrindo: confirmação de entrega, incerto por null/timeout, falha HTTP, item inexistente, erro de banco, estado uncertain (não repetido), arquivo ausente em disco, artifact_path null, aprovação implícita, reenvio idempotente e ausência de eventos sem taskId. Nenhum serviço externo chamado.
+- `pnpm typecheck`, `pnpm test` (616 passando) e `pnpm rules:check` OK.
+
 ## 2026-10-17 — continuidade na execução de pedidos
 
 - Causa: Claude e Codex recebiam a conversa anterior, mas a fila criativa era liberada somente quando a mensagem atual passava em uma expressão de pedido de imagem. Um roteiro que completava um pedido anterior era recusado.

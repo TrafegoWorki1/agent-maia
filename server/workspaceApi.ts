@@ -7,11 +7,12 @@ import { retryFailedResponse } from "./responseDelivery.ts";
 import { listOwnerMemories, saveOwnerMemory, updateOwnerMemory } from "./ownerMemory.ts";
 import { recentOutboundReceiptsForPanel } from "./outboundReceipts.ts";
 import { listCreativeJobsForPanel } from "./creativeJobs.ts";
+import { retryCreativeSendFromPanel } from "./creativeAssetResolver.ts";
 
 export function json(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status; res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store"); res.end(JSON.stringify(body));
 }
-const command = z.object({ action: z.enum(["create","update","reminder","edit_reminder","evaluate","retry_delivery","memory_create","memory_update"]), input: z.unknown() });
+const command = z.object({ action: z.enum(["create","update","reminder","edit_reminder","evaluate","retry_delivery","memory_create","memory_update","retry_creative_send"]), input: z.unknown() });
 export async function handleWorkspace(req: IncomingMessage, res: ServerResponse, db: Db, reviewer: string) {
   try {
     if (req.method === "GET") {
@@ -32,6 +33,7 @@ export async function handleWorkspace(req: IncomingMessage, res: ServerResponse,
       : a.action === "retry_delivery" ? await retryFailedResponse(db,z.object({ task_id:z.number().int().positive() }).parse(a.input).task_id)
       : a.action === "memory_create" ? await saveOwnerMemory(db, { ...z.object({ title:z.string().trim().min(1).max(160), detail:z.string().trim().min(1).max(4000), kind:z.enum(["compromisso","contexto","preferencia"]), due_at:z.string().datetime({offset:true}).nullable().optional() }).parse(a.input), created_by:"owner" })
       : a.action === "memory_update" ? await updateOwnerMemory(db,a.input)
+      : a.action === "retry_creative_send" ? await retryCreativeSendFromPanel(db, z.object({ item_id:z.number().int().positive(), confirm_uncertain:z.boolean().optional(), retry_key:z.string().trim().min(1).max(240).optional() }).transform((v) => ({ itemId:v.item_id, ownerNumber: process.env.EVOLUTION_OWNER_NUMBER ?? "", confirmUncertain:v.confirm_uncertain, retryKey:v.retry_key })).parse(a.input))
       : await evaluateTask(db,a.input,reviewer);
     return json(res, 200, { result });
   } catch (error) {

@@ -31,7 +31,7 @@ export interface CreativeJobPanelRow {
   created_at: string;
   updated_at: string;
   source_task_id: number;
-  items: Array<{ seq: number; format: ImageFormat; status: CreativeItemStatus; artifact_name: string | null; error: string | null }>;
+  items: Array<{ id: number; seq: number; format: ImageFormat; status: CreativeItemStatus; artifact_name: string | null; error: string | null }>;
 }
 
 function safeError(error: unknown): string {
@@ -81,14 +81,14 @@ export async function listCreativeJobsForPanel(db: Db, limit = 20): Promise<Crea
   const jobs = data ?? [];
   if (!jobs.length) return [];
   const ids = jobs.map((row) => Number(row.id));
-  const { data: items, error: itemsError } = await db.from("creative_job_items").select("job_id,seq,format,status,artifact_path,error").in("job_id", ids).order("seq", { ascending: true });
+  const { data: items, error: itemsError } = await db.from("creative_job_items").select("id,job_id,seq,format,status,artifact_path,error").in("job_id", ids).order("seq", { ascending: true });
   if (itemsError) throw new Error(`Não foi possível carregar as artes do trabalho: ${itemsError.message}`);
   const byJob = new Map<number, CreativeJobPanelRow["items"]>();
   for (const row of items ?? []) {
     const id = Number(row.job_id);
     const path = typeof row.artifact_path === "string" ? row.artifact_path.replaceAll("\\", "/").split("/").pop() ?? null : null;
     const arr = byJob.get(id) ?? [];
-    arr.push({ seq: Number(row.seq), format: row.format as ImageFormat, status: row.status as CreativeItemStatus, artifact_name: path, error: typeof row.error === "string" ? row.error : null });
+    arr.push({ id: Number(row.id), seq: Number(row.seq), format: row.format as ImageFormat, status: row.status as CreativeItemStatus, artifact_name: path, error: typeof row.error === "string" ? row.error : null });
     byJob.set(id, arr);
   }
   return jobs.map((row) => ({ id: Number(row.id), title: String(row.title), status: row.status as CreativeJobStatus, created_at: String(row.created_at), updated_at: String(row.updated_at), source_task_id: Number(row.source_task_id), items: byJob.get(Number(row.id)) ?? [] }));
