@@ -101,7 +101,7 @@ export function neededPermission(toolName: string, readOnly: boolean, input:Reco
 const GROUP_SEND = /^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_gerenciar_participantes|grupo_enviar_convite|grupo_alterar_foto)$/;
 const DIRECT_SEND = /^mcp__maia__contato_enviar_mensagem$/;
 const EMAIL_SEND = /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/;
-const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|contato_salvar|plano_criar|plano_atualizar|planos_ativos|operacao_resumo|lembrete_criar|lembrete_editar|arquivo_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor|prospeccao_preparar|prospeccao_enviar_proximo|prospeccao_descadastrar)$/;
+const OWNER_ONLY = /^mcp__maia__(grupo_cadastrar|membro_cadastrar|contato_cadastrar|contato_salvar|plano_criar|plano_atualizar|planos_ativos|operacao_resumo|lembrete_criar|lembrete_editar|arquivo_reenviar|asset_buscar|asset_reenviar|grupo_convite_link|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|anuncio_midia_url_temporaria|integracao_propor|prospeccao_preparar|prospeccao_enviar_proximo|prospeccao_descadastrar)$/;
 const PERMISSIONLESS_READS = new Set([
   "mcp__maia__buscar_conhecimento", "mcp__maia__contato_buscar", "mcp__maia__artes_recentes",
   "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__grupo_ler_enquetes",

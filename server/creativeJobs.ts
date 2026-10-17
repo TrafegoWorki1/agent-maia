@@ -2,6 +2,8 @@ import type { Db } from "./store.ts";
 import { addTaskEvent } from "./store.ts";
 import { createImage, existingImageForOutputKey, type ImageFormat } from "./imagegen.ts";
 import { sendOwnerImage } from "./evolutionSend.ts";
+import { listCreativeAssetsForJob, persistCreativeAsset } from "./creativeAssets.ts";
+import { ownerRequester } from "./access.ts";
 
 export type CreativeJobStatus = "queued" | "running" | "review" | "partial" | "uncertain";
 export type CreativeItemStatus = "queued" | "generating" | "artifact_ready" | "preview_sending" | "ready_for_review" | "failed" | "uncertain";
@@ -31,7 +33,7 @@ export interface CreativeJobPanelRow {
   created_at: string;
   updated_at: string;
   source_task_id: number;
-  items: Array<{ seq: number; format: ImageFormat; status: CreativeItemStatus; artifact_name: string | null; error: string | null }>;
+  items: Array<{ seq: number; format: ImageFormat; status: CreativeItemStatus; artifact_name: string | null; error: string | null; asset_id: string | null; asset_status: string | null; delivery_status: string | null; preview_url: string | null }>;
 }
 
 function safeError(error: unknown): string {
@@ -81,17 +83,25 @@ export async function listCreativeJobsForPanel(db: Db, limit = 20): Promise<Crea
   const jobs = data ?? [];
   if (!jobs.length) return [];
   const ids = jobs.map((row) => Number(row.id));
-  const { data: items, error: itemsError } = await db.from("creative_job_items").select("job_id,seq,format,status,artifact_path,error").in("job_id", ids).order("seq", { ascending: true });
+  const { data: items, error: itemsError } = await db.from("creative_job_items").select("job_id,seq,format,status,artifact_path,error,asset_id").in("job_id", ids).order("seq", { ascending: true });
   if (itemsError) throw new Error(`Não foi possível carregar as artes do trabalho: ${itemsError.message}`);
   const byJob = new Map<number, CreativeJobPanelRow["items"]>();
   for (const row of items ?? []) {
     const id = Number(row.job_id);
     const path = typeof row.artifact_path === "string" ? row.artifact_path.replaceAll("\\", "/").split("/").pop() ?? null : null;
     const arr = byJob.get(id) ?? [];
-    arr.push({ seq: Number(row.seq), format: row.format as ImageFormat, status: row.status as CreativeItemStatus, artifact_name: path, error: typeof row.error === "string" ? row.error : null });
+    arr.push({ seq: Number(row.seq), format: row.format as ImageFormat, status: row.status as CreativeItemStatus, artifact_name: path, error: typeof row.error === "string" ? row.error : null, asset_id: typeof row.asset_id === "string" ? row.asset_id : null, asset_status: null, delivery_status: null, preview_url: null });
     byJob.set(id, arr);
   }
-  return jobs.map((row) => ({ id: Number(row.id), title: String(row.title), status: row.status as CreativeJobStatus, created_at: String(row.created_at), updated_at: String(row.updated_at), source_task_id: Number(row.source_task_id), items: byJob.get(Number(row.id)) ?? [] }));
+  return Promise.all(jobs.map(async (row) => {
+    const id = Number(row.id);
+    const assets = await listCreativeAssetsForJob(db, ownerRequester(), id).catch(() => []);
+    const panelItems = (byJob.get(id) ?? []).map((item) => {
+      const asset = assets.find((candidate) => candidate.sequence_number === item.seq);
+      return { ...item, asset_id: asset?.asset_id ?? item.asset_id, asset_status: asset?.status ?? null, delivery_status: asset?.delivery_status ?? null, preview_url: asset?.preview_url ?? null };
+    });
+    return { id, title: String(row.title), status: row.status as CreativeJobStatus, created_at: String(row.created_at), updated_at: String(row.updated_at), source_task_id: Number(row.source_task_id), items: panelItems };
+  }));
 }
 
 async function deliverPreview(db: Db, item: CreativeJobItem & { title: string; item_count: number }): Promise<void> {
@@ -105,14 +115,17 @@ async function deliverPreview(db: Db, item: CreativeJobItem & { title: string; i
     const messageId = await sendOwnerImage(owner, item.artifact_path, `Rascunho ${item.seq}/${item.item_count} · ${item.title} · para aprovação (não publicado)`);
     if (!messageId) {
       await db.from("creative_job_items").update({ status: "uncertain", error: "WhatsApp aceitou ou pode ter aceite o rascunho, mas não devolveu ID; não reenviado automaticamente", updated_at: new Date().toISOString() }).eq("id", item.id);
+      await db.from("creative_assets").update({ delivery_status: "uncertain", error_code: "preview_no_message_id", updated_at: new Date().toISOString() }).eq("job_item_id", item.id);
       return;
     }
+    await db.from("creative_assets").update({ status: "pending_approval", delivery_id: messageId, delivery_status: "accepted", sent_at: new Date().toISOString(), error_code: null, updated_at: new Date().toISOString() }).eq("job_item_id", item.id);
     const { error } = await db.from("creative_job_items").update({ status: "ready_for_review", message_id: messageId, error: null, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", item.id);
     if (error) throw new Error(error.message);
     await addTaskEvent(db, item.source_task_id, "creative_item_ready", "preview", `trabalho=${item.job_id}; item=${item.seq}; mensagem=${messageId}`).catch(() => {});
   } catch (error) {
     const saved = await db.from("creative_job_items").update({ status: "uncertain", error: `Resultado do envio do rascunho incerto: ${safeError(error)}; não reenviado automaticamente`, updated_at: new Date().toISOString() }).eq("id", item.id);
     if (saved.error) console.error("[trabalho criativo] não consegui guardar estado incerto:", saved.error.message);
+    await db.from("creative_assets").update({ delivery_status: "uncertain", error_code: "preview_send_uncertain", updated_at: new Date().toISOString() }).eq("job_item_id", item.id);
   }
 }
 
@@ -122,6 +135,11 @@ export async function runCreativeQueueOnce(db: Db): Promise<boolean> {
   const item = (Array.isArray(data) ? data[0] : null) as (CreativeJobItem & { title: string; item_count: number }) | null;
   if (!item) return false;
   if (item.prior_status === "artifact_ready") {
+    try { await persistCreativeAsset(db, { jobId: item.job_id, itemId: item.id, sequence: item.seq, total: item.item_count, sourceTaskId: item.source_task_id, localPath: item.artifact_path ?? "" }); }
+    catch (error) {
+      await db.from("creative_job_items").update({ status: "uncertain", error: `Original não persistido; preview não enviado: ${safeError(error)}`, updated_at: new Date().toISOString() }).eq("id", item.id);
+      await refreshCreativeJob(db, item.job_id); return true;
+    }
     await deliverPreview(db, item);
     await refreshCreativeJob(db, item.job_id);
     return true;
@@ -139,6 +157,11 @@ export async function runCreativeQueueOnce(db: Db): Promise<boolean> {
 
   const ready = await db.from("creative_job_items").update({ status: "artifact_ready", artifact_path: generated.path, error: null, updated_at: new Date().toISOString() }).eq("id", item.id);
   if (ready.error) throw new Error(`A imagem foi gerada, mas não consegui guardar o checkpoint: ${ready.error.message}`);
+  try { await persistCreativeAsset(db, { jobId: item.job_id, itemId: item.id, sequence: item.seq, total: item.item_count, sourceTaskId: item.source_task_id, localPath: generated.path }); }
+  catch (error) {
+    await db.from("creative_job_items").update({ status: "uncertain", error: `Original não persistido; preview não enviado: ${safeError(error)}`, updated_at: new Date().toISOString() }).eq("id", item.id);
+    await refreshCreativeJob(db, item.job_id); return true;
+  }
   await refreshCreativeJob(db, item.job_id);
   await deliverPreview(db, { ...item, artifact_path: generated.path });
   await refreshCreativeJob(db, item.job_id);

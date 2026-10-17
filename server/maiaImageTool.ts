@@ -11,6 +11,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
 import { createCreativeJob } from "./creativeJobs.ts";
+import { resolveCreativeAsset, resendCreativeAsset } from "./creativeAssets.ts";
 import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPreferences.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
@@ -39,7 +40,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__asset_buscar", "mcp__maia__asset_reenviar", "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -78,6 +79,32 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Não consegui enfileirar o trabalho criativo." }], isError: true };
           }
+        },
+      ),
+      tool(
+        "asset_buscar",
+        "Busca ativos criativos persistidos somente na conversa privada do owner. Use referência, título ou identificador exato. Se houver ambiguidade, peça ao owner que escolha; nunca adivinhe projeto ou lâmina.",
+        { referencia: z.string().trim().min(1).max(200), cliente_id: z.string().uuid().optional(), projeto_id: z.string().uuid().optional() },
+        async ({ referencia, cliente_id, projeto_id }) => {
+          if (!allowImageGeneration || !isOwner || channel !== "whatsapp") return { content: [{ type: "text" as const, text: "Busca de assets disponível somente ao owner no WhatsApp privado." }], isError: true };
+          try {
+            const who = await resolveRequester(getDb(), requesterNumber, "");
+            const found = await resolveCreativeAsset(getDb(), who, { reference: referencia, ...(cliente_id ? { clientId: cliente_id } : {}), ...(projeto_id ? { projectId: projeto_id } : {}) });
+            return { content: [{ type: "text" as const, text: JSON.stringify(found) }] };
+          } catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha na busca de assets." }], isError: true }; }
+        },
+      ),
+      tool(
+        "asset_reenviar",
+        "Reenvia o original de um asset apenas ao privado do owner. Requer asset_id obtido em asset_buscar. Não aceita grupo, membro, cliente ou publicação. Uma tentativa incerta nunca é repetida automaticamente.",
+        { asset_id: z.string().uuid() },
+        async ({ asset_id }) => {
+          if (!allowImageGeneration || !isOwner || channel !== "whatsapp" || !taskId) return { content: [{ type: "text" as const, text: "Reenvio disponível apenas ao owner no WhatsApp privado e ligado a uma tarefa ativa." }], isError: true };
+          try {
+            const who = await resolveRequester(getDb(), requesterNumber, "");
+            const result = await resendCreativeAsset(getDb(), who, { assetId: asset_id, channel: "whatsapp", destination: "owner_private", idempotencyKey: `task:${taskId}:asset:${asset_id}` });
+            return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+          } catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha ao reenviar asset." }], isError: true }; }
         },
       ),
       ...organizationTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {

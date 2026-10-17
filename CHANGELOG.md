@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17 — catálogo de ativos criativos
+
+- Adicionado catálogo privado de originais de jobs criativos, com vínculo de conversa/projeto, checksum, preview assinado temporário e estado de entrega atualizado por recibos da Evolution.
+- Incluídas ferramentas owner-only `asset_buscar` e `asset_reenviar`, com resolução contextual de referências, revalidação de acesso, idempotência e bloqueio de repetição automática em resultado incerto.
+- Migration aplicada em produção no projeto Supabase Agent Maia e verificada por leitura: versão remota `20261017052501`, registrada localmente como `20261017052501_creative_asset_catalog.sql`. RLS habilitada e sem SELECT direto por `anon`/`authenticated`.
+
 ## 2026-10-17 — continuidade na execução de pedidos
 
 - Causa: Claude e Codex recebiam a conversa anterior, mas a fila criativa era liberada somente quando a mensagem atual passava em uma expressão de pedido de imagem. Um roteiro que completava um pedido anterior era recusado.

@@ -15,6 +15,7 @@ import { RULE_CATALOG, validateRules } from "../../server/ruleCatalog.ts";
 import { readFileSync } from "node:fs";
 import { missingStructures, scanSource, scanUsage } from "../../scripts/db/usage.ts";
 import {executeDepartmentCommand} from "../../server/departmentWork.ts";
+import { resolveCreativeAsset } from "../../server/creativeAssets.ts";
 
 let local: LocalDb;
 before(async () => {
@@ -630,6 +631,38 @@ describe("trabalhos criativos retomáveis", () => {
       assert.equal((await q("select has_table_privilege('service_role',$1,'select') as allowed", [`public.${table}`]))[0].allowed, true);
     }
     assert.equal((await q("select has_function_privilege('authenticated','create_creative_job(bigint,text,jsonb)','execute') as allowed"))[0].allowed, false);
+  });
+
+  it("catálogo de assets restringe leitura, valida vínculo e impede reenvios concorrentes", async () => {
+    const task = (await q("insert into tasks(channel,summary,status) values('whatsapp','Asset teste','em_andamento') returning id"))[0];
+    const jobId = (await q("select create_creative_job($1,'Campanha Tesla',$2::jsonb) as id", [task.id, JSON.stringify([{ briefing: "Imagem Tesla", format: "feed", refs: [] }])]))[0].id;
+    const item = (await q("select id from creative_job_items where job_id=$1", [jobId]))[0];
+    const assetId = (await q("insert into creative_assets(job_id,job_item_id,conversation_id,asset_kind,sequence_number,sequence_total,title,filename,mime_type,storage_key,checksum) values($1,$2,'dm:5511000000000','carousel_slide',1,1,'Campanha Tesla','arte-1.png','image/png','creative-assets/test/arte-1.png',repeat('a',64)) returning asset_id", [jobId,item.id]))[0].asset_id;
+    const previousOwner = process.env.EVOLUTION_OWNER_NUMBER;
+    process.env.EVOLUTION_OWNER_NUMBER = "5511000000000";
+    try {
+      const db = temporarySupabase(local);
+      const owner = { role: "owner" as const, name: "Owner", number: "5511000000000", permissions: new Set<string>() };
+      const sequence = await resolveCreativeAsset(db, owner, { reference: "lâmina 1" });
+      assert.equal(sequence.status, "found");
+      if (sequence.status === "found") assert.equal(sequence.asset.asset_id, assetId);
+      const contextual = await resolveCreativeAsset(db, owner, { reference: "aquele Tesla" });
+      assert.equal(contextual.status, "found");
+      if (contextual.status === "found") assert.equal(contextual.asset.asset_id, assetId);
+    } finally {
+      if (previousOwner === undefined) delete process.env.EVOLUTION_OWNER_NUMBER;
+      else process.env.EVOLUTION_OWNER_NUMBER = previousOwner;
+    }
+    for (const table of ["creative_assets", "creative_asset_deliveries"]) {
+      assert.equal((await q("select relrowsecurity from pg_class where oid=$1::regclass", [`public.${table}`]))[0].relrowsecurity, true);
+      assert.equal((await q("select has_table_privilege('anon',$1,'select') as allowed", [`public.${table}`]))[0].allowed, false);
+      assert.equal((await q("select has_table_privilege('authenticated',$1,'select') as allowed", [`public.${table}`]))[0].allowed, false);
+      assert.equal((await q("select has_table_privilege('service_role',$1,'select') as allowed", [`public.${table}`]))[0].allowed, true);
+    }
+    await q("insert into creative_asset_deliveries(asset_id,idempotency_key,channel,destination_scope,status) values($1,'task:1:asset:1','whatsapp','owner_private','prepared')", [assetId]);
+    await rejects(q("insert into creative_asset_deliveries(asset_id,idempotency_key,channel,destination_scope,status) values($1,'task:2:asset:1','whatsapp','owner_private','prepared')", [assetId]), /unique/i);
+    await rejects(q("insert into creative_asset_deliveries(asset_id,idempotency_key,channel,destination_scope,status) values($1,'task:1:asset:1','whatsapp','owner_private','failed')", [assetId]), /unique/i);
+    await rejects(q("insert into creative_assets(job_id,job_item_id,conversation_id,asset_kind,sequence_number,sequence_total,title,filename,mime_type,storage_key) values($1,$2,'dm:5511000000000','carousel_slide',2,1,'Campanha Tesla','arte-2.png','image/png','creative-assets/test/arte-2.png')", [jobId,item.id]), /unique|check/i);
   });
 });
 

@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { Db } from "./store.ts";
+import { updateCreativeAssetDelivery } from "./creativeAssets.ts";
 
 export type OutboundStatus = "accepted" | "delivered" | "read" | "played" | "failed";
 export interface DeliveryUpdate { messageId: string; recipient?: string | null; status: OutboundStatus }
@@ -54,6 +55,7 @@ export async function applyDeliveryUpdates(db: Db, updates: DeliveryUpdate[]): P
   let applied = 0;
   for (const update of updates) {
     await recordOutboundReceipt(db, update);
+    await updateCreativeAssetDelivery(db, update.messageId, update.status === "failed" ? "failed" : update.status === "accepted" ? "accepted" : "delivered");
     applied++;
   }
   return applied;

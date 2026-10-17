@@ -1,7 +1,7 @@
 // Inventário executável. Adicionar ferramenta local exige incluí-la aqui; caso contrário o servidor nega.
 // Conectores Claude são dinâmicos, mas somente estas famílias passam para a política de operação.
 export const MAIA_TOOL_NAMES = new Set([
-  "anuncio_midia_url_temporaria", "arquivo_reenviar", "artes_recentes", "avisar_dono", "buscar_conhecimento",
+  "anuncio_midia_url_temporaria", "arquivo_reenviar", "artes_recentes", "asset_buscar", "asset_reenviar", "avisar_dono", "buscar_conhecimento",
   "contato_buscar", "contato_enviar_mensagem", "contato_instancia_buscar", "contato_salvar", "conversas_listar",
   "gerar_imagem", "grupo_agendar", "grupo_alterar_foto", "grupo_apagar_mensagem", "grupo_cadastrar", "grupo_cliente_classificar",
   "grupo_convite_link", "grupo_criar", "grupo_enviar_convite", "grupo_enviar_enquete", "grupo_enviar_texto",
