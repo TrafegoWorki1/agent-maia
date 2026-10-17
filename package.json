@@ -21,7 +21,7 @@
     "rules:generate": "node scripts/rules-artifacts.ts --write",
     "rules:verify": "node scripts/verify-maia-rules.ts",
     "knowledge:sync": "node scripts/sync-knowledge.ts",
-    "db:validate": "node scripts/db/validate.ts",
+    "db:validate": "node --experimental-strip-types scripts/db/validate.ts",
     "db:drift": "node scripts/db/drift.ts",
     "db:guard": "node --experimental-strip-types scripts/db/guard.ts",
     "db:new": "node scripts/db/new.ts"

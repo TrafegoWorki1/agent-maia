@@ -818,3 +818,5 @@ tr:last-child td { border-bottom: 0; }
   .audit-filter select { flex: 1; max-width: 190px; }
   .audit-panel .panel-heading { align-items: flex-start; }
 }
+.creative-asset-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.creative-asset-preview { width: 72px; height: 72px; flex: 0 0 72px; object-fit: cover; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-soft); }

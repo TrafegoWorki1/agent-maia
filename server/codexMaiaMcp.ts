@@ -17,6 +17,7 @@ import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { workTools } from "./workTasks.ts";
 import { isCollaborativeWorkTool, issueWorkToolPermit } from "./workToolPermit.ts";
 import { createCreativeJob } from "./creativeJobs.ts";
+import { resolveCreativeAsset, resendCreativeAsset } from "./creativeAssets.ts";
 import { canRequestCreativeJob } from "./conversationPolicy.ts";
 import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
@@ -277,6 +278,16 @@ server.registerTool("trabalho_arte_enfileirar", { description: "Enfileira um ou 
     const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: titulo, items: itens.map((item) => ({ briefing: item.briefing, format: item.formato, refs: item.referencias ?? [] })) });
     return `Trabalho criativo #${id} enfileirado com ${itens.length} arte(s). O worker enviará cada rascunho ao owner para revisão; nada será publicado automaticamente.`;
   });
+});
+
+server.registerTool("asset_buscar", { description: "Busca ativos criativos persistidos somente na conversa privada do owner. Use referência, título ou identificador exato; se houver ambiguidade, peça uma escolha. Não procura por nome parecido em outra conversa.", inputSchema: { referencia: z.string().trim().min(1).max(200), cliente_id: z.string().uuid().optional(), projeto_id: z.string().uuid().optional() } }, async ({ referencia, cliente_id, projeto_id }) => {
+  if (!canRequestCreativeJob(requester(), channel, inGroup)) return result("Busca de assets disponível somente ao owner no WhatsApp privado.", true);
+  return guarded("mcp__maia__asset_buscar", { referencia, cliente_id, projeto_id }, async () => JSON.stringify(await resolveCreativeAsset(getDb(), requester(), { reference: referencia, ...(cliente_id ? { clientId: cliente_id } : {}), ...(projeto_id ? { projectId: projeto_id } : {}) })));
+});
+
+server.registerTool("asset_reenviar", { description: "Reenvia o original de um asset exclusivamente ao privado do owner autenticado. Requer asset_id de asset_buscar. Não aceita grupos, membros, clientes ou publicação; resultado incerto não é repetido automaticamente.", inputSchema: { asset_id: z.string().uuid() } }, async ({ asset_id }) => {
+  if (!canRequestCreativeJob(requester(), channel, inGroup) || taskId <= 0) return result("Reenvio disponível somente ao owner no WhatsApp privado e ligado a uma tarefa ativa.", true);
+  return guarded("mcp__maia__asset_reenviar", { asset_id }, async () => JSON.stringify(await resendCreativeAsset(getDb(), requester(), { assetId: asset_id, channel: "whatsapp", destination: "owner_private", idempotencyKey: `task:${taskId}:asset:${asset_id}` })));
 });
 
 server.registerTool("grupo_enviar_texto", { description: "Envia texto a um grupo. Pode pedir aprovação conforme a política.", inputSchema: { grupo: z.string().min(2).max(100), texto: z.string().min(1).max(3000), mencionar: z.array(z.string()).max(20).optional(), mencionar_todos: z.boolean().optional(), citar_id: z.string().optional() } }, async ({ grupo, texto, mencionar, mencionar_todos, citar_id }) => guarded("mcp__maia__grupo_enviar_texto", { grupo, texto, mencionar, mencionar_todos, citar_id }, async () => {
