@@ -34,3 +34,11 @@ Fonte solicitante: `MAIA_IMPLEMENTACAO_REGRAS_VIBECODING.md`. Este documento reg
 4. Para reversão, voltar o código ao commit anterior. Preservar as tabelas de autorização e auditoria; uma remoção física deve ser feita apenas por migration compensatória após exportação.
 
 Nenhum teste chama WhatsApp, Google Drive, redes sociais ou serviço pago real.
+
+## Aplicação autorizada e evidências
+
+Em autorização posterior à implementação, o proprietário pediu a aplicação das pendências. A migration `20261016223848` foi aplicada pelo fluxo CLI versionado, após dry-run exclusivo dessa versão. O histórico remoto confirmou as 51 migrations; `rules:verify` confirmou as 40 regras; o drift comparou 1.850 objetos sem diferenças.
+
+O código operacional está no commit `6309ca2`, integrado pelo PR #25. A inspeção do launcher e de `CLAUDE.md` confirmou que o worker roda neste computador, não no EasyPanel. Como não havia worker ativo, foi iniciado `scripts/start-worker.ts --headless`, com uma única instância filha de `server/inboxWorker.ts`. A inicialização foi registrada às 02:55:47 UTC de 17/10/2026; a retenção registrou seu ciclo às 02:55:51 UTC com `legacyFallback=false`, sem mensagens ou resumos removidos.
+
+Permanece pendente a conexão de um provider real ao serviço gerenciado de compartilhamentos do Drive. O serviço foi testado com mocks; as operações de compartilhamento permanecem bloqueadas até essa integração ser implementada e validada.
