@@ -1,5 +1,11 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-17 — fix: ferramentas Drive bloqueadas pelo inventário de ferramentas
+
+- **Causa:** `drive_enviar_arquivo` e `drive_salvar_arquivo` implementadas mas não adicionadas a `MAIA_TOOL_NAMES` em `server/toolPolicy.ts`. O `decideAccess` nega qualquer `mcp__maia__*` fora do inventário antes de avaliar o role, resultando em "ferramenta sem política explícita no inventário".
+- **Correção:** duas entradas adicionadas ao `Set` em `toolPolicy.ts`. Sem migração de banco.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 76 passando.
+
 ## 2026-10-17 — integração Google Drive ↔ WhatsApp
 
 - **Nova capacidade:** `drive_enviar_arquivo` (Drive → WhatsApp) e `drive_salvar_arquivo` (WhatsApp → Drive).

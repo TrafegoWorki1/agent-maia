@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17 — fix: drive_enviar_arquivo e drive_salvar_arquivo bloqueadas pelo inventário
+
+- **Causa:** as duas ferramentas foram implementadas no commit 905c888 mas não foram adicionadas a `MAIA_TOOL_NAMES` em `server/toolPolicy.ts`. `decideAccess` nega qualquer `mcp__maia__*` ausente do inventário antes de verificar o role, produzindo "ferramenta sem política explícita no inventário".
+- **Correção:** adicionados `"drive_enviar_arquivo"` e `"drive_salvar_arquivo"` ao `Set` em `toolPolicy.ts`.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 76 passando.
+
 ## 2026-10-17 — integração Google Drive ↔ WhatsApp
 
 - **Drive → WhatsApp** (`drive_enviar_arquivo`): Maia baixa um arquivo do Google Drive por ID ou URL e envia via Evolution API ao dono, a um contato privado ou a um grupo cadastrado. Buffer em memória (sem arquivo temporário em disco). Limite 25 MB.
