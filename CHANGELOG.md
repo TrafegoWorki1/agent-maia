@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-18 — skills de atendimento e prospecção com aprovação pelo WhatsApp
+
+- **Aprovação de skill pelo WhatsApp:** `handleSkillActivationCommand` intercepta `ATIVAR SKILL <uuid>` em `ownerRouter.ts` e `maiaOwnerAgent.ts` antes do agente, chama `activateSkill` e confirma ao owner. A ativação via painel (Núcleo e automações) continua funcionando.
+- **Edição de skill existente:** nova ferramenta `skill_propor_atualizacao` (slug + markdown) em `maiaImageTool.ts` e `codexMaiaMcp.ts`. Verifica se a skill existe antes de propor; usa o mesmo `activate_maia_skill` para arquivar a versão anterior e ativar a nova.
+- **Validação anti-bloqueio:** `validateSkillSafety(channel, instructions)` em `skills.ts` bloqueia padrões que causam bloqueio de conta (follow/unfollow no Instagram, DM fria, prospecção automática no WhatsApp) e exige menção a opt-out (SAIR) na prospecção via WhatsApp e à janela de 24h no Instagram.
+- **Campo `channel` no frontmatter:** `skillFrontmatterSchema` aceita campo opcional `channel: atendimento:whatsapp | atendimento:instagram | prospeccao:whatsapp | prospeccao:instagram`; a validação de segurança usa esse campo.
+- **4 skills bundled novas:** `atendimento-whatsapp`, `atendimento-instagram`, `prospeccao-whatsapp`, `prospeccao-instagram` — propostas na sincronização do worker, editáveis via `skill_propor_atualizacao`.
+- `skill_propor_atualizacao` adicionada a `MAIA_TOOL_NAMES` em `toolPolicy.ts`.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 654 passando (96 arquivos).
+
 ## 2026-10-17 — fix: drive_enviar_arquivo e drive_salvar_arquivo bloqueadas pelo inventário
 
 - **Causa:** as duas ferramentas foram implementadas no commit 905c888 mas não foram adicionadas a `MAIA_TOOL_NAMES` em `server/toolPolicy.ts`. `decideAccess` nega qualquer `mcp__maia__*` ausente do inventário antes de verificar o role, produzindo "ferramenta sem política explícita no inventário".

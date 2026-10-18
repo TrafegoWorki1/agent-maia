@@ -15,6 +15,7 @@ import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedi
 import { randomUUID } from "node:crypto";
 import { createCreativeJob } from "./creativeJobs.ts";
 import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPreferences.ts";
+import { proposeSkillUpdate, SKILL_CHANNELS } from "./skills.ts";
 import { searchKnowledge } from "./knowledge.ts";
 import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
@@ -312,11 +313,26 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           catch (error) { return { content: [{ type: "text", text: `Não gravei o plano: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
         },
       ),
-      tool("skill_propor", "Propõe um procedimento Markdown reutilizável a partir de uma tarefa já concluída. Não ativa a skill; o owner precisa revisar e aprovar no painel.", { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) }, async ({ tarefa, markdown }) => {
+      tool("skill_propor", "Propõe um procedimento Markdown reutilizável a partir de uma tarefa já concluída. Não ativa a skill; o owner aprova pelo WhatsApp (ATIVAR SKILL <uuid>) ou no painel em Núcleo e automações.", { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) }, async ({ tarefa, markdown }) => {
         if (!isOwner || !allowOwnerMemory) return { content: [{ type: "text", text: "Skills só podem ser propostas pelo owner em conversa privada." }], isError: true };
-        try { const id = await proposeSkill(getDb(), markdown, tarefa); return { content: [{ type: "text", text: `Proposta de skill ${id} registrada. Aguardando aprovação explícita do owner no painel.` }] }; }
+        try { const id = await proposeSkill(getDb(), markdown, tarefa); return { content: [{ type: "text", text: `Proposta registrada (ID: ${id}). Para ativar agora, responda: ATIVAR SKILL ${id}\nOu acesse Agente Maia → Núcleo e automações no painel.` }] }; }
         catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true }; }
       }),
+      tool(
+        "skill_propor_atualizacao",
+        "Propõe uma atualização de comportamento de uma skill existente (atendimento ou prospecção). Passa por validação anti-bloqueio. O owner aprova com ATIVAR SKILL <uuid> ou no painel.",
+        {
+          slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,80}$/).describe("ID da skill a atualizar, ex: atendimento-whatsapp"),
+          markdown: z.string().min(30).max(8000).describe("Novo conteúdo completo da skill em Markdown com frontmatter (id, version, description, scope, channel, tools)"),
+        },
+        async ({ slug, markdown }) => {
+          if (!isOwner || !allowOwnerMemory) return { content: [{ type: "text", text: "Atualizações de skill só podem ser propostas pelo owner em conversa privada." }], isError: true };
+          try {
+            const id = await proposeSkillUpdate(getDb(), slug, markdown);
+            return { content: [{ type: "text", text: `Proposta de atualização registrada (ID: ${id}). Para ativar: ATIVAR SKILL ${id}` }] };
+          } catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true }; }
+        },
+      ),
       tool(
         "plano_atualizar",
         PLAN_UPDATE_DESCRIPTION,

@@ -31,7 +31,7 @@ import { approverNumbers, approvalBinding, consumeApproval, createApproval, hasI
 import { accessContext } from "./accessContext.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
-import { proposeSkill } from "./skills.ts";
+import { proposeSkill, proposeSkillUpdate } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
@@ -455,10 +455,16 @@ server.registerTool("plano_criar", { description: PLAN_CREATE_DESCRIPTION, input
   return runPlanCreate(getDb(), args, taskId);
 }));
 
-server.registerTool("skill_propor", { description: "Propõe skill Markdown derivada de tarefa concluída; não ativa. Requer aprovação explícita do owner no painel.", inputSchema: { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) } }, async (args) => guarded("mcp__maia__skill_propor", args, async () => {
+server.registerTool("skill_propor", { description: "Propõe skill Markdown derivada de tarefa concluída; não ativa. Owner aprova com ATIVAR SKILL <uuid> ou no painel.", inputSchema: { tarefa: z.number().int().positive(), markdown: z.string().min(30).max(8000) } }, async (args) => guarded("mcp__maia__skill_propor", args, async () => {
   if (requester().role !== "owner" || inGroup) throw new Error("Skills só podem ser propostas pelo owner em conversa privada.");
   const id = await proposeSkill(getDb(), args.markdown, args.tarefa);
-  return `Proposta de skill ${id} registrada; aguardando revisão do owner no painel.`;
+  return `Proposta registrada (ID: ${id}). Para ativar agora, responda: ATIVAR SKILL ${id}`;
+}));
+
+server.registerTool("skill_propor_atualizacao", { description: "Propõe atualização de comportamento de uma skill existente. Valida regras anti-bloqueio por canal. Owner aprova com ATIVAR SKILL <uuid>.", inputSchema: { slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,80}$/), markdown: z.string().min(30).max(8000) } }, async (args) => guarded("mcp__maia__skill_propor_atualizacao", args, async () => {
+  if (requester().role !== "owner" || inGroup) throw new Error("Atualizações de skill só podem ser propostas pelo owner em conversa privada.");
+  const id = await proposeSkillUpdate(getDb(), args.slug, args.markdown);
+  return `Proposta de atualização registrada (ID: ${id}). Para ativar: ATIVAR SKILL ${id}`;
 }));
 
 server.registerTool("plano_atualizar", { description: PLAN_UPDATE_DESCRIPTION, inputSchema: { plano: z.number().int().min(1), etapas_concluidas: z.array(z.number().int().min(1)).max(12).optional(), esperar: z.union([z.object({ tipo: z.enum(["entrada_no_grupo", "arquivo_no_grupo"]), grupo: z.string().min(2).max(100), numero: z.string().max(20).optional() }), z.object({ tipo: z.literal("horario"), instante: z.string().datetime({ offset: true }) })]).optional(), limpar_espera: z.boolean().optional(), nota: z.string().max(500).optional(), concluir: z.boolean().optional(), cancelar: z.boolean().optional() } }, async (args) => guarded("mcp__maia__plano_atualizar", args, async () => {

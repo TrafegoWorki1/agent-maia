@@ -34,6 +34,7 @@ import { budgetFor, claudeModelFor } from "./ai/providers/claude.ts";
 import { CLI_OWNER_TOOLS, ClaudeCliUnavailable, claudeExecutor, cliAddDirs, runClaudeCli } from "./ai/providers/claudeCli.ts";
 import { buildCodexPrompt, runCodexText } from "./ai/providers/codex.ts";
 import { handleOwnerPreferenceCommand, isPersistentPreferenceRequest } from "./ownerPreferences.ts";
+import { handleSkillActivationCommand } from "./skills.ts";
 import type { RoutingConfig } from "./ai/types.ts";
 import {
   addTaskEvent,
@@ -592,6 +593,12 @@ export async function answerFromPanel(text: string): Promise<string> {
   if (preferenceReply) {
     await recordMessage(db, { channel: "painel", author: "maia", text: preferenceReply });
     return preferenceReply;
+  }
+  const ownerKey = (process.env.EVOLUTION_OWNER_NUMBER ?? "").replace(/\D/g, "");
+  const skillReply = await handleSkillActivationCommand(db, text, ownerKey);
+  if (skillReply) {
+    await recordMessage(db, { channel: "painel", author: "maia", text: skillReply });
+    return skillReply;
   }
   const taskId = await createTask(db, { channel: "painel", summary: text });
   const jevPending = startJevShadow(text);

@@ -15,7 +15,7 @@ export const MAIA_TOOL_NAMES = new Set([
   "linkedin_post_editar", "linkedin_publicar", "membro_acesso_consultar", "membro_acesso_definir", "membro_acesso_localizar",
   "membro_cadastrar", "memoria_buscar", "memoria_registrar", "mensagem_status", "operacao_resumo", "planilha_criar",
   "plano_atualizar", "plano_criar", "planos_ativos", "preferencia_propor", "prospeccao_descadastrar",
-  "prospeccao_enviar_proximo", "prospeccao_preparar", "skill_propor", "trabalho_arte_enfileirar", "area_registro_salvar",
+  "prospeccao_enviar_proximo", "prospeccao_preparar", "skill_propor", "skill_propor_atualizacao", "trabalho_arte_enfileirar", "area_registro_salvar",
   "oportunidade_converter", "tarefas_listar", "trabalho_contexto", "tarefa_criar", "tarefa_atualizar", "lembrete_criar",
   "lembrete_editar", "drive_enviar_arquivo", "drive_salvar_arquivo",
 ]);
