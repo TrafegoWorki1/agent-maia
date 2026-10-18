@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-17 — integração Google Drive ↔ WhatsApp
+
+- **Drive → WhatsApp** (`drive_enviar_arquivo`): Maia baixa um arquivo do Google Drive por ID ou URL e envia via Evolution API ao dono, a um contato privado ou a um grupo cadastrado. Buffer em memória (sem arquivo temporário em disco). Limite 25 MB.
+- **WhatsApp → Drive** (`drive_salvar_arquivo`): Maia faz upload de um arquivo recebido via WhatsApp (em `data/midia` ou `data/midia-membros`) para o Google Drive. Limite 100 MB.
+- `server/integrations/googleDrive.ts` (novo): cliente REST do Drive API v3 com OAuth2 + refresh token; sem dependência de SDK pesado. Funções: `parseDriveId`, `getDriveFileInfo`, `downloadDriveFile`, `uploadToDrive`.
+- `server/evolutionSend.ts`: adicionada `sendFileBuffer` — envia arquivo a partir de Buffer (não lê disco), aceita número de telefone ou JID de grupo.
+- `server/maiaImageTool.ts` e `server/codexMaiaMcp.ts`: ambas as ferramentas registradas em paridade (regra CLAUDE.md). Variáveis de ambiente necessárias: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN`.
+- Verificação: `pnpm typecheck` limpo.
+
 ## 2026-10-17 — criar endpoint /api/refresh para o botão "Atualizar fontes"
 
 - Causa: `requestRefresh()` no painel chamava `POST /api/refresh`, mas o arquivo `api/refresh.ts` não existia, resultando em HTTP 404 ao clicar no botão.

@@ -98,6 +98,25 @@ export async function sendFile(number: string, path: string, mediaType: "image" 
   return typeof body?.key?.id === "string" ? body.key.id : null;
 }
 
+// Envia um arquivo (imagem, vídeo ou documento) a partir de um Buffer (sem precisar gravar em disco).
+// Usado para enviar arquivos baixados do Drive sem criar arquivo temporário.
+// Aceita número de telefone OU JID de grupo (@g.us) em `destination`.
+export async function sendFileBuffer(destination: string, buffer: Buffer, mediaType: "image" | "video" | "document", mimetype: string, caption: string, fileName: string): Promise<string | null> {
+  const base = process.env.EVOLUTION_API_URL;
+  const key = process.env.EVOLUTION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  if (!base || !key || !instance) throw new Error("Evolution não configurada no .env");
+  const response = await fetch(`${base.replace(/\/$/, "")}/message/sendMedia/${encodeURIComponent(instance)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({ number: destination, mediatype: mediaType, mimetype, caption, media: buffer.toString("base64"), fileName: fileName || "arquivo" }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!response.ok) throw new Error(`Evolution sendMedia falhou: HTTP ${response.status}`);
+  const body = (await response.json().catch(() => null)) as { key?: { id?: unknown } } | null;
+  return typeof body?.key?.id === "string" ? body.key.id : null;
+}
+
 // Simulação de digitação (decisão do owner, 10/10/2026): a Evolution mostra "digitando..." sozinha
 // enquanto espera o "delay" informado em sendText (confirmado no código-fonte da Evolution API: outros
 // tipos de mensagem passam presence "composing"/"recording" junto do delay para o mesmo efeito). Calculado

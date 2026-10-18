@@ -1,5 +1,12 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-17 — integração Google Drive ↔ WhatsApp
+
+- **Nova capacidade:** `drive_enviar_arquivo` (Drive → WhatsApp) e `drive_salvar_arquivo` (WhatsApp → Drive).
+- **Arquivos novos/alterados:** `server/integrations/googleDrive.ts` (novo), `server/evolutionSend.ts` (+`sendFileBuffer`), `server/maiaImageTool.ts` (+2 ferramentas), `server/codexMaiaMcp.ts` (+2 ferramentas em paridade).
+- **Configuração:** requer `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` no `.env`.
+- **Evidência:** `pnpm typecheck` limpo.
+
 ## 2026-10-17 — snapshot de erro falso para conectores do platform
 
 - **Causa:** `refreshJob` grava `status: "error"` em `snapshots` quando o subprocesso `claude -p --restricted` não encontra as ferramentas `mcp__claude_ai_*` (que só existem na sessão interativa). O painel e o `operationalSummary` liam esse erro e reportavam Gmail/Meta Ads/Sheets como desativados.

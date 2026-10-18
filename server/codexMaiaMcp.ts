@@ -18,7 +18,7 @@ import { workTools } from "./workTasks.ts";
 import { isCollaborativeWorkTool, issueWorkToolPermit } from "./workToolPermit.ts";
 import { createCreativeJob } from "./creativeJobs.ts";
 import { canRequestCreativeJob } from "./conversationPolicy.ts";
-import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { sendFile, sendFileBuffer, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { findChats, findInstanceContacts } from "./chats.ts";
 import { resolveOwnerMediaPath } from "./integrations/adsMedia.ts";
@@ -39,11 +39,13 @@ import { decideAccess, resolveRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
 import { isLocalSafeTool } from "./maiaImageTool.ts";
 import { refreshGroupRequester } from "./groupAuthorization.ts";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { addOptOut, prepareBatch, sendNextProspect } from "./prospeccao.ts";
 import { activateIntegration, callIntegration, listIntegrations, parseJsonObject, parseParams, proposeIntegration } from "./integrationCatalog.ts";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { downloadDriveFile, DRIVE_DOWNLOAD_MAX_BYTES, DRIVE_UPLOAD_MAX_BYTES, getDriveFileInfo, parseDriveId, uploadToDrive } from "./integrations/googleDrive.ts";
+import { MEDIA_DIR, MEMBER_MEDIA_DIR } from "./media.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 loadLocalEnv(resolve(ROOT, ".env"));
@@ -611,6 +613,49 @@ server.registerTool("arte_buscar", { description: "Busca artes criativas geradas
   if (res.kind === "multiple") return res.question;
   const a = res.asset;
   return `${formatAssetSummary(a)}\nitem_id=${a.itemId}  trabalho_id=${a.jobId}`;
+}));
+
+server.registerTool("drive_enviar_arquivo", { description: "Baixa um arquivo do Google Drive e envia pelo WhatsApp, no privado de um contato, num grupo cadastrado ou ao próprio dono. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Arquivos Google (Docs, Sheets, Slides) não são suportados; use arquivos reais (PDF, imagem, vídeo, etc.).", inputSchema: { arquivo: z.string().min(10).max(400).describe("ID do arquivo no Drive (ex.: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs) ou URL completa do Drive (drive.google.com/file/d/...)."), destino: z.string().max(100).optional().describe("Nome do grupo, nome/número de um contato ou 'dono'. Sem isso, envia ao dono."), tipo: z.enum(["privado", "grupo"]).optional().describe("Especifique 'grupo' se o destino for um grupo (evita ambiguidade). Sem isso, tenta contato primeiro."), legenda: z.string().max(500).optional().describe("Texto que acompanha o arquivo (opcional).") } }, async (args) => guarded("mcp__maia__drive_enviar_arquivo", args, async () => {
+  const fileId = parseDriveId(args.arquivo);
+  const info = await getDriveFileInfo(fileId);
+  if (info.size > DRIVE_DOWNLOAD_MAX_BYTES) throw new Error(`o arquivo "${info.name}" (${Math.round(info.size / 1024 / 1024)} MB) passa do limite de ${Math.round(DRIVE_DOWNLOAD_MAX_BYTES / 1024 / 1024)} MB para envio no WhatsApp`);
+  const mediaType: "image" | "video" | "document" = info.mimeType.startsWith("image/") ? "image" : info.mimeType.startsWith("video/") ? "video" : "document";
+  const buffer = await downloadDriveFile(fileId);
+  let destination: string;
+  const destInput = args.destino?.trim();
+  if (!destInput || destInput.toLowerCase() === "dono") {
+    destination = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+    if (!destination) throw new Error("EVOLUTION_OWNER_NUMBER não configurado no .env");
+  } else if (args.tipo === "grupo") {
+    const group = await resolveGroup(destInput); if (!group.ok) throw new Error(`Não enviei: ${group.error}`);
+    destination = group.group.jid;
+  } else {
+    const contact = await resolveContact(getDb(), destInput);
+    if (contact.ok) { destination = contact.contact.number; }
+    else {
+      const group = await resolveGroup(destInput);
+      if (!group.ok) throw new Error(`Não encontrei "${destInput}" como contato nem como grupo. Se for um grupo, passe tipo: "grupo".`);
+      destination = group.group.jid;
+    }
+  }
+  const id = await sendFileBuffer(destination, buffer, mediaType, info.mimeType, args.legenda ?? "", info.name);
+  await addTaskEvent(getDb(), taskId, "external_done", "drive_enviar_arquivo", info.name).catch(() => {});
+  if (id) await addTaskEvent(getDb(), taskId, "task_verified", "drive_enviar_arquivo", `mensagem ${id}`).catch(() => {});
+  return `"${info.name}" enviado${id ? ` (mensagem ${id})` : ""}.`;
+}));
+
+server.registerTool("drive_salvar_arquivo", { description: "Salva no Google Drive um arquivo recebido pelo WhatsApp (do dono ou de um contato/membro). Informe o caminho exato que apareceu no contexto da mídia recebida (data/midia ou data/midia-membros). Ação que sai para fora: só roda depois do OK do owner ou do aprovador.", inputSchema: { caminho: z.string().min(5).max(400).describe("Caminho completo do arquivo local, como apareceu no aviso de mídia recebida (data/midia/... ou data/midia-membros/...)."), pasta_id: z.string().max(200).optional().describe("ID da pasta de destino no Drive. Sem isso, salva na raiz do Drive."), nome: z.string().max(200).optional().describe("Nome do arquivo no Drive. Sem isso, usa o nome original.") } }, async (args) => guarded("mcp__maia__drive_salvar_arquivo", args, async () => {
+  const full = resolve(args.caminho);
+  const inMedia = !relative(MEDIA_DIR, full).startsWith("..") && relative(MEDIA_DIR, full) !== "";
+  const inMemberMedia = !relative(MEMBER_MEDIA_DIR, full).startsWith("..") && relative(MEMBER_MEDIA_DIR, full) !== "";
+  if (!inMedia && !inMemberMedia) throw new Error("o arquivo precisa estar em data/midia ou data/midia-membros");
+  if (!existsSync(full)) throw new Error("arquivo não encontrado (pode já ter vencido a retenção — 24h para mídia do dono, 7 dias para membros)");
+  const size = statSync(full).size;
+  if (size > DRIVE_UPLOAD_MAX_BYTES) throw new Error(`o arquivo (${Math.round(size / 1024 / 1024)} MB) passa do limite de ${Math.round(DRIVE_UPLOAD_MAX_BYTES / 1024 / 1024)} MB`);
+  const result = await uploadToDrive(full, { name: args.nome, folderId: args.pasta_id });
+  await addTaskEvent(getDb(), taskId, "external_done", "drive_salvar_arquivo", result.name).catch(() => {});
+  await addTaskEvent(getDb(), taskId, "task_verified", "drive_salvar_arquivo", result.id).catch(() => {});
+  return `"${result.name}" salvo no Drive (${result.webViewLink}).`;
 }));
 
 server.registerTool("arte_reenviar", { description: "Reenvia ao owner, no WhatsApp privado, uma arte criativa gerada pela Maia. Revalida acesso antes de ler e antes de enviar. Nunca repete automaticamente um envio incerto.", inputSchema: { item_id: z.number().int().positive(), legenda: z.string().trim().max(500).optional() } }, async ({ item_id, legenda }) => guarded("mcp__maia__arte_reenviar", { item_id, legenda }, async () => {

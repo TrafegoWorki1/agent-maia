@@ -1,8 +1,10 @@
-import { relative } from "node:path";
-import { readFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { sendFile, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { sendFile, sendFileBuffer, sendOwnerText, sendTextChecked } from "./evolutionSend.ts";
+import { downloadDriveFile, DRIVE_DOWNLOAD_MAX_BYTES, DRIVE_UPLOAD_MAX_BYTES, getDriveFileInfo, parseDriveId, uploadToDrive } from "./integrations/googleDrive.ts";
+import { MEDIA_DIR, MEMBER_MEDIA_DIR } from "./media.ts";
 import { findReceivedMedia } from "./receivedMedia.ts";
 import { loadContacts, matchContacts, registerMember, resolveContact, saveContact } from "./contacts.ts";
 import { recordConvMessage } from "./conversations.ts";
@@ -1303,6 +1305,91 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
             return { content: [{ type: "text" as const, text: `${formatAssetSummary(a)}\nitem_id=${a.itemId}  trabalho_id=${a.jobId}` }] };
           } catch (error) {
             return { content: [{ type: "text" as const, text: `Não consegui buscar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "drive_enviar_arquivo",
+        "Baixa um arquivo do Google Drive e envia pelo WhatsApp, no privado de um contato, num grupo cadastrado ou ao próprio dono. Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Arquivos Google (Docs, Sheets, Slides) não são suportados; use arquivos reais (PDF, imagem, vídeo, etc.).",
+        {
+          arquivo: z.string().min(10).max(400).describe("ID do arquivo no Drive (ex.: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs) ou URL completa do Drive (drive.google.com/file/d/...)."),
+          destino: z.string().max(100).optional().describe("Nome do grupo, nome/número de um contato ou 'dono'. Sem isso, envia ao dono."),
+          tipo: z.enum(["privado", "grupo"]).optional().describe("Especifique 'grupo' se o destino for um grupo (evita ambiguidade). Sem isso, tenta contato primeiro."),
+          legenda: z.string().max(500).optional().describe("Texto que acompanha o arquivo (opcional)."),
+        },
+        async (args) => {
+          try {
+            const fileId = parseDriveId(args.arquivo);
+            const info = await getDriveFileInfo(fileId);
+            if (info.size > DRIVE_DOWNLOAD_MAX_BYTES) {
+              return { content: [{ type: "text", text: `Não enviei: o arquivo "${info.name}" (${Math.round(info.size / 1024 / 1024)} MB) passa do limite de ${Math.round(DRIVE_DOWNLOAD_MAX_BYTES / 1024 / 1024)} MB para envio no WhatsApp.` }], isError: true };
+            }
+            const mediaType: "image" | "video" | "document" = info.mimeType.startsWith("image/") ? "image" : info.mimeType.startsWith("video/") ? "video" : "document";
+            const buffer = await downloadDriveFile(fileId);
+
+            let destination: string;
+            const destInput = args.destino?.trim();
+            if (!destInput || destInput.toLowerCase() === "dono") {
+              destination = process.env.EVOLUTION_OWNER_NUMBER ?? "";
+              if (!destination) return { content: [{ type: "text", text: "EVOLUTION_OWNER_NUMBER não configurado no .env." }], isError: true };
+            } else if (args.tipo === "grupo") {
+              const group = await resolveGroup(destInput);
+              if (!group.ok) return { content: [{ type: "text", text: `Não enviei: ${group.error}.` }], isError: true };
+              destination = group.group.jid;
+            } else {
+              const db = getDb();
+              const contact = await resolveContact(db, destInput);
+              if (contact.ok) {
+                destination = contact.contact.number;
+              } else {
+                const group = await resolveGroup(destInput);
+                if (!group.ok) return { content: [{ type: "text", text: `Não encontrei "${destInput}" como contato nem como grupo. Se for um grupo, passe tipo: "grupo".` }], isError: true };
+                destination = group.group.jid;
+              }
+            }
+
+            const id = await sendFileBuffer(destination, buffer, mediaType, info.mimeType, args.legenda ?? "", info.name);
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "drive_enviar_arquivo", info.name).catch(() => {});
+              if (id) await addTaskEvent(getDb(), taskId, "task_verified", "drive_enviar_arquivo", `mensagem ${id}`).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `"${info.name}" enviado${id ? ` (mensagem ${id})` : ""}.` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui enviar o arquivo do Drive: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "drive_salvar_arquivo",
+        "Salva no Google Drive um arquivo recebido pelo WhatsApp (do dono ou de um contato/membro). Informe o caminho exato que apareceu no contexto da mídia recebida (data/midia ou data/midia-membros). Ação que sai para fora: só roda depois do OK do owner ou do aprovador.",
+        {
+          caminho: z.string().min(5).max(400).describe("Caminho completo do arquivo local, como apareceu no aviso de mídia recebida (data/midia/... ou data/midia-membros/...)."),
+          pasta_id: z.string().max(200).optional().describe("ID da pasta de destino no Drive. Sem isso, salva na raiz do Drive."),
+          nome: z.string().max(200).optional().describe("Nome do arquivo no Drive. Sem isso, usa o nome original."),
+        },
+        async (args) => {
+          try {
+            const full = resolve(args.caminho);
+            const inMedia = !relative(MEDIA_DIR, full).startsWith("..") && relative(MEDIA_DIR, full) !== "";
+            const inMemberMedia = !relative(MEMBER_MEDIA_DIR, full).startsWith("..") && relative(MEMBER_MEDIA_DIR, full) !== "";
+            if (!inMedia && !inMemberMedia) {
+              return { content: [{ type: "text", text: "Não salvei: o arquivo precisa estar em data/midia ou data/midia-membros." }], isError: true };
+            }
+            if (!existsSync(full)) {
+              return { content: [{ type: "text", text: "Não salvei: arquivo não encontrado (pode já ter vencido a retenção — 24h para mídia do dono, 7 dias para membros)." }], isError: true };
+            }
+            const size = statSync(full).size;
+            if (size > DRIVE_UPLOAD_MAX_BYTES) {
+              return { content: [{ type: "text", text: `Não salvei: o arquivo (${Math.round(size / 1024 / 1024)} MB) passa do limite de ${Math.round(DRIVE_UPLOAD_MAX_BYTES / 1024 / 1024)} MB.` }], isError: true };
+            }
+            const result = await uploadToDrive(full, { name: args.nome, folderId: args.pasta_id });
+            if (taskId) {
+              await addTaskEvent(getDb(), taskId, "external_done", "drive_salvar_arquivo", result.name).catch(() => {});
+              await addTaskEvent(getDb(), taskId, "task_verified", "drive_salvar_arquivo", result.id).catch(() => {});
+            }
+            return { content: [{ type: "text", text: `"${result.name}" salvo no Drive (${result.webViewLink}).` }] };
+          } catch (error) {
+            return { content: [{ type: "text", text: `Não consegui salvar no Drive: ${error instanceof Error ? error.message : String(error)}. Não repita sozinha.` }], isError: true };
           }
         },
       ),
