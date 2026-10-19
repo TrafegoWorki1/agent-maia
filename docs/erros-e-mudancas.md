@@ -1,5 +1,14 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-18 — skills de atendimento e prospecção com aprovação pelo WhatsApp
+
+- **Nova capacidade:** proposta e ativação de skills (novas e atualizações) pelo WhatsApp com `ATIVAR SKILL <uuid>`, sem precisar do painel.
+- **Validação anti-bloqueio:** `validateSkillSafety` rejeita padrões de risco antes de criar a proposta (follow/unfollow, DM fria, prospecção automática, ausência de SAIR/janela 24h por canal).
+- **Arquivos alterados:** `server/skills.ts` (+`validateSkillSafety`, `proposeSkillUpdate`, `handleSkillActivationCommand`, campo `channel` no frontmatter), `server/ownerRouter.ts`, `server/maiaOwnerAgent.ts` (interceptação do comando), `server/maiaImageTool.ts`, `server/codexMaiaMcp.ts` (+`skill_propor_atualizacao` em paridade), `server/toolPolicy.ts` (inventário).
+- **Arquivos novos:** `skills/atendimento-whatsapp/`, `atendimento-instagram/`, `prospeccao-whatsapp/`, `prospeccao-instagram/`.
+- **Pendências:** as 4 skills bundled aparecem como proposta após `syncBundledSkillProposals` rodar no worker; ativar uma a uma em Agente Maia → Núcleo e automações ou com `ATIVAR SKILL <uuid>`.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 654 passando, `pnpm build` limpo.
+
 ## 2026-10-17 — fix: ferramentas Drive bloqueadas pelo inventário de ferramentas
 
 - **Causa:** `drive_enviar_arquivo` e `drive_salvar_arquivo` implementadas mas não adicionadas a `MAIA_TOOL_NAMES` em `server/toolPolicy.ts`. O `decideAccess` nega qualquer `mcp__maia__*` fora do inventário antes de avaliar o role, resultando em "ferramenta sem política explícita no inventário".
