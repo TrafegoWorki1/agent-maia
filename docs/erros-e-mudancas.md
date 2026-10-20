@@ -1,3 +1,7 @@
+# Contatos compartilhados
+
+Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
+
 # Erros e mudanças — resumo do projeto
 
 ## 2026-10-20 — Google Sheets (`sheets_*`)

@@ -1,3 +1,7 @@
+# Contatos compartilhados pelo WhatsApp
+
+A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
+
 # Changelog
 
 ## 2026-10-20 — Google Sheets: ler, editar, criar e apagar colunas (`sheets_*`)
