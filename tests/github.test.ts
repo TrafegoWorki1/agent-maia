@@ -74,7 +74,7 @@ describe("cliente do GitHub", () => {
     delete process.env.GITHUB_TOKEN;
   });
 
-  it("repositório novo é sempre criado privado, e usa o token do ambiente", async () => {
+  it("repositório novo é privado por padrão, e usa o token do ambiente", async () => {
     responder = () => ({ body: { full_name: "dono/site", private: true, html_url: "https://github.com/dono/site", default_branch: "main" } });
     const created = await createRepo(db, { name: "site" });
     expect(created).toMatchObject({ repo: "dono/site", privado: true, url: "https://github.com/dono/site" });
@@ -82,9 +82,19 @@ describe("cliente do GitHub", () => {
     expect(calls[0].auth).toBe(`Bearer ${TOKEN}`);
   });
 
-  it("avisa se o GitHub não devolver o repositório como privado", async () => {
+  it("cria público só quando pedido, e avisa se o GitHub devolver outra visibilidade", async () => {
+    responder = () => ({ body: { full_name: "dono/site", private: false, html_url: "https://github.com/dono/site", default_branch: "main" } });
+    const created = await createRepo(db, { name: "site", privado: false });
+    expect(created).toMatchObject({ repo: "dono/site", privado: false });
+    expect(calls[0].body).toMatchObject({ name: "site", private: false });
     responder = () => ({ body: { full_name: "dono/site", private: false, html_url: "x" } });
-    await expect(createRepo(db, { name: "site" })).rejects.toThrow(/privado/);
+    await expect(createRepo(db, { name: "site" })).rejects.toThrow(/diferente do pedido/);
+  });
+
+  it("criar repositório público pede OK; o privado não", () => {
+    expect(decideAccess("mcp__maia__github_repo_criar", owner, { toolInput: { privado: false } }, false).decision).toBe("approve");
+    expect(decideAccess("mcp__maia__github_repo_criar", owner, { toolInput: { privado: true } }, false).decision).toBe("allow");
+    expect(decideAccess("mcp__maia__github_repo_criar", owner, { toolInput: {} }, false).decision).toBe("allow");
   });
 
   it("recusa nomes e caminhos inválidos antes de chamar a rede", async () => {

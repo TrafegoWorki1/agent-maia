@@ -86,12 +86,13 @@ export async function ciStatus(db: Db, repo: string) {
   return (data.workflow_runs ?? []).map((r) => ({ workflow: r.name ?? null, estado: r.status ?? null, resultado: r.conclusion ?? null, branch: r.head_branch ?? null, criado: r.created_at ?? null, url: r.html_url }));
 }
 
-// Sempre privado. Tornar público não é uma operação da Maia.
-export async function createRepo(db: Db, input: { name: string; description?: string; autoInit?: boolean }) {
+// Privado por padrão. Público só se o owner pedir (`privado: false`); o OK é exigido na política de aprovação (access.ts).
+export async function createRepo(db: Db, input: { name: string; description?: string; autoInit?: boolean; privado?: boolean }) {
+  const privado = input.privado !== false;
   if (!REPO_NAME.test(input.name) || input.name === "." || input.name === "..") throw new GithubError("Nome de repositório inválido: use letras, números, ponto, hífen ou sublinhado.");
-  const repo = await call<RawRepo>(db, "POST", "/user/repos", { name: input.name, description: input.description, private: true, auto_init: input.autoInit ?? true });
-  if (repo.private !== true) throw new GithubError(`O repositório ${repo.full_name} foi criado, mas o GitHub não o devolveu como privado. Confira a visibilidade no GitHub.`);
-  return { repo: repo.full_name, privado: true, url: repo.html_url, branch_padrao: repo.default_branch ?? "main" };
+  const repo = await call<RawRepo>(db, "POST", "/user/repos", { name: input.name, description: input.description, private: privado, auto_init: input.autoInit ?? true });
+  if (repo.private !== privado) throw new GithubError(`O repositório ${repo.full_name} foi criado como ${repo.private ? "privado" : "público"}, diferente do pedido. Confira a visibilidade no GitHub.`);
+  return { repo: repo.full_name, privado, url: repo.html_url, branch_padrao: repo.default_branch ?? "main" };
 }
 
 export async function createBranch(db: Db, input: { repo: string; branch: string; from?: string }) {
@@ -123,6 +124,13 @@ export async function saveFile(db: Db, input: { repo: string; path: string; cont
     ...(sha ? { sha } : {}),
   });
   return { repo: input.repo, caminho: input.path, acao: sha ? "atualizado" : "criado", commit: saved.commit?.sha?.slice(0, 7) ?? null, url: saved.commit?.html_url ?? saved.content?.html_url ?? null };
+}
+
+// Confere que o repositório existe e diz se é privado. Público ou privado, a escolha é do owner no pedido.
+export async function assertRepoExists(db: Db, repo: string): Promise<{ privado: boolean }> {
+  assertRepo(repo);
+  const info = await call<RawRepo>(db, "GET", `/repos/${repo}`);
+  return { privado: info.private === true };
 }
 
 // Lê o conteúdo de um arquivo de texto do repositório (leitura, sem OK). Devolve null se o arquivo não existe.

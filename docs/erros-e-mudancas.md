@@ -8,6 +8,20 @@
 - **Pendências:** aplicar as duas migrações em produção, reiniciar o worker, testar numa planilha real; scripts do Apps Script ficam para depois (exigem outro escopo).
 - **Evidência:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate`/`db:guard`/`rules:check` OK, `tests/sheets.test.ts` 21/21.
 
+## 2026-10-20 — GitHub e site: owner escolhe repositório público ou privado
+
+- **Causa:** repositório sempre privado; o owner quer escolher a visibilidade a cada criação.
+- **Correção:** `github_repo_criar` com `privado` (padrão privado). Público pede OK. Sites aceitam repositório público ou privado. Regra `2026-10-20.6` (migração `20261020180000`, aplicada em produção em 2026-10-20).
+- **Evidência:** `tests/github.test.ts` e `tests/site.test.ts` passando; `rules:check`, `db:validate` e `db:guard` OK.
+- **Pendências:** testar com repositório real.
+
+## 2026-10-20 — site: repositório informado em cada pedido (sem `MAIA_SITES_REPO`)
+
+- **Causa:** repositório fixo no `.env` obrigava a editar o servidor a cada repositório novo.
+- **Correção:** `repo` vai em cada pedido de site; o repositório precisa ser privado (conferido no GitHub). Regra `2026-10-20.6` e migração `20261020180000` (pendente de aplicação).
+- **Pendências:** remover `MAIA_SITES_REPO` do `.env`; aplicar `20261020180000`; testar com repositório real.
+- **Evidência:** `tests/site.test.ts` 15/15; `rules:check`, `db:validate` e `db:guard` OK.
+
 ## 2026-10-20 — site em dois caminhos (`site_subir_github` e `site_publicar_vercel`)
 
 - **Causa:** `site_publicar` fazia commit e deploy na mesma chamada; não havia como subir sem publicar nem publicar um site já salvo.

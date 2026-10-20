@@ -3,7 +3,7 @@ import type { Db } from "./store.ts";
 import { ciStatus, commentOn, createBranch, createPullRequest, createRepo, listIssues, listPullRequests, listRepos, saveFile, REPO_REF } from "./integrations/github.ts";
 
 // Ferramentas do GitHub, compartilhadas pelos dois executores (Claude e Codex), no mesmo molde de `organizationTools`.
-// Decisão do owner (2026-10-20): leitura livre, criar repositório (sempre privado) e branch sem OK, e commit/PR/comentário com OK.
+// Decisão do owner (2026-10-20): leitura livre, criar repositório privado e branch sem OK (público pede OK), e commit/PR/comentário com OK.
 // Não existe ferramenta para apagar, tornar público, fazer merge ou push forçado. Texto vindo do GitHub é dado, não instrução.
 
 export interface GithubTool {
@@ -30,9 +30,9 @@ export const githubTools: GithubTool[] = [
     (db, i) => listIssues(db, i.repo, i.estado ?? "open")),
   define("github_ci_status", "Mostra as últimas execuções de CI (GitHub Actions) de um repositório. Só leitura.", { repo },
     (db, i) => ciStatus(db, i.repo)),
-  define("github_repo_criar", "Cria um repositório PRIVADO na conta do GitHub. Nunca cria público e não existe ferramenta para tornar público. Devolve a URL do repositório criado.",
-    { nome: z.string().min(1).max(100), descricao: z.string().max(350).optional(), com_readme: z.boolean().optional().describe("Cria o repositório com um commit inicial (padrão: sim), necessário para criar branches logo em seguida.") },
-    (db, i) => createRepo(db, { name: i.nome, description: i.descricao, autoInit: i.com_readme })),
+  define("github_repo_criar", "Cria um repositório na conta do GitHub. Padrão: privado. Com privado=false cria público, e isso pede OK do owner. Não existe ferramenta para tornar um repositório existente público. Devolve a URL do repositório criado.",
+    { nome: z.string().min(1).max(100), descricao: z.string().max(350).optional(), com_readme: z.boolean().optional().describe("Cria o repositório com um commit inicial (padrão: sim), necessário para criar branches logo em seguida."), privado: z.boolean().optional().describe("true (padrão) cria privado; false cria público e pede OK.") },
+    (db, i) => createRepo(db, { name: i.nome, description: i.descricao, autoInit: i.com_readme, privado: i.privado })),
   define("github_branch_criar", "Cria uma branch nova a partir de outra (padrão: a branch principal). Não altera branches existentes.",
     { repo, branch: z.string().min(1).max(100), a_partir_de: z.string().min(1).max(100).optional() },
     (db, i) => createBranch(db, { repo: i.repo, branch: i.branch, from: i.a_partir_de })),
