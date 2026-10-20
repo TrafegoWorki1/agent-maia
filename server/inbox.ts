@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { audioFrom, groupJoinFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, withQuoted } from "./evolutionWebhook.ts";
+import { audioFrom, groupJoinFrom, incomingText, mediaFrom, normalizeEvent, quotedTextFrom, samePhone, sharedContactsText, withQuoted } from "./evolutionWebhook.ts";
 import { normalizeOutboundStatus, type DeliveryUpdate } from "./outboundReceipts.ts";
 
 // Triagem do webhook: transforma um evento da Evolution numa linha da fila `inbox` do Supabase.
@@ -67,7 +67,8 @@ function addressedToMaia(body: Record<string, unknown>, data: Record<string, unk
   const ids = [own, digitsOf(process.env.MAIA_LID)].filter(Boolean);
   const message = (data.message ?? {}) as Record<string, unknown>;
   const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
-  const context = (extended.contextInfo ?? data.contextInfo ?? {}) as Record<string, unknown>;
+  const contact = (message.contactMessage ?? message.contactsArrayMessage ?? {}) as Record<string, unknown>;
+  const context = (extended.contextInfo ?? contact.contextInfo ?? data.contextInfo ?? {}) as Record<string, unknown>;
   if (ids.length) {
     if (ids.includes(digitsOf(context.participant))) return true;
     const mentioned = Array.isArray(context.mentionedJid) ? context.mentionedJid : [];
@@ -120,12 +121,12 @@ export function toInboxRow(
     if (groups?.has(remoteJid) && key.fromMe !== true) {
       const message = ((data.message ?? {}) as Record<string, unknown>);
       const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
-      const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
+      const raw = typeof message.conversation === "string" ? message.conversation : typeof extended.text === "string" ? extended.text : sharedContactsText(message);
       const text = typeof raw === "string" ? raw.trim() : "";
       const participant = typeof key.participant === "string" && !key.participant.endsWith("@lid") ? key.participant : typeof key.participantAlt === "string" ? key.participantAlt : typeof key.participant === "string" ? key.participant : "";
       if (text) {
         // Grupo cadastrado: todo texto entra (memória de 7 dias, com autoria). Só responde quando chamada.
-        const addressed = addressedToMaia(body as Record<string, unknown>, data, text, participant, groups.get(remoteJid) ?? {}, now);
+        const addressed = addressedToMaia(body as Record<string, unknown>, data, message.contactMessage || message.contactsArrayMessage ? "" : text, participant, groups.get(remoteJid) ?? {}, now);
         const name = typeof data.pushName === "string" ? data.pushName.trim().slice(0, 60) : "";
         // Inclui o texto citado (reply) para que o agente entenda o contexto do pedido.
         const textWithCtx = withQuoted(text, quotedTextFrom(body));
@@ -153,10 +154,10 @@ export function toInboxRow(
     if (!groups?.has(remoteJid) && key.fromMe !== true) {
       const message = ((data.message ?? {}) as Record<string, unknown>);
       const extended = (message.extendedTextMessage ?? {}) as Record<string, unknown>;
-      const raw = typeof message.conversation === "string" ? message.conversation : extended.text;
+      const raw = typeof message.conversation === "string" ? message.conversation : typeof extended.text === "string" ? extended.text : sharedContactsText(message);
       const text = typeof raw === "string" ? raw.trim() : "";
       const who = [key.participant, key.participantAlt].filter((v): v is string => typeof v === "string").map((v) => v.split("@")[0]);
-      if (text && CALLS_MAIA.test(text) && REGISTER_GROUP.test(text) && who.some((n) => samePhone(n, owner))) {
+      if (text && !message.contactMessage && !message.contactsArrayMessage && CALLS_MAIA.test(text) && REGISTER_GROUP.test(text) && who.some((n) => samePhone(n, owner))) {
         return { kind: "text", sender: "group", key_id: keyId, payload: JSON.stringify({ jid: remoteJid, register: true, text }) };
       }
     }

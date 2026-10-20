@@ -12,6 +12,35 @@ function message(from: string, extra: Record<string, unknown>, fromMe = false, e
   };
 }
 
+describe("contatos compartilhados", () => {
+  const card = { displayName: "João Silva", vcard: "BEGIN:VCARD\nVERSION:3.0\nFN:João Silva\nTEL;type=CELL:+5511999999999\nTEL;TYPE=WORK:+5521999999999\nEND:VCARD" };
+  it("encaminha nome e telefones ao dono sem cadastrar automaticamente", () => {
+    const row = toInboxRow(message(OWNER, { message: { contactMessage: card } }), OWNER, APPROVER);
+    expect(row).toMatchObject({kind:"text", sender:"owner", key_id:"KEY1"});
+    expect(row!.payload).toContain('"nome":"João Silva"');
+    expect(row!.payload).toContain("+5511999999999");
+    expect(row!.payload).toContain("+5521999999999");
+  });
+  it("preserva restrições para remetente desconhecido e a própria conta", () => {
+    expect(toInboxRow(message("5511999999999", {message:{contactMessage:card}}), OWNER, APPROVER)).toMatchObject({sender:"other", payload:null});
+    expect(toInboxRow(message(OWNER, {message:{contactMessage:card}}, true), OWNER, APPROVER)).toMatchObject({sender:"none", payload:null});
+  });
+  it("trata contatos de membro autorizado e múltiplos cartões", () => {
+    const row = toInboxRow(message("5585911112222", {message:{contactsArrayMessage:{contacts:[card,{displayName:"Ana",vcard:"BEGIN:VCARD\nFN:Ana\nTEL:+5511888888888\nEND:VCARD"}]}}}), OWNER, APPROVER, undefined, new Date(), undefined, new Set(["5585911112222"]));
+    expect(row).toMatchObject({sender:"member",kind:"text"});
+    expect(JSON.parse(row!.payload!).text).toContain("+5511888888888");
+  });
+  it("não responde em grupo apenas porque o nome do contato contém Maia", () => {
+    const jid="120363412181825151@g.us";
+    const body={event:"messages.upsert",instance:"wt_test",data:{key:{id:"G",remoteJid:jid,fromMe:false,participant:"5511999999999@s.whatsapp.net"},message:{contactMessage:{...card,displayName:"Maia"}}}};
+    const row=toInboxRow(body,OWNER,APPROVER,new Map([[jid,{}]]));
+    expect(JSON.parse(row!.payload!)).toMatchObject({addressed:false});
+  });
+  it("ignora cartão inválido ou sem remetente", () => {
+    expect(toInboxRow(message(OWNER,{message:{contactMessage:{vcard:42}}}),OWNER,APPROVER)).toMatchObject({kind:"event",payload:null});
+    expect(toInboxRow({event:"messages.upsert",instance:"wt_test",data:{message:{contactMessage:card}}},OWNER,APPROVER)).toMatchObject({kind:"event",payload:null});
+  });
+});
 describe("triagem do webhook para a fila", () => {
   it("texto do dono vira linha de texto com o conteúdo", () => {
     expect(toInboxRow(message(OWNER, { message: { conversation: "oi" } }), OWNER, APPROVER)).toEqual({
