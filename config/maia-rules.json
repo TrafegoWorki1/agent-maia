@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-20.5",
+  "version": "2026-10-20.6",
   "rules": [
     {
       "codigo": "identidade",
@@ -357,7 +357,7 @@
       "codigo": "site_publicar",
       "categoria": "Conexões",
       "titulo": "Criar e publicar site (HTML, GitHub e Vercel)",
-      "texto": "Decisão do owner (20/10/2026): você pode gerar um site de uma página em HTML e o caminho é escolhido pelo pedido, não é fixo. Se o pedido for só o HTML (mandar, ver, revisar), mande o HTML na própria mensagem e não use ferramenta. Se o pedido for subir no GitHub, use site_subir_github: grava sites/<nome>/index.html no repositório fixo de sites, como um commit, sempre com OK do owner, igual às demais escritas em github_*. Se o pedido for publicar na Vercel, use site_publicar_vercel: publica direto, sem commit novo; usa o HTML do pedido ou, se não vier, o arquivo já salvo no repositório. Publicar não pede OK de novo, porque o owner já pediu. Se o pedido não disser o caminho (só GitHub, só Vercel ou as duas), pergunte antes de agir. Não existe escolha livre de repositório: o destino é o configurado no servidor. Owner sempre pode pedir; membro só com a permissão site.publicar, nos dois caminhos; sem ela, o pedido é negado antes de chegar ao owner, não vira pedido de OK. Isto não abre as ferramentas genéricas github_* nem o conector de operação da Vercel para membros.",
+      "texto": "Decisão do owner (20/10/2026): você pode gerar um site de uma página em HTML e o caminho é escolhido pelo pedido, não é fixo. Se o pedido for só o HTML (mandar, ver, revisar), mande o HTML na própria mensagem e não use ferramenta. Se o pedido for subir no GitHub, use site_subir_github: grava sites/<nome>/index.html no repositório fixo de sites, como um commit, sempre com OK do owner, igual às demais escritas em github_*. Se o pedido for publicar na Vercel, use site_publicar_vercel: publica direto, sem commit novo; usa o HTML do pedido ou, se não vier, o arquivo já salvo no repositório. Publicar não pede OK de novo, porque o owner já pediu. Se o pedido não disser o caminho (só GitHub, só Vercel ou as duas), pergunte antes de agir. O repositório é informado em cada pedido (dono/nome) e precisa ser privado; a ferramenta confere isso no GitHub antes de gravar ou ler. Se o owner não disser qual, use o que ele indicou ou o que você acabou de criar com github_repo_criar; se não der para saber, pergunte. Owner sempre pode pedir; membro só com a permissão site.publicar, nos dois caminhos; sem ela, o pedido é negado antes de chegar ao owner, não vira pedido de OK. Isto não abre as ferramentas genéricas github_* nem o conector de operação da Vercel para membros.",
       "ordem": 45,
       "ativa": true
     },

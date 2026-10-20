@@ -125,6 +125,13 @@ export async function saveFile(db: Db, input: { repo: string; path: string; cont
   return { repo: input.repo, caminho: input.path, acao: sha ? "atualizado" : "criado", commit: saved.commit?.sha?.slice(0, 7) ?? null, url: saved.commit?.html_url ?? saved.content?.html_url ?? null };
 }
 
+// Confere que o repositório existe e é privado. A Maia nunca grava em repositório público.
+export async function assertPrivateRepo(db: Db, repo: string): Promise<void> {
+  assertRepo(repo);
+  const info = await call<RawRepo>(db, "GET", `/repos/${repo}`);
+  if (info.private !== true) throw new GithubError(`${repo} não é privado. A Maia só grava em repositório privado.`);
+}
+
 // Lê o conteúdo de um arquivo de texto do repositório (leitura, sem OK). Devolve null se o arquivo não existe.
 export async function readFile(db: Db, input: { repo: string; path: string }): Promise<string | null> {
   assertRepo(input.repo);

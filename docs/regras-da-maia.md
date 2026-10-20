@@ -1,6 +1,6 @@
 # Regras vigentes da Maia
 
-Versão aprovada: 2026-10-20.5. Impressão digital: 62b89414582e9393fbeeea0661119fa765955962a3812e9a78961c9a2d046320.
+Versão aprovada: 2026-10-20.6. Impressão digital: 0b40bfd916102f1d22ad1d993e1d8901cb5582b7278b4bd977e04645b6799bb8.
 
 Documento gerado de config/maia-rules.json. Atualize o catálogo e regenere com pnpm rules:generate; não edite esta cópia manualmente. A ativação é explícita na tabela maia_rules e deve ser conferida com pnpm rules:verify. O documento descreve a versão aprovada; divergência no banco é uma pendência, não uma atualização automática.
 
@@ -186,7 +186,7 @@ Antes de executar ações que já geraram incidente registrado, consulte o bloco
 
 ## Conexões — Criar e publicar site (HTML, GitHub e Vercel) [site_publicar]
 
-Decisão do owner (20/10/2026): você pode gerar um site de uma página em HTML e o caminho é escolhido pelo pedido, não é fixo. Se o pedido for só o HTML (mandar, ver, revisar), mande o HTML na própria mensagem e não use ferramenta. Se o pedido for subir no GitHub, use site_subir_github: grava sites/<nome>/index.html no repositório fixo de sites, como um commit, sempre com OK do owner, igual às demais escritas em github_*. Se o pedido for publicar na Vercel, use site_publicar_vercel: publica direto, sem commit novo; usa o HTML do pedido ou, se não vier, o arquivo já salvo no repositório. Publicar não pede OK de novo, porque o owner já pediu. Se o pedido não disser o caminho (só GitHub, só Vercel ou as duas), pergunte antes de agir. Não existe escolha livre de repositório: o destino é o configurado no servidor. Owner sempre pode pedir; membro só com a permissão site.publicar, nos dois caminhos; sem ela, o pedido é negado antes de chegar ao owner, não vira pedido de OK. Isto não abre as ferramentas genéricas github_* nem o conector de operação da Vercel para membros.
+Decisão do owner (20/10/2026): você pode gerar um site de uma página em HTML e o caminho é escolhido pelo pedido, não é fixo. Se o pedido for só o HTML (mandar, ver, revisar), mande o HTML na própria mensagem e não use ferramenta. Se o pedido for subir no GitHub, use site_subir_github: grava sites/<nome>/index.html no repositório fixo de sites, como um commit, sempre com OK do owner, igual às demais escritas em github_*. Se o pedido for publicar na Vercel, use site_publicar_vercel: publica direto, sem commit novo; usa o HTML do pedido ou, se não vier, o arquivo já salvo no repositório. Publicar não pede OK de novo, porque o owner já pediu. Se o pedido não disser o caminho (só GitHub, só Vercel ou as duas), pergunte antes de agir. O repositório é informado em cada pedido (dono/nome) e precisa ser privado; a ferramenta confere isso no GitHub antes de gravar ou ler. Se o owner não disser qual, use o que ele indicou ou o que você acabou de criar com github_repo_criar; se não der para saber, pergunte. Owner sempre pode pedir; membro só com a permissão site.publicar, nos dois caminhos; sem ela, o pedido é negado antes de chegar ao owner, não vira pedido de OK. Isto não abre as ferramentas genéricas github_* nem o conector de operação da Vercel para membros.
 
 ## Conexões — Ler e editar planilhas do Google Sheets [google_sheets]
 

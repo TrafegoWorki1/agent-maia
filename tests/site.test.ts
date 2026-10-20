@@ -13,6 +13,7 @@ const db = {} as Db;
 const SUBIR = "mcp__maia__site_subir_github";
 const PUBLICAR = "mcp__maia__site_publicar_vercel";
 const tool = (name: string) => siteTools.find((t) => t.name === name)!;
+const REPO = "worki/sites-cliente";
 
 describe("política dos caminhos de site", () => {
   it("estão no inventário", () => {
@@ -47,14 +48,15 @@ describe("política dos caminhos de site", () => {
 
 describe("execução dos caminhos de site", () => {
   const calls: Array<{ url: string; method: string; body: Record<string, unknown> | null }> = [];
-  let githubResponder: (method: string) => { status?: number; body: unknown };
+  // Estado simulado do GitHub: se o repositório é privado e se o arquivo do site já existe.
+  let github: { privado: boolean; arquivo: string | null };
   let vercelResponder: () => { status?: number; body: unknown };
 
   beforeEach(() => {
     calls.length = 0;
     process.env.GITHUB_TOKEN = "ghp_teste";
     process.env.VERCEL_TOKEN = "vercel_teste";
-    process.env.MAIA_SITES_REPO = "worki/sites";
+    github = { privado: true, arquivo: null };
     vercelResponder = () => ({ body: { url: "landing-promo.vercel.app", readyState: "READY", id: "dpl_1" } });
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       const method = String(init.method);
@@ -63,29 +65,38 @@ describe("execução dos caminhos de site", () => {
         const { status = 200, body } = vercelResponder();
         return new Response(JSON.stringify(body), { status });
       }
-      const { status = 200, body } = githubResponder(method);
-      return new Response(JSON.stringify(body), { status });
+      if (method === "GET" && url.endsWith(`/repos/${REPO}`)) return new Response(JSON.stringify({ full_name: REPO, private: github.privado }), { status: 200 });
+      if (method === "GET" && url.includes("/contents/")) {
+        if (github.arquivo === null) return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
+        return new Response(JSON.stringify({ content: Buffer.from(github.arquivo, "utf8").toString("base64"), encoding: "base64" }), { status: 200 });
+      }
+      if (method === "PUT") return new Response(JSON.stringify({ commit: { sha: "abc1234", html_url: `https://github.com/${REPO}/commit/abc1234` } }), { status: 200 });
+      return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
     });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.GITHUB_TOKEN;
     delete process.env.VERCEL_TOKEN;
-    delete process.env.MAIA_SITES_REPO;
   });
 
   const encoded = (text: string) => Buffer.from(text, "utf8").toString("base64");
 
-  it("subir no GitHub grava sites/<slug>/index.html e não chama a Vercel", async () => {
-    githubResponder = (method) => method === "GET" ? { status: 404, body: { message: "Not Found" } } : { body: { commit: { sha: "abc1234", html_url: "https://github.com/worki/sites/commit/abc1234" } } };
-    const result = await tool("site_subir_github").run(db, { slug: "landing-promo", html: "<html></html>", mensagem: "primeira versão" }) as Record<string, unknown>;
-    expect(result).toMatchObject({ commitUrl: "https://github.com/worki/sites/commit/abc1234", repo: "worki/sites", caminho: "sites/landing-promo/index.html", acao: "criado" });
-    expect(calls.find((c) => c.method === "PUT")!.url).toContain("/repos/worki/sites/contents/sites/landing-promo/index.html");
+  it("subir grava sites/<slug>/index.html no repositório informado e não chama a Vercel", async () => {
+    const result = await tool("site_subir_github").run(db, { repo: REPO, slug: "landing-promo", html: "<html></html>", mensagem: "primeira versão" }) as Record<string, unknown>;
+    expect(result).toMatchObject({ commitUrl: `https://github.com/${REPO}/commit/abc1234`, repo: REPO, caminho: "sites/landing-promo/index.html" });
+    expect(calls.find((c) => c.method === "PUT")!.url).toContain(`/repos/${REPO}/contents/sites/landing-promo/index.html`);
     expect(calls.some((c) => c.url.includes("api.vercel.com"))).toBe(false);
   });
 
+  it("subir recusa repositório público antes de gravar", async () => {
+    github.privado = false;
+    await expect(tool("site_subir_github").run(db, { repo: REPO, slug: "landing-promo", html: "<html></html>", mensagem: "x" })).rejects.toThrow(/não é privado/);
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+  });
+
   it("publicar com HTML do pedido não lê o GitHub e manda o HTML para a Vercel", async () => {
-    const result = await tool("site_publicar_vercel").run(db, { slug: "landing-promo", html: "<html>x</html>" }) as Record<string, unknown>;
+    const result = await tool("site_publicar_vercel").run(db, { repo: REPO, slug: "landing-promo", html: "<html>x</html>" }) as Record<string, unknown>;
     expect(result).toMatchObject({ deployUrl: "https://landing-promo.vercel.app", deployEstado: "READY", origem: "HTML do pedido" });
     expect(calls.some((c) => c.url.includes("api.github.com"))).toBe(false);
     const deploy = calls.find((c) => c.url.includes("api.vercel.com"))!;
@@ -93,39 +104,30 @@ describe("execução dos caminhos de site", () => {
     expect(JSON.stringify(deploy.body)).toContain(encoded("<html>x</html>"));
   });
 
-  it("publicar sem HTML usa o arquivo já salvo no repositório", async () => {
-    githubResponder = () => ({ body: { content: encoded("<html>do repo</html>"), encoding: "base64" } });
-    const result = await tool("site_publicar_vercel").run(db, { slug: "landing-promo" }) as Record<string, unknown>;
-    expect(result).toMatchObject({ origem: "repositório", deployUrl: "https://landing-promo.vercel.app" });
-    expect(calls.find((c) => c.method === "GET")!.url).toContain("/repos/worki/sites/contents/sites/landing-promo/index.html");
+  it("publicar sem HTML usa o arquivo já salvo no repositório informado", async () => {
+    github.arquivo = "<html>do repo</html>";
+    const result = await tool("site_publicar_vercel").run(db, { repo: REPO, slug: "landing-promo" }) as Record<string, unknown>;
+    expect(result).toMatchObject({ origem: "repositório", deployUrl: "https://landing-promo.vercel.app", repo: REPO });
+    expect(calls.find((c) => c.method === "GET" && c.url.includes("/contents/"))!.url).toContain(`/repos/${REPO}/contents/sites/landing-promo/index.html`);
     expect(JSON.stringify(calls.find((c) => c.url.includes("api.vercel.com"))!.body)).toContain(encoded("<html>do repo</html>"));
   });
 
   it("publicar sem arquivo no repositório recusa e não chama a Vercel", async () => {
-    githubResponder = () => ({ status: 404, body: { message: "Not Found" } });
-    await expect(tool("site_publicar_vercel").run(db, { slug: "landing-promo" })).rejects.toThrow(/Suba o site no GitHub/);
+    await expect(tool("site_publicar_vercel").run(db, { repo: REPO, slug: "landing-promo" })).rejects.toThrow(/Suba o site no GitHub/);
     expect(calls.some((c) => c.url.includes("api.vercel.com"))).toBe(false);
   });
 
   it("falha da Vercel é erro claro, sem token", async () => {
     vercelResponder = () => ({ status: 401, body: { error: { message: "Not authorized" } } });
-    const error = await tool("site_publicar_vercel").run(db, { slug: "x", html: "<html></html>" }).catch((e: Error) => e);
+    const error = await tool("site_publicar_vercel").run(db, { repo: REPO, slug: "x", html: "<html></html>" }).catch((e: Error) => e);
     expect((error as Error).message).toContain("Not authorized");
     expect((error as Error).message).not.toContain("vercel_teste");
   });
 
-  it("sem MAIA_SITES_REPO, recusa antes de chamar a rede", async () => {
-    delete process.env.MAIA_SITES_REPO;
-    githubResponder = () => ({ body: {} });
-    await expect(tool("site_subir_github").run(db, { slug: "landing-promo", html: "<html></html>", mensagem: "x" })).rejects.toThrow(/MAIA_SITES_REPO/);
-    await expect(tool("site_publicar_vercel").run(db, { slug: "landing-promo", html: "<html></html>" })).rejects.toThrow(/MAIA_SITES_REPO/);
-    expect(calls).toEqual([]);
-  });
-
-  it("recusa slug inválido antes de chamar a rede", async () => {
-    githubResponder = () => ({ body: {} });
-    await expect(tool("site_subir_github").run(db, { slug: "Landing Promo!", html: "<html></html>", mensagem: "x" })).rejects.toThrow();
-    await expect(tool("site_publicar_vercel").run(db, { slug: "Landing Promo!", html: "<html></html>" })).rejects.toThrow();
+  it("recusa repositório em formato inválido ou slug inválido antes de chamar a rede", async () => {
+    await expect(tool("site_subir_github").run(db, { repo: "sem-barra", slug: "landing-promo", html: "<html></html>", mensagem: "x" })).rejects.toThrow();
+    await expect(tool("site_subir_github").run(db, { repo: REPO, slug: "Landing Promo!", html: "<html></html>", mensagem: "x" })).rejects.toThrow();
+    await expect(tool("site_publicar_vercel").run(db, { slug: "landing-promo", html: "<html></html>" })).rejects.toThrow();
     expect(calls).toEqual([]);
   });
 });
