@@ -50,3 +50,16 @@ export async function approvePattern(db: Db, codigo: string): Promise<void> {
   if (error) throw new Error(`error_patterns: ${error.message}`);
   invalidatePatternsCache();
 }
+
+// Comando "aprovar padrão <codigo>" vindo do dono, por qualquer canal. Retorna null se não for esse comando.
+export async function handlePatternApprovalCommand(db: Db, text: string): Promise<string | null> {
+  const match = /^aprovar\s+padrão\s+([a-z0-9_]+)$/i.exec(text.trim());
+  if (!match) return null;
+  const codigo = match[1].toLowerCase();
+  try {
+    await approvePattern(db, codigo);
+    return `Padrão "${codigo}" ativado. Já entra no contexto da Maia na próxima execução.`;
+  } catch (err) {
+    return `Não consegui ativar o padrão "${codigo}": ${err instanceof Error ? err.message : String(err)}`;
+  }
+}

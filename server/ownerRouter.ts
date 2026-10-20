@@ -16,6 +16,7 @@ import { getDb, recordMessage } from "./store.ts";
 import { resumePlans, waitingForFile } from "./plans.ts";
 import { handleOwnerPreferenceCommand } from "./ownerPreferences.ts";
 import { handleSkillActivationCommand } from "./skills.ts";
+import { handlePatternApprovalCommand } from "./errorPatterns.ts";
 
 // Roteamento dos comandos do dono: aviso, criar grupo (com aprovação), tarefa e conversa com a Maia.
 // Usado pelo webhook local e pelo worker da fila, para os dois fazerem exatamente a mesma coisa.
@@ -40,6 +41,11 @@ export async function routeOwnerText(text: string): Promise<number | null> {
   const skillReply = await handleSkillActivationCommand(db, text, (owner ?? "").replace(/\D/g, ""));
   if (skillReply) {
     await notifyOwner(skillReply);
+    return null;
+  }
+  const patternReply = await handlePatternApprovalCommand(db, text);
+  if (patternReply) {
+    await notifyOwner(patternReply);
     return null;
   }
   // Pedidos de grupo são tratados aqui, sem o agente: a aprovação é criada de verdade.
