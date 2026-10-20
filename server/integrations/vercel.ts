@@ -1,7 +1,7 @@
 import { readSecret } from "../vault.ts";
 import type { Db } from "../store.ts";
 
-// Cliente mínimo da API REST da Vercel. Só o necessário para a ferramenta `site_publicar`: publicar um deployment por
+// Cliente mínimo da API REST da Vercel. Só o necessário para as ferramentas de site (`site_publicar_vercel`): publicar um deployment por
 // arquivo. Fora de propósito: variáveis de ambiente, domínios, equipe, billing, firewall — nada disso é exposto aqui.
 // Isto não é o conector Vercel da conta Claude (`operationalConnectors.ts`); é um cliente próprio, de superfície mínima.
 
