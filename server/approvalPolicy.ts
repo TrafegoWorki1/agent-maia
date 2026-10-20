@@ -20,6 +20,8 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__maia__linkedin_post_(cancelar|editar)$/,
   // GitHub: commit, pull request e comentário alteram algo externo. Criar repositório (sempre privado) e branch não pedem OK.
   /^mcp__maia__github_(arquivo_salvar|pr_criar|comentar)$/,
+  // Site (HTML): o commit pede OK a cada vez; o deploy na Vercel acontece dentro da mesma ação já aprovada.
+  /^mcp__maia__site_publicar$/,
   // InstaMany: mensagem direta e ativação de fluxo no Instagram
   /^mcp__claude_ai_instamany__(send_message|set_flow_status)$/,
   // Anúncios: criar, ativar, impulsionar, alterar e apagar (alterar pode ativar ou mudar orçamento)

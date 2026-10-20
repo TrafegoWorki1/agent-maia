@@ -1,5 +1,18 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-20 — criar e publicar site (`site_publicar`)
+
+- **Causa:** owner pediu que a Maia gerasse sites em HTML, mandasse no chat, comitasse no GitHub e publicasse na Vercel, direto pelo WhatsApp.
+- **Correção:** `server/integrations/vercel.ts` (novo, só deployments) e `server/siteTools.ts` (novo, 1 ferramenta `site_publicar`, nos dois executores). Commit sempre com OK; deploy na Vercel automático, dentro da mesma ação aprovada; membro precisa da permissão nova `site.publicar`.
+- **Pendências:** owner precisa enviar `cofre VERCEL_TOKEN | valor` (ou `.env`), definir `MAIA_SITES_REPO` e conceder `site.publicar` a quem for usar; não testado contra a Vercel real.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 692/692 e 76/76, `pnpm build` OK, `pnpm db:validate`/`pnpm db:guard`/`pnpm rules:check` OK, `tests/site.test.ts` 10/10.
+
+## 2026-10-20 — janela de agrupamento 30 s
+
+- **Causa:** mensagem complementar ("12:00") chegou após a janela de 15 s; o primeiro texto foi despachado sozinho.
+- **Correção:** `MAIA_BATCH_WINDOW_S=30` no `.env`; teto de 60 s inalterado.
+- **Pendências:** reiniciar o worker; causa inferida do código, sem consulta aos lotes em produção.
+
 ## 2026-10-20 — ferramentas do GitHub
 
 - **Causa:** a integração nativa do GitHub no claude.ai vale só para sessões na nuvem; a Maia não tinha ferramenta para o GitHub.
@@ -980,3 +993,7 @@ Os itens abaixo registram as verificações intermediárias e a causa/correção
 Complemento: a entrega privada persistida não guardava o solicitante, então uma resposta produzida antes da revogação ainda podia ser enviada após reinício. Agora guarda o vínculo e revalida papel, número e permissões imediatamente antes de cada parte. Respostas já aceitas pela Evolution não podem ser desfeitas.
 
 O fluxo anterior carregava permissões uma vez por conversa privada e não distinguia concessão herdada de bloqueio individual. O fluxo novo relê o cadastro a cada chamada e após OK, registra modos por pessoa/capacidade e não usa memória do owner como fonte de autorização. O OK é específico para a operação e não vira concessão permanente. Compartilhamento externo do Drive permanece fora deste controle.
+# Lembretes no mesmo horário
+
+A tarefa com prazo já criava aviso automático, mas outro aviso manual podia ser agendado no mesmo instante. A migration de proteção impede a colisão sob bloqueio e a ferramenta retorna o aviso existente; horários diferentes continuam disponíveis. Typecheck, validação do banco, 692 testes de aplicação, 77 de banco e build passaram. O guard não encontrou origin/main. A simulação remota retornou 401 para o token; aplicação em produção e atualização do worker permanecem pendentes.
+

@@ -75,7 +75,16 @@ export async function createReminder(db: Db, input: unknown, sourceTaskId?: numb
   const t = await db.from("work_tasks").select("status").eq("id", a.tarefa_id).single();
   check(t.error);
   if (t.data?.status === "concluida") throw new Error("A tarefa já está concluída");
+  const findExisting = () => db.from("task_reminders").select("*").eq("work_task_id", a.tarefa_id).eq("run_at", a.horario).in("status", ["pending", "sending", "sent", "uncertain"]).limit(1);
+  const existing = await findExisting();
+  check(existing.error);
+  if (existing.data?.length) return existing.data;
   const r = await db.from("task_reminders").upsert({ work_task_id: a.tarefa_id, run_at: a.horario, kind: "manual", request_key: a.chave ?? requestKey(`lembrete:${sourceTaskId}`, a) }, { onConflict: "request_key", ignoreDuplicates: true }).select("*");
+  if (r.error?.code === "23505") {
+    const concurrent = await findExisting();
+    check(concurrent.error);
+    if (concurrent.data?.length) return concurrent.data;
+  }
   check(r.error);
   return r.data;
 }
@@ -165,7 +174,7 @@ export const workTools = [
   { name:"trabalho_contexto",description:"Consulta trabalho autorizado com IDs de pessoas, clientes, equipes, projetos, entregáveis, oportunidades comerciais, combinados de CS, prioridades, compromissos e capacidade. Use para esclarecer o cadastro antes de alterar; memória ou nome parecido não concedem acesso.",schema:z.object({}),run:async(db:Db,a:unknown,taskId?:number,requesterNumber?:string)=>{requireWorkPermit("trabalho_contexto",a,taskId,requesterNumber);const identity=await identityByNumber(db,requesterNumber!);const view=await collaborationView(db,identity,new Date(),"maia");return {tasks:view.tasks,people:view.people,teams:view.teams,projects:view.projects,contracts:view.contracts,clients:view.clients,deliverables:view.deliverables,departmentRecords:view.departmentRecords,departmentHistory:view.departmentHistory,plans:view.plans,planItems:view.planItems,capacity:view.capacity,load:view.load};} },
   { name: "tarefa_criar", description: "Cria tarefa persistida pelo WhatsApp para pessoa/equipe cadastrada. Não associa por semelhança de nome; usa IDs ou o próprio solicitante.", schema: createWorkSchema, run: (db: Db, a: unknown, taskId?: number,requesterNumber?:string) => { const permit=requireWorkPermit("tarefa_criar",a,taskId,requesterNumber); return createAuthorizedTask(db,a,taskId,requesterNumber!,permit.oneTimeApproval); } },
   { name: "tarefa_atualizar", description: "Atualiza estado, bloqueio, revisão ou conclusão no escopo autorizado. Exige revisão atual e evidência para concluir; aprovar qualidade não autoriza publicação.", schema: updateWorkSchema, run: (db: Db, a: unknown,taskId?:number,requesterNumber?:string) => { const permit=requireWorkPermit("tarefa_atualizar",a,taskId,requesterNumber); return updateAuthorizedTask(db,a,requesterNumber!,permit.oneTimeApproval); } },
-  { name: "lembrete_criar", description: "Agenda lembrete persistido de tarefa ao owner no WhatsApp, com horário ISO e fuso. Não envia a terceiros.", schema: reminderSchema, run: (db: Db, a: unknown, taskId?: number) => createReminder(db, a, taskId) },
+  { name: "lembrete_criar", description: "Agenda lembrete persistido de tarefa ao owner no WhatsApp, com horário ISO e fuso. Se já houver aviso para a tarefa no mesmo horário, retorna o existente sem duplicar. Não envia a terceiros.", schema: reminderSchema, run: (db: Db, a: unknown, taskId?: number) => createReminder(db, a, taskId) },
   { name: "lembrete_editar", description: "Reagenda ou cancela lembrete ainda pendente. Envios incertos não são repetidos.", schema: editReminderSchema, run: (db: Db, a: unknown) => editReminder(db, a) },
 ] as const;
 

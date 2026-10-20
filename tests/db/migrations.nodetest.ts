@@ -634,6 +634,15 @@ describe("trabalhos criativos retomáveis", () => {
 });
 
 describe("plano de eficácia: trabalho, lembretes e entrega", () => {
+  it("impede lembretes duplicados da mesma tarefa e horário, preservando outros horários", async () => {
+    const t = (await q("insert into work_tasks(title,responsible,due_at,request_key) values('Teste duplicidade','Owner','2030-01-01T15:00:00Z','test:dedupe') returning id"))[0];
+    await rejects(q("insert into task_reminders(work_task_id,run_at,kind,request_key) values($1,'2030-01-01T12:00:00-03:00','manual','test:duplicate')", [t.id]), /já existe lembrete/i);
+    const other = (await q("insert into task_reminders(work_task_id,run_at,kind,request_key) values($1,'2030-01-01T16:00:00Z','manual','test:other') returning id", [t.id]))[0];
+    await rejects(q("update task_reminders set run_at='2030-01-01T15:00:00Z' where id=$1", [other.id]), /já existe lembrete/i);
+    await rejects(q("update work_tasks set due_at='2030-01-01T16:00:00Z' where id=$1", [t.id]), /já existe lembrete/i);
+    await q("update task_reminders set status='cancelled' where id=$1", [other.id]);
+    await q("update work_tasks set due_at='2030-01-01T16:00:00Z' where id=$1", [t.id]);
+  });
   it("cria histórico e lembrete de prazo na mesma transação; não duplica claim", async () => {
     const t = (await q("insert into work_tasks(title,responsible,due_at,request_key) values('Validar fluxo','Owner',now() - interval '1 minute','test:work') returning id,revision"))[0];
     assert.equal(t.revision,1);

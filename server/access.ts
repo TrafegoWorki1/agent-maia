@@ -131,6 +131,8 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (toolName === "mcp__claude_ai_Google_Drive__share_file") return { decision: "deny", reason: "compartilhamento direto do conector bloqueado: use o fluxo gerenciado que registra e confere o permissionId" };
   if (/^mcp__maia__membro_acesso_(localizar|consultar|definir)$/.test(toolName)) return who.role === "owner" && !who.groupScope ? { decision: "allow", reason: "administração privada do proprietário" } : { decision: "deny", reason: "administração exclusiva do proprietário no privado" };
   if (/^mcp__maia__github_/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "GitHub só para o owner no privado" };
+  if (toolName === "mcp__maia__site_publicar" && who.groupScope) return { decision: "deny", reason: "publicação de site só no privado" };
+  if (toolName === "mcp__maia__site_publicar" && who.role === "member" && !who.permissions.has("site.publicar")) return { decision: "deny", reason: "publicar site exige a permissão site.publicar" };
   if (toolName === "mcp__maia__skill_propor" && (who.role !== "owner" || !!who.groupScope)) return { decision: "deny", reason: "proposta de skill só no privado do owner" };
   const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
   if (scopeDenial) return { decision: "deny", reason: scopeDenial };

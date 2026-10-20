@@ -35,6 +35,7 @@ import { proposeSkill, proposeSkillUpdate } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
 import { githubTools } from "./githubTools.ts";
+import { siteTools } from "./siteTools.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { decideAccess, resolveRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
@@ -130,6 +131,11 @@ for (const t of organizationTools) {
 }
 
 for (const t of githubTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of siteTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
 }

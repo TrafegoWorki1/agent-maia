@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-20 — criar e publicar site (HTML, GitHub e Vercel): `site_publicar`
+
+- **Causa:** o owner pediu, na própria conversa de desenvolvimento, que a Maia pudesse gerar um site em HTML, enviá-lo no chat, subir o arquivo ao GitHub e publicar na Vercel, sem precisar de uma sessão direta do Claude Code. Nenhuma ferramenta fazia isso: `github_*` já existia mas é genérico e só do owner (decisão de 20/10/2026, logo abaixo); não havia nenhuma ferramenta de deploy.
+- **Decisão do owner (20/10/2026, ampliando a decisão do GitHub do mesmo dia):** commit sempre com OK do owner, deploy na Vercel automático (sem um segundo OK, por fazer parte da mesma ação aprovada), e liberado ao owner e a membros com a nova permissão `site.publicar` — não é aberto a qualquer membro, nem afrouxa o acesso genérico a `github_*` ou ao conector de operação da Vercel.
+- **`server/integrations/vercel.ts`** (novo): cliente mínimo da API de deployments da Vercel — só `createDeployment`, sem variáveis de ambiente, domínios, equipe ou billing. Token do `.env` (`VERCEL_TOKEN`) ou do cofre (`INTEGRACAO_VERCEL_TOKEN`, via `cofre VERCEL_TOKEN | valor`).
+- **`server/siteTools.ts`** (novo), registrado em `maiaImageTool.ts` e `codexMaiaMcp.ts` no molde de `githubTools`: ferramenta única `site_publicar` — grava `sites/<slug>/index.html` no repositório fixo `MAIA_SITES_REPO` (via `saveFile` já existente em `github.ts`, reaproveitado) e, na mesma chamada, publica o mesmo HTML na Vercel. Falha da Vercel não desfaz a resposta: o commit é informado mesmo assim, com um aviso.
+- **Política:** `approvalPolicy.ts` exige OK em `site_publicar` (cobre commit + deploy); `access.ts` nega o pedido de membro sem `site.publicar` antes de chegar a um OK do owner (owner e membro habilitado seguem para aprovação normal); `toolPolicy.ts` inclui o nome no inventário; `actionDescriptions.ts` descreve a ação com o slug e a mensagem do commit.
+- **Regras e migrações:** nova regra `site_publicar` no catálogo (`config/maia-rules.json`, versão 2026-10-20.3), deixando explícito que a Maia só chama `site_publicar` quando o pedido pede publicar/subir/postar/link — pedido de só o HTML manda o HTML na mensagem e para aí, sem publicar nada. `pnpm rules:generate`/`pnpm rules:check` OK. Duas migrações: upsert da regra em `maia_rules` e inserção da permissão `site.publicar` em `permission_catalog` (sem conceder a ninguém — o owner concede pessoa a pessoa pelo fluxo já existente).
+- **Testes:** `tests/site.test.ts` (10 novos): política por papel (owner aprova, membro sem permissão nega, membro com permissão aprova, grupo nega), caminho do commit, deploy com sucesso e com falha, erro nunca carrega o token.
+- **Pendências:** owner precisa enviar `cofre VERCEL_TOKEN | <token>` (ou configurar `VERCEL_TOKEN` no `.env`), definir `MAIA_SITES_REPO` no `.env` e conceder `site.publicar` aos membros que devem poder pedir isso. Não testado contra a Vercel real.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 692/692 e 76/76, `pnpm build` OK, `pnpm db:validate` e `pnpm db:guard` OK, `pnpm rules:check` OK.
+
+## 2026-10-20 — janela de agrupamento de mensagens do dono: 15 s → 30 s
+
+- **Causa:** o dono mandou "Fechado, Lembrete para falar com a Barbara Bacchi as : Hoje" e, depois de uma pausa, "12:00". A janela de 15 s sem mensagem já tinha fechado, o primeiro lote foi despachado sozinho e a Maia perguntou o horário. O agrupamento (`server/batching.ts`) funcionava como projetado; a janela é que era curta para quem completa a frase em outra mensagem.
+- **Correção:** `MAIA_BATCH_WINDOW_S=30` no `.env` (padrão no código segue 15 s). Teto `MAIA_BATCH_MAX_S` mantido em 60 s. Sem mudança de código nem de banco.
+- **Pendências:** reiniciar o worker para carregar a variável. Não consegui consultar `message_batches` em produção (conector Supabase sem projetos), então a causa vem da leitura do código. Custo: cada pedido espera até 30 s de silêncio antes de a Maia começar.
+
 ## 2026-10-20 — ferramentas do GitHub (`github_*`)
 
 - **Causa:** o conector nativo do GitHub no claude.ai é a integração do Claude GitHub App ("Apenas sessões na nuvem"): não entrega ferramentas MCP a uma sessão local nem ao worker da Maia. A Maia não tinha como falar com o GitHub.
@@ -1412,3 +1430,7 @@ bug, qual era o sintoma e a causa.
 - Modos individuais e auditoria transacional em migração nova; bloqueio individual prevalece sobre equipe.
 - Aprovação vinculada a solicitante, tarefa, ferramenta e parâmetros, expira em 10 minutos e só pode ser consumida uma vez.
 - Releitura das permissões antes das ferramentas e após aprovações; painel de Pessoas relê os modos no banco.
+# Lembretes duplicados — correção preparada
+
+O prazo automático e um lembrete manual podiam gerar dois avisos para a mesma tarefa e horário. A nova migration valida a combinação sob bloqueio da tarefa, preservando o histórico; a ferramenta reutiliza o aviso existente. Horários diferentes continuam permitidos. Typecheck, validação de migrações, 692 testes de aplicação, 77 de banco e build passaram. O guard não encontrou origin/main. A simulação remota retornou 401 para o token; aplicação em produção e atualização do worker permanecem pendentes.
+
