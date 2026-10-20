@@ -11,6 +11,7 @@
 - **`config/maia-rules.json`**: versão `2026-10-20.1`, 44 regras — adicionadas `quality_audit` (42), `auto_incidente` (43), `prevencao_padrao` (44).
 - **Migrações**: `20261020030001_maia_quality_selfcorrection.sql` (tabelas + RLS) e `20261020030645_quality_audit_rules.sql` (INSERT das 3 regras) — ambas aplicadas em produção.
 - **Verificação**: `pnpm typecheck` limpo, `pnpm rules:check` OK, `pnpm db:validate` 56 migrações OK, `pnpm test` 76/76 passando.
+- **Correção de segurança** (`20261020031404_quality_tables_lockdown.sql`, aplicada em produção com autorização do owner): `maia_incidents` e `maia_error_patterns` tinham políticas `USING (true)` sem `REVOKE`, expondo leitura/escrita a `anon`/`authenticated`. Políticas removidas e `REVOKE ALL` aplicado; só o service role (worker) acessa. `pnpm db:validate` 57 migrações e `pnpm db:guard` OK.
 
 ## 2026-10-19 — Etapa 1: honestidade sobre capacidades
 
