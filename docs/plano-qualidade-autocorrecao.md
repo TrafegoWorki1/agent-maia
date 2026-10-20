@@ -108,9 +108,12 @@ Commit agrupando: migrações + código + catálogo + docs.
 
 ---
 
-## Estado atual
+## Estado atual (atualizado em 2026-10-20)
 
-- [ ] Etapa 1 — Migrações
-- [ ] Etapa 2 — Código
-- [ ] Etapa 3 — Regras
-- [ ] Etapa 4 — Verificações e commit
+- [x] Etapa 1 — Migrações: `20261020030001_maia_quality_selfcorrection.sql` (tabelas `maia_incidents` e `maia_error_patterns`, RLS), aplicada em produção.
+- [x] Etapa 2 — Código: `server/incidents.ts`, `server/errorPatterns.ts`, bloco de padrões em `server/rules.ts`, ferramentas `registrar_incidente` e `propor_padrao_prevencao` em `maiaImageTool.ts` e `codexMaiaMcp.ts`, inventário em `toolPolicy.ts`, comando "aprovar padrão \<codigo\>" em `maiaOwnerAgent.ts`.
+- [x] Etapa 3 — Regras: catálogo `2026-10-20.1` com 44 regras (`quality_audit` 42, `auto_incidente` 43, `prevencao_padrao` 44); migração `20261020030645_quality_audit_rules.sql` aplicada em produção.
+- [x] Etapa 4 — Verificações: `pnpm typecheck`, `pnpm rules:check`, `pnpm db:validate` (56 migrações) e `pnpm test` (76/76) aprovados. Commit `89a9303`.
+- [ ] Reiniciar o worker local para carregar o código novo (`pnpm start` ou `Iniciar Maia.bat`).
+- [ ] Validação ao vivo: provocar um incidente de teste pelo painel e confirmar o registro em `maia_incidents`; aprovar um padrão com "aprovar padrão \<codigo\>" e confirmar que ele aparece no prompt. Não usar envios ou publicações reais como teste.
+- [ ] Revisão humana: primeiro padrão real só entra depois de aprovação explícita do owner.
