@@ -1,5 +1,14 @@
 # Agent · Maia
 
+## GitHub e sites — estado confirmado em 20/10/2026
+
+Repositórios novos são privados por padrão; criar público exige OK do owner. As ferramentas de site aceitam repositório público ou privado informado no pedido. O commit no GitHub exige OK; a publicação na Vercel envia o HTML pela API e não configura deploy automático por git push. Membros dependem de `site.publicar` e continuam sem as ferramentas genéricas `github_*`.
+
+A migração `20261020180000` está aplicada e a implementação/documentação estão na `main` pelo merge `7767b3d`, com publicação Vercel concluída. Ainda faltam atualizar os workers e validar o fluxo com repositório e Vercel reais. A conferência encontrou dois workers anteriores ao commit; o deploy web não atualiza esses processos.
+
+Detalhes e limites: [histórico da conferência](CHANGELOG.md), [migrações](docs/database-migrations.md) e [pendências](TODO.md).
+
+
 ## Segurança por recurso e retenção
 
 O limite geral de execução fica em `config/ai-routing.json`. Acesso de membros ao Google Drive exige a capacidade base `sheets.ler` e uma autorização vigente para arquivo, pasta, cliente ou projeto; buscas globais e ferramentas não mapeadas são bloqueadas. Compartilhamentos só podem ser confirmados pelo fluxo gerenciado que persiste e confere o `permissionId`.

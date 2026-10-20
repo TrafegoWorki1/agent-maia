@@ -4,12 +4,23 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-20 — conferência de GitHub, sites e produção
+
+- Migração `20261020180000` confirmada no histórico remoto do Supabase; as migrações de Sheets (`20261020160445` e `20261020160446`) e de caminhos de site (`20261020170000`) também constam aplicadas.
+- Implementação `073610d` e documentação `4d89f15` integradas na `main` pelo merge `7767b3d`. O status Vercel desse merge informa publicação concluída.
+- `github_repo_criar` cria privado por padrão; `privado=false` exige OK do owner. Membros continuam sem acesso a `github_*`; não há ferramenta para mudar a visibilidade de um repositório existente.
+- `site_subir_github` aceita repositório público ou privado e exige OK para o commit. `site_publicar_vercel` envia o HTML pela API; se o HTML não vier no pedido, lê o arquivo do repositório informado. O fluxo não configura deploy a cada git push. Regras do plano gratuito da Vercel não foram verificadas nesta conferência.
+- Verificação local anterior: 720 testes de aplicação e build aprovados; CI do PR #29 também passou. Isso não comprova publicação real de um site pelas ferramentas da Maia.
+- Pendências confirmadas: atualizar os workers (processos observados iniciados às 00h25 e 15h08, antes do commit das 16h11), manter uma única instância operacional após verificar trabalhos em andamento e testar o fluxo real de GitHub/Vercel.
+- A regra aplicada `site_publicar` ainda contém a expressão antiga “repositório fixo de sites”, embora o restante descreva repositório por pedido. Corrigir futuramente no catálogo, documento gerado e nova migração; preservar a migração aplicada.
+
+
 ## 2026-10-20 — Google Sheets (`sheets_*`)
 
 - **Causa:** o conector do Google Sheets não estava no inventário, e a Maia não tinha ferramenta própria para planilhas.
 - **Correção:** `server/integrations/googleSheets.ts` e `server/sheetsTools.ts` (8 ferramentas, nos dois executores), usando o token OAuth do owner. Leitura com `sheets.ler`, escrita com `sheets.editar`, autorização por planilha; apagar coluna ou aba pede OK. Codex passa a checar autorização por recurso.
 - **Ajuste (mesmo dia, pedido do owner):** planilhas passam a valer também no grupo interno Operacional; membros seguem as permissões cadastradas. Em grupo de cliente continuam negadas. A regra `google_sheets` foi corrigida na migração ainda não aplicada, sem nova versão.
-- **Pendências:** aplicar as duas migrações em produção, reiniciar o worker, testar numa planilha real; scripts do Apps Script ficam para depois (exigem outro escopo).
+- **Pendências:** reiniciar o worker (as duas migrações já constam aplicadas em produção), testar numa planilha real; scripts do Apps Script ficam para depois (exigem outro escopo).
 - **Evidência:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate`/`db:guard`/`rules:check` OK, `tests/sheets.test.ts` 21/21.
 
 ## 2026-10-20 — GitHub e site: owner escolhe repositório público ou privado
@@ -22,15 +33,15 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 ## 2026-10-20 — site: repositório informado em cada pedido (sem `MAIA_SITES_REPO`)
 
 - **Causa:** repositório fixo no `.env` obrigava a editar o servidor a cada repositório novo.
-- **Correção:** `repo` vai em cada pedido de site; o repositório precisa ser privado (conferido no GitHub). Regra `2026-10-20.6` e migração `20261020180000` (pendente de aplicação).
-- **Pendências:** remover `MAIA_SITES_REPO` do `.env`; aplicar `20261020180000`; testar com repositório real.
+- **Correção:** `repo` vai em cada pedido de site; o repositório pode ser público ou privado (existência conferida no GitHub). Regra `2026-10-20.6` e migração `20261020180000` aplicada em produção.
+- **Pendências:** remover `MAIA_SITES_REPO` do `.env`; testar com repositório real.
 - **Evidência:** `tests/site.test.ts` 15/15; `rules:check`, `db:validate` e `db:guard` OK.
 
 ## 2026-10-20 — site em dois caminhos (`site_subir_github` e `site_publicar_vercel`)
 
 - **Causa:** `site_publicar` fazia commit e deploy na mesma chamada; não havia como subir sem publicar nem publicar um site já salvo.
 - **Correção:** duas ferramentas. `site_subir_github` (commit, OK do owner) e `site_publicar_vercel` (deploy direto, sem OK; lê o HTML salvo no repositório se o pedido não trouxer). Regra reescrita (`2026-10-20.5`), migração `20261020170000_site_caminhos_rule.sql`.
-- **Pendências:** aplicar em produção as migrações do Sheets e a nova, reiniciar o worker, testar com repositório e Vercel reais.
+- **Pendências:** reiniciar o worker e testar com repositório e Vercel reais; migrações de Sheets e de caminhos já aplicadas.
 - **Evidência:** `tests/site.test.ts` 15/15; ver as verificações finais no CHANGELOG.
 
 ## 2026-10-20 — criar e publicar site (`site_publicar`)
