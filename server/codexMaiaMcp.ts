@@ -46,6 +46,7 @@ import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { downloadDriveFile, DRIVE_DOWNLOAD_MAX_BYTES, DRIVE_UPLOAD_MAX_BYTES, getDriveFileInfo, parseDriveId, uploadToDrive } from "./integrations/googleDrive.ts";
 import { MEDIA_DIR, MEMBER_MEDIA_DIR } from "./media.ts";
+import { uploadReference, listReferences, deleteReference } from "./arteReferencias.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 loadLocalEnv(resolve(ROOT, ".env"));
@@ -279,6 +280,34 @@ server.registerTool("trabalho_arte_enfileirar", { description: "Enfileira um ou 
   return guarded("mcp__maia__trabalho_arte_enfileirar", { titulo, itens }, async () => {
     const id = await createCreativeJob(getDb(), { sourceTaskId: taskId, title: titulo, items: itens.map((item) => ({ briefing: item.briefing, format: item.formato, refs: item.referencias ?? [] })) });
     return `Trabalho criativo #${id} enfileirado com ${itens.length} arte(s). O worker enviará cada rascunho ao owner para revisão; nada será publicado automaticamente.`;
+  });
+});
+
+server.registerTool("arte_referencia_salvar", { description: "Salva uma imagem recebida pelo WhatsApp (data/midia) ou baixada do Drive como referência permanente no Supabase Storage para uso em artes.", inputSchema: { nome: z.string().regex(/^[A-Za-z0-9._-]{1,120}$/), arquivo: z.string().min(3).max(300) } }, async ({ nome, arquivo }) => {
+  if (!canRequestCreativeJob(requester(), channel, inGroup)) return result("Salvar referência disponível somente ao proprietário autenticado no WhatsApp privado.", true);
+  return guarded("mcp__maia__arte_referencia_salvar", { nome, arquivo }, async () => {
+    const { readFileSync, existsSync } = await import("node:fs");
+    if (!existsSync(arquivo)) throw new Error(`Arquivo não encontrado: ${arquivo}`);
+    const data = readFileSync(arquivo);
+    const ext = nome.includes(".") ? nome.slice(nome.lastIndexOf(".") + 1).toLowerCase() : "";
+    const mimetype = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "application/octet-stream";
+    await uploadReference(nome, data, mimetype);
+    return `Referência "${nome}" salva no Storage. Já pode usar pelo nome em qualquer pedido de arte.`;
+  });
+});
+
+server.registerTool("arte_referencias_listar", { description: "Lista as referências permanentes salvas no Supabase Storage para uso em artes.", inputSchema: {} }, async () => {
+  return guarded("mcp__maia__arte_referencias_listar", {}, async () => {
+    const names = await listReferences();
+    return names.length ? names.join("\n") : "Nenhuma referência salva ainda.";
+  });
+});
+
+server.registerTool("arte_referencia_apagar", { description: "Apaga uma referência permanente do Supabase Storage pelo nome.", inputSchema: { nome: z.string().regex(/^[A-Za-z0-9._-]{1,120}$/) } }, async ({ nome }) => {
+  if (!canRequestCreativeJob(requester(), channel, inGroup)) return result("Apagar referência disponível somente ao proprietário autenticado no WhatsApp privado.", true);
+  return guarded("mcp__maia__arte_referencia_apagar", { nome }, async () => {
+    await deleteReference(nome);
+    return `Referência "${nome}" apagada.`;
   });
 });
 

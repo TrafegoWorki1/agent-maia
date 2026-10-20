@@ -2,23 +2,23 @@ import { describe, expect, it } from "vitest";
 import { buildPrompt, existingImageForOutputKey, isRealImage, resolveRefs } from "../server/imagegen.ts";
 
 describe("pedido de arte", () => {
-  it("recusa nomes com caminho ou caracteres estranhos", () => {
-    expect(resolveRefs(["../segredo.png"]).ok).toBe(false);
-    expect(resolveRefs(["foto com espaco.png"]).ok).toBe(false);
-    expect(resolveRefs(["a/b.png"]).ok).toBe(false);
+  it("recusa nomes com caminho ou caracteres estranhos", async () => {
+    expect((await resolveRefs(["../segredo.png"])).ok).toBe(false);
+    expect((await resolveRefs(["foto com espaco.png"])).ok).toBe(false);
+    expect((await resolveRefs(["a/b.png"])).ok).toBe(false);
   });
 
   it("recusa chave de saída que tente escapar do diretório persistente", () => {
     expect(existingImageForOutputKey("../../outside")).toBeNull();
   });
 
-  it("recusa referência que não existe na pasta de fotos ou de referências", () => {
-    const result = resolveRefs(["nao-existe-123.png"]);
+  it("recusa referência que não existe na pasta de fotos ou de referências", async () => {
+    const result = await resolveRefs(["nao-existe-123.png"]);
     expect(result).toEqual({ ok: false, error: "referência não encontrada: nao-existe-123.png" });
   });
 
-  it("recusa mais de quatro referências", () => {
-    expect(resolveRefs(["a.png", "b.png", "c.png", "d.png", "e.png"]).ok).toBe(false);
+  it("recusa mais de quatro referências", async () => {
+    expect((await resolveRefs(["a.png", "b.png", "c.png", "d.png", "e.png"])).ok).toBe(false);
   });
 
   it("monta o prompt com o formato e as regras fixas, e trata o briefing como descrição", () => {

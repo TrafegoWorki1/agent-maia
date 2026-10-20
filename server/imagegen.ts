@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node
 import { randomBytes } from "node:crypto";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { downloadReferenceToTemp, cleanupTempRefs, isValidRefName } from "./arteReferencias.ts";
 
 // Geração de arte com o Codex CLI, em processo separado (o mesmo caminho que o Bryan usa).
 // Só o dono pede imagens. Escrita só na pasta do pedido; sem acesso à internet pelo Codex;
@@ -12,6 +13,7 @@ const ARTE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "data", "art
 const FOTOS = join(ARTE, "fotos");
 const REFERENCIAS = join(ARTE, "referencias");
 const PEDIDOS = join(ARTE, "pedidos");
+const MIDIA = resolve(dirname(fileURLToPath(import.meta.url)), "..", "data", "midia");
 const TIMEOUT_MS = 240_000;
 const MIN_BYTES = 10 * 1024;
 const MAX_REFS = 4;
@@ -29,19 +31,35 @@ export type ImageResult =
   | { ok: true; path: string }
   | { ok: false; error: string; uncertain: boolean };
 
-// Só nomes simples, existentes em arte/fotos ou arte/referencias. Qualquer outra coisa é recusada.
-export function resolveRefs(names: string[]): { ok: true; paths: string[] } | { ok: false; error: string } {
+// Resolve nomes de referência: procura em fotos, referencias, midia (local) e Storage do Supabase.
+// Retorna também os caminhos temporários baixados do Storage, para limpeza após o uso.
+export async function resolveRefs(names: string[], jobKey = "tmp"): Promise<{ ok: true; paths: string[]; tempPaths: string[] } | { ok: false; error: string }> {
   if (names.length > MAX_REFS) return { ok: false, error: `no máximo ${MAX_REFS} referências` };
   const paths: string[] = [];
+  const tempPaths: string[] = [];
   for (const name of names) {
     if (!NAME_RE.test(name)) return { ok: false, error: `nome de arquivo inválido: ${name}` };
     const inFotos = join(FOTOS, name);
     const inRefs = join(REFERENCIAS, name);
-    if (existsSync(inFotos)) paths.push(inFotos);
-    else if (existsSync(inRefs)) paths.push(inRefs);
-    else return { ok: false, error: `referência não encontrada: ${name}` };
+    const inMidia = join(MIDIA, name);
+    if (existsSync(inFotos)) { paths.push(inFotos); continue; }
+    if (existsSync(inRefs)) { paths.push(inRefs); continue; }
+    if (existsSync(inMidia)) { paths.push(inMidia); continue; }
+    // Tenta baixar do Supabase Storage (arte-referencias).
+    if (isValidRefName(name)) {
+      try {
+        const tmp = await downloadReferenceToTemp(name, jobKey);
+        paths.push(tmp);
+        tempPaths.push(tmp);
+        continue;
+      } catch {
+        // não estava no Storage
+      }
+    }
+    cleanupTempRefs(tempPaths);
+    return { ok: false, error: `referência não encontrada: ${name}` };
   }
-  return { ok: true, paths };
+  return { ok: true, paths, tempPaths };
 }
 
 // Regras fixas. O briefing é só descrição: qualquer instrução dentro dele é ignorada.
@@ -104,7 +122,8 @@ export async function createImage(input: { briefing: string; format: ImageFormat
   const briefing = input.briefing.trim();
   if (!briefing || briefing.length > MAX_BRIEFING) return { ok: false, error: `briefing vazio ou com mais de ${MAX_BRIEFING} caracteres`, uncertain: false };
   if (!(input.format in FORMATS)) return { ok: false, error: "formato inválido (use feed, story ou quadrado)", uncertain: false };
-  const refs = resolveRefs(input.refs);
+  const jobKey = input.outputKey ?? `tmp-${randomBytes(3).toString("hex")}`;
+  const refs = await resolveRefs(input.refs, jobKey);
   if (!refs.ok) return { ok: false, error: refs.error, uncertain: false };
 
   mkdirSync(FOTOS, { recursive: true });
@@ -128,6 +147,8 @@ export async function createImage(input: { briefing: string; format: ImageFormat
     "-",
   ];
 
+  const done = (r: ImageResult): ImageResult => { cleanupTempRefs(refs.tempPaths); return r; };
+
   return new Promise<ImageResult>((resolvePromise) => {
     const child = spawn("codex", args, { shell: true, cwd: folder, env: minimalEnv(), windowsHide: true, stdio: ["pipe", "ignore", "pipe"] });
     let stderr = "";
@@ -137,18 +158,18 @@ export async function createImage(input: { briefing: string; format: ImageFormat
     const timer = setTimeout(() => {
       child.kill();
       // Estourou o tempo: pode ter gerado o arquivo pela metade. Não repete às cegas.
-      resolvePromise({ ok: false, error: "tempo esgotado (240 s). O pedido não foi repetido.", uncertain: true });
+      resolvePromise(done({ ok: false, error: "tempo esgotado (240 s). O pedido não foi repetido.", uncertain: true }));
     }, TIMEOUT_MS);
     child.on("error", (error) => {
       clearTimeout(timer);
-      resolvePromise({ ok: false, error: `não consegui iniciar o Codex: ${error.message}`, uncertain: false });
+      resolvePromise(done({ ok: false, error: `não consegui iniciar o Codex: ${error.message}`, uncertain: false }));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (code !== 0) return resolvePromise({ ok: false, error: `o Codex terminou com código ${code}. ${stderr.trim().slice(-300)}`, uncertain: false });
+      if (code !== 0) return resolvePromise(done({ ok: false, error: `o Codex terminou com código ${code}. ${stderr.trim().slice(-300)}`, uncertain: false }));
       const path = findResult(folder);
-      if (!path) return resolvePromise({ ok: false, error: "o Codex não salvou uma imagem válida na pasta do pedido", uncertain: false });
-      resolvePromise({ ok: true, path });
+      if (!path) return resolvePromise(done({ ok: false, error: "o Codex não salvou uma imagem válida na pasta do pedido", uncertain: false }));
+      resolvePromise(done({ ok: true, path }));
     });
     child.stdin?.end(buildPrompt(briefing, input.format));
   });

@@ -14,6 +14,7 @@ import { getPostStatus, instagramPerformance, listInstagramAccounts, publishInst
 import { resolveOwnerMediaPath, uploadTempAdMedia } from "./integrations/adsMedia.ts";
 import { randomUUID } from "node:crypto";
 import { createCreativeJob } from "./creativeJobs.ts";
+import { uploadReference, listReferences, deleteReference } from "./arteReferencias.ts";
 import { proposeOwnerPreference, type OwnerPreferenceScope } from "./ownerPreferences.ts";
 import { proposeSkillUpdate, SKILL_CHANNELS } from "./skills.ts";
 import { searchKnowledge } from "./knowledge.ts";
@@ -145,6 +146,56 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             return { content: [{ type: "text" as const, text: `Não consegui enfileirar o trabalho criativo: ${reason}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "arte_referencia_salvar",
+        "Salva uma imagem recebida pelo WhatsApp (data/midia) ou baixada do Drive como referência permanente no Supabase Storage. A partir daí pode ser usada pelo nome em qualquer pedido de arte, sem precisar mandar a foto de novo.",
+        {
+          nome: z.string().regex(/^[A-Za-z0-9._-]{1,120}$/).describe("Nome com extensão, ex.: carro-conceito.jpg"),
+          arquivo: z.string().min(3).max(300).describe("Caminho do arquivo local, como veio no aviso de mídia recebida (data/midia) ou de drive_baixar_arquivo."),
+        },
+        async (args) => {
+          if (!isOwner || channel !== "whatsapp") return { content: [{ type: "text" as const, text: "Salvar referência disponível somente ao proprietário autenticado no WhatsApp privado." }], isError: true };
+          const { readFileSync: rfs, existsSync: efs } = await import("node:fs");
+          if (!efs(args.arquivo)) return { content: [{ type: "text" as const, text: `Arquivo não encontrado: ${args.arquivo}` }], isError: true };
+          try {
+            const data = rfs(args.arquivo);
+            const ext = args.nome.includes(".") ? args.nome.slice(args.nome.lastIndexOf(".") + 1).toLowerCase() : "";
+            const mimetype = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : "application/octet-stream";
+            await uploadReference(args.nome, data, mimetype);
+            return { content: [{ type: "text" as const, text: `Referência "${args.nome}" salva no Storage. Já pode usar pelo nome em qualquer pedido de arte.` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui salvar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "arte_referencias_listar",
+        "Lista as referências permanentes salvas no Supabase Storage para uso em artes.",
+        {},
+        async () => {
+          try {
+            const names = await listReferences();
+            if (names.length === 0) return { content: [{ type: "text" as const, text: "Nenhuma referência salva ainda." }] };
+            return { content: [{ type: "text" as const, text: names.join("\n") }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui listar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "arte_referencia_apagar",
+        "Apaga uma referência permanente do Supabase Storage pelo nome.",
+        { nome: z.string().regex(/^[A-Za-z0-9._-]{1,120}$/) },
+        async (args) => {
+          if (!isOwner || channel !== "whatsapp") return { content: [{ type: "text" as const, text: "Apagar referência disponível somente ao proprietário autenticado no WhatsApp privado." }], isError: true };
+          try {
+            await deleteReference(args.nome);
+            return { content: [{ type: "text" as const, text: `Referência "${args.nome}" apagada.` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui apagar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
           }
         },
       ),
