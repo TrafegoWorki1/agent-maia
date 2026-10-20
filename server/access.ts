@@ -134,6 +134,8 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (toolName === "mcp__claude_ai_Google_Drive__share_file") return { decision: "deny", reason: "compartilhamento direto do conector bloqueado: use o fluxo gerenciado que registra e confere o permissionId" };
   if (/^mcp__maia__membro_acesso_(localizar|consultar|definir)$/.test(toolName)) return who.role === "owner" && !who.groupScope ? { decision: "allow", reason: "administração privada do proprietário" } : { decision: "deny", reason: "administração exclusiva do proprietário no privado" };
   if (/^mcp__maia__github_/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "GitHub só para o owner no privado" };
+  // Repositório público expõe o conteúdo a qualquer pessoa: cada criação pede OK do owner (decisão de 20/10/2026).
+  if (toolName === "mcp__maia__github_repo_criar" && ctx.toolInput?.privado === false) return { decision: "approve", reason: "repositório público exige OK do owner" };
   if (/^mcp__maia__site_(subir_github|publicar_vercel)$/.test(toolName) && who.groupScope) return { decision: "deny", reason: "publicação de site só no privado" };
   // Planilhas valem no privado e no grupo interno (Operacional); em grupo de cliente ficam fora, como o resto dos dados gerais.
   if (/^mcp__maia__sheets_/.test(toolName) && who.groupScope?.clientId) return { decision: "deny", reason: "planilhas não ficam disponíveis em grupo de cliente" };

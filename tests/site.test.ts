@@ -89,10 +89,11 @@ describe("execução dos caminhos de site", () => {
     expect(calls.some((c) => c.url.includes("api.vercel.com"))).toBe(false);
   });
 
-  it("subir recusa repositório público antes de gravar", async () => {
+  it("subir grava também em repositório público (o commit já pede OK)", async () => {
     github.privado = false;
-    await expect(tool("site_subir_github").run(db, { repo: REPO, slug: "landing-promo", html: "<html></html>", mensagem: "x" })).rejects.toThrow(/não é privado/);
-    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    const result = await tool("site_subir_github").run(db, { repo: REPO, slug: "landing-promo", html: "<html></html>", mensagem: "x" }) as Record<string, unknown>;
+    expect(result.repo).toBe(REPO);
+    expect(calls.some((c) => c.method === "PUT")).toBe(true);
   });
 
   it("publicar com HTML do pedido não lê o GitHub e manda o HTML para a Vercel", async () => {

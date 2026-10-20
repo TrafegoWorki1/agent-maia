@@ -18,7 +18,7 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__maia__instagram_automacao_(criar|ativar|excluir)$/,
   /^mcp__maia__instagram_post_(cancelar|editar)$/,
   /^mcp__maia__linkedin_post_(cancelar|editar)$/,
-  // GitHub: commit, pull request e comentário alteram algo externo. Criar repositório (sempre privado) e branch não pedem OK.
+  // GitHub: commit, pull request e comentário alteram algo externo. Criar repositório privado e branch não pedem OK; público pede OK (access.ts).
   /^mcp__maia__github_(arquivo_salvar|pr_criar|comentar)$/,
   // Site (HTML): gravar no GitHub pede OK a cada vez. A publicação na Vercel (site_publicar_vercel) não pede: o owner já pediu.
   /^mcp__maia__site_subir_github$/,

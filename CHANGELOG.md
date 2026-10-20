@@ -13,6 +13,15 @@
 - **Pendências:** aplicar as duas migrações em produção e reiniciar o worker; não testado contra a planilha real do owner; criar planilha não dá acesso automático ao membro que criou; a autorização por planilha depende de grant cadastrado no painel.
 - **Verificação:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate` OK, `pnpm rules:check` OK.
 
+## 2026-10-20 — GitHub e site: owner escolhe repositório público ou privado
+
+- **Causa:** o repositório era sempre privado. O owner quer escolher a visibilidade a cada criação (no plano gratuito da Vercel, a integração Git não publica automaticamente de repositório privado). O caminho de publicação da Maia usa o upload pela API da Vercel e não depende da visibilidade, mas a escolha fica com o owner.
+- **Correção:** `github_repo_criar` aceita `privado` (padrão: sim). Com `privado=false`, cria público e pede OK pontual do owner (`access.ts`). `createRepo` confere a visibilidade devolvida pelo GitHub. `site_subir_github` e `site_publicar_vercel` aceitam repositório público ou privado; só conferem que ele existe (`assertRepoExists`).
+- **Não mudou:** não existe ferramenta para tornar público um repositório já existente, e membros continuam sem `github_*`.
+- **Regra e migração:** regra `site_publicar` (`2026-10-20.6`) na migração `20261020180000`, ainda não aplicada em produção. Aplicar depende de autorização.
+- **Testes:** `tests/github.test.ts` (criação privada por padrão, pública quando pedida, aprovação) e `tests/site.test.ts` (repositório público aceito).
+- **Pendências:** aplicar `20261020180000`; testar com repositório e Vercel reais.
+
 ## 2026-10-20 — site: repositório informado em cada pedido (sem MAIA_SITES_REPO)
 
 - **Causa:** MAIA_SITES_REPO fixo obrigava a editar o .env a cada repositório novo criado. O owner pediu que o repositório viesse no próprio pedido.
