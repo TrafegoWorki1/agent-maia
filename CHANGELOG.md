@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-20 — Quality Audit, Self-Correction e Aprendizado com erros
+
+- **`server/incidents.ts`** (novo): `createIncident`, `proposeCorrection`, `resolveIncident`, `listOpenIncidents` — registro de erros, provas ausentes e resultados incertos na tabela `maia_incidents`.
+- **`server/errorPatterns.ts`** (novo): `loadActivePatterns` (cache 60 s), `proposePattern`, `approvePattern`, `invalidatePatternsCache` — padrões de falha aprovados pelo owner ficam na tabela `maia_error_patterns`.
+- **`server/rules.ts`**: `buildErrorPatternsSection` injeta bloco "Padrões de falha conhecidos" no prompt quando há padrões ativos — análogo ao bloco de capacidades.
+- **`server/maiaImageTool.ts` + `server/codexMaiaMcp.ts`**: ferramentas `registrar_incidente` (em `LOCAL_SAFE_TOOLS`) e `propor_padrao_prevencao` adicionadas em paridade.
+- **`server/toolPolicy.ts`**: inventário atualizado com as duas novas ferramentas.
+- **`server/maiaOwnerAgent.ts`**: intercepta "aprovar padrão \<codigo\>" antes do agente; chama `approvePattern` e invalida o cache.
+- **`config/maia-rules.json`**: versão `2026-10-20.1`, 44 regras — adicionadas `quality_audit` (42), `auto_incidente` (43), `prevencao_padrao` (44).
+- **Migrações**: `20261020030001_maia_quality_selfcorrection.sql` (tabelas + RLS) e `20261020030645_quality_audit_rules.sql` (INSERT das 3 regras) — ambas aplicadas em produção.
+- **Verificação**: `pnpm typecheck` limpo, `pnpm rules:check` OK, `pnpm db:validate` 56 migrações OK, `pnpm test` 76/76 passando.
+
 ## 2026-10-19 — Etapa 1: honestidade sobre capacidades
 
 - **Seção dinâmica no prompt do sistema** (`server/rules.ts`): `buildCapabilitiesSection` consulta `ZERNIO_API_KEY` (env) e `maia_integrations` + `maia_secrets` em tempo real, injeta bloco "Integrações externas — estado atual" a cada execução. O agente lê o estado real antes de responder.

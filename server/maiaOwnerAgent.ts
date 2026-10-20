@@ -36,6 +36,7 @@ import { buildCodexPrompt, runCodexText } from "./ai/providers/codex.ts";
 import { handleOwnerPreferenceCommand, isPersistentPreferenceRequest, listOwnerPreferences } from "./ownerPreferences.ts";
 import { addOptOut } from "./prospeccao.ts";
 import { handleSkillActivationCommand } from "./skills.ts";
+import { approvePattern, invalidatePatternsCache } from "./errorPatterns.ts";
 import type { RoutingConfig } from "./ai/types.ts";
 import {
   addTaskEvent,
@@ -600,6 +601,21 @@ export async function answerFromPanel(text: string): Promise<string> {
   if (skillReply) {
     await recordMessage(db, { channel: "painel", author: "maia", text: skillReply });
     return skillReply;
+  }
+  const patternMatch = /^aprovar\s+padrão\s+([a-z0-9_]+)$/i.exec(text.trim());
+  if (patternMatch) {
+    const codigo = patternMatch[1].toLowerCase();
+    try {
+      await approvePattern(db, codigo);
+      invalidatePatternsCache();
+      const reply = `Padrão "${codigo}" ativado. Já entra no contexto da Maia na próxima execução.`;
+      await recordMessage(db, { channel: "painel", author: "maia", text: reply });
+      return reply;
+    } catch (err) {
+      const reply = `Não consegui ativar o padrão "${codigo}": ${err instanceof Error ? err.message : String(err)}`;
+      await recordMessage(db, { channel: "painel", author: "maia", text: reply });
+      return reply;
+    }
   }
   const taskId = await createTask(db, { channel: "painel", summary: text });
   const jevPending = startJevShadow(text);

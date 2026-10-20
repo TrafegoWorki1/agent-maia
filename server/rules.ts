@@ -1,7 +1,20 @@
 import type { Db } from "./store.ts";
 import { RULE_CATALOG, RULE_CATALOG_VERSION, formatRules, rulesChecksum, validateRules, type MaiaRule } from "./ruleCatalog.ts";
 import { listOwnerPreferences } from "./ownerPreferences.ts";
+import { loadActivePatterns } from "./errorPatterns.ts";
 export type { MaiaRule } from "./ruleCatalog.ts";
+
+async function buildErrorPatternsSection(db: Db): Promise<string> {
+  try {
+    const patterns = await loadActivePatterns(db);
+    if (!patterns.length) return "";
+    return [
+      "## Padrões de falha conhecidos",
+      "Estes padrões foram aprovados pelo owner após incidentes reais. Siga a regra de prevenção correspondente antes de executar ações similares.",
+      ...patterns.map((p) => `- **${p.codigo}**: ${p.descricao} → ${p.regra_prevencao}`),
+    ].join("\n");
+  } catch { return ""; }
+}
 
 async function buildCapabilitiesSection(db: Db, env: Record<string, string | undefined> = process.env): Promise<string> {
   const lines: string[] = [];
@@ -58,7 +71,7 @@ async function currentOwnerPreferences(db: Db): Promise<{ scope: string; instruc
   }
 }
 
-function prompt(rules: readonly MaiaRule[], source: string, preferences: { scope: string; instruction: string }[], capabilities: string): string {
+function prompt(rules: readonly MaiaRule[], source: string, preferences: { scope: string; instruction: string }[], capabilities: string, errorPatterns: string): string {
   if (!rules.some((r) => r.ativa)) throw new Error("regras: nenhuma regra ativa; execução interrompida");
   const preferenceSection = formatOwnerPreferences(preferences);
   return [
@@ -68,6 +81,7 @@ function prompt(rules: readonly MaiaRule[], source: string, preferences: { scope
     "Honestidade sobre o que você consegue fazer: nunca prometa uma ação futura que nenhum mecanismo do sistema executa sozinho. Só continuam sozinhos: um plano gravado (plano_criar) com gatilho (OK da criação de grupo, alguém entrar no grupo, arquivo enviado no grupo), lembretes, tarefas agendadas e o repasse automático ao dono da resposta de quem você mandou mensagem (até 48 horas). Quando o resultado de uma ação disser que algo vai acontecer sozinho (por exemplo, que a resposta será repassada ao dono), confie nisso e diga ao dono; não diga que ele precisa avisar. Sem um desses, diga o que o dono precisa fazer (\"me avise quando ele entrar\") em vez de \"quando ele entrar, eu faço\". Siga sempre o plano que o dono aprovou, na ordem, sem pular etapa nem trocar por outro caminho. Se não puder cumprir uma etapa (falta permissão, acesso ou um gatilho), diga com clareza que isso não é permitido ou possível para você agora e diga exatamente o que é preciso para conseguir (qual permissão, quem precisa aprovar, o que o dono precisa enviar ou avisar), em vez de improvisar ou prometer. Ao explicar um bloqueio ao dono, fale da necessidade em português natural (\"preciso salvar o número para poder mandar a mensagem\"), sem citar nomes de ferramenta e sem usar a palavra \"ferramenta\" (diga \"ainda não consigo renomear grupos\", não \"não tenho essa ferramenta\").",
     formatRules(rules),
     capabilities,
+    errorPatterns,
     preferenceSection,
     `## Identificação em tempo de execução\n\n${runtimeNumbers()}`,
   ].filter(Boolean).join("\n\n");
@@ -75,17 +89,17 @@ function prompt(rules: readonly MaiaRule[], source: string, preferences: { scope
 
 export async function buildSystemPrompt(db: Db, now = Date.now()): Promise<string> {
   const previous = cache.get(db);
-  // Preferências e capacidades são sempre frescas (não cacheadas): mudam quando o owner configura algo.
-  const [preferences, capabilities] = await Promise.all([currentOwnerPreferences(db), buildCapabilitiesSection(db)]);
-  if (previous && now >= previous.at && now - previous.at < CACHE_MS) return prompt(previous.rules, "banco (cache)", preferences, capabilities);
+  // Preferências, capacidades e padrões são sempre frescos (não cacheados): mudam quando o owner configura algo.
+  const [preferences, capabilities, errorPatterns] = await Promise.all([currentOwnerPreferences(db), buildCapabilitiesSection(db), buildErrorPatternsSection(db)]);
+  if (previous && now >= previous.at && now - previous.at < CACHE_MS) return prompt(previous.rules, "banco (cache)", preferences, capabilities, errorPatterns);
   let rules: MaiaRule[];
   try {
     rules = await listRules(db);
   } catch {
     console.error("[regras] leitura indisponível; usando reserva validada");
-    return prompt(previous?.rules ?? RULE_CATALOG, previous ? "última leitura validada (reserva)" : "catálogo aprovado (reserva)", preferences, capabilities);
+    return prompt(previous?.rules ?? RULE_CATALOG, previous ? "última leitura validada (reserva)" : "catálogo aprovado (reserva)", preferences, capabilities, errorPatterns);
   }
   // Um conjunto deliberadamente vazio não pode reativar regras pelo fallback.
   cache.set(db, { at: now, rules });
-  return prompt(rules, "banco", preferences, capabilities);
+  return prompt(rules, "banco", preferences, capabilities, errorPatterns);
 }

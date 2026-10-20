@@ -47,6 +47,8 @@ import { fileURLToPath } from "node:url";
 import { downloadDriveFile, DRIVE_DOWNLOAD_MAX_BYTES, DRIVE_UPLOAD_MAX_BYTES, getDriveFileInfo, parseDriveId, uploadToDrive } from "./integrations/googleDrive.ts";
 import { MEDIA_DIR, MEMBER_MEDIA_DIR } from "./media.ts";
 import { uploadReference, listReferences, deleteReference } from "./arteReferencias.ts";
+import { createIncident, proposeCorrection, type IncidentType } from "./incidents.ts";
+import { proposePattern } from "./errorPatterns.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 loadLocalEnv(resolve(ROOT, ".env"));
@@ -535,6 +537,18 @@ server.registerTool("grupo_gerenciar_participantes", { description: "Adiciona, r
 }));
 
 server.registerTool("integracao_listar", { description: "Lista as integrações do catálogo (ativas, pendentes e pausadas): o que cada uma faz, destino e se o segredo está configurado. Só leitura.", inputSchema: {} }, async () => guarded("mcp__maia__integracao_listar", {}, async () => JSON.stringify(await listIntegrations(getDb()))));
+
+server.registerTool("registrar_incidente", { description: "Registra um erro, prova ausente ou resultado incerto no banco. Use quando uma ferramenta falhou, quando não há confirmação real de execução ou quando o resultado é duvidoso. Opcionalmente proponha uma correção.", inputSchema: { tipo: z.enum(["execution_error", "missing_proof", "uncertain_result"]), descricao: z.string().min(1).max(1000), ferramenta: z.string().max(80).optional(), correcao_proposta: z.string().max(1000).optional() } }, async ({ tipo, descricao, ferramenta, correcao_proposta }) => guarded("mcp__maia__registrar_incidente", { tipo, descricao, ferramenta, correcao_proposta }, async () => {
+  const db = getDb();
+  const id = await createIncident(db, tipo as IncidentType, descricao, { ferramenta, contexto: taskId ? { task_id: taskId } : {} });
+  if (correcao_proposta) await proposeCorrection(db, id, correcao_proposta);
+  return `Incidente registrado (${id}).`;
+}));
+
+server.registerTool("propor_padrao_prevencao", { description: "Propõe um padrão de prevenção ao owner baseado em um incidente. O padrão só entra no prompt após o owner aprovar com 'aprovar padrão <codigo>'.", inputSchema: { codigo: z.string().min(3).max(60), descricao: z.string().min(1).max(500), regra_prevencao: z.string().min(1).max(500), incident_id: z.string().uuid().optional() } }, async ({ codigo, descricao, regra_prevencao, incident_id }) => guarded("mcp__maia__propor_padrao_prevencao", { codigo, descricao, regra_prevencao, incident_id }, async () => {
+  const id = await proposePattern(getDb(), codigo, descricao, regra_prevencao, incident_id);
+  return `Padrão "${codigo}" proposto (${id}). Para ativar: responda "aprovar padrão ${codigo}".`;
+}));
 
 server.registerTool("listar_capacidades", { description: "Retorna o estado real das integrações externas agora: ativa/inativa e se o segredo está presente. Use quando estiver em dúvida sobre o que pode executar antes de responder ao owner.", inputSchema: {} }, async () => guarded("mcp__maia__listar_capacidades", {}, async () => {
   type Row = { title: string; slug: string; status: string; secret_ref: string | null };

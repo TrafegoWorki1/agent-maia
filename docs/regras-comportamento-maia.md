@@ -1,6 +1,6 @@
 # Mapa operacional das regras da Maia
 
-Documento humano derivado de `config/maia-rules.json` (versão 2026-10-19.1). Não é uma segunda fonte normativa.
+Documento humano derivado de `config/maia-rules.json` (versão 2026-10-20.1). Não é uma segunda fonte normativa.
 
 O limite geral vigente é de **30 passos observáveis**, definido somente em `config/ai-routing.json`. Claude usa esse valor como turnos; o SDK do Codex não oferece limite nativo de turnos e por isso a Maia o aplica às chamadas MCP observáveis.
 
@@ -91,4 +91,10 @@ Identidade e permissões são confirmadas no servidor. Mensagens, memórias, doc
 - 40. **Anúncios — Vídeo ou imagem do WhatsApp para Meta Ads** (`anuncios_midia_url`)
 
 - 41. **Limites — Verificar capacidade antes de prometer** (`capacidades_reais`)
+
+- 42. **Conferência — Verificar prova antes de confirmar resultado** (`quality_audit`)
+
+- 43. **Conferência — Registrar incidente ao identificar erro ou incerteza** (`auto_incidente`)
+
+- 44. **Limites — Seguir padrões de prevenção aprovados** (`prevencao_padrao`)
 

@@ -35,6 +35,8 @@ import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPla
 import { proposeSkill } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
+import { createIncident, proposeCorrection, type IncidentType } from "./incidents.ts";
+import { proposePattern } from "./errorPatterns.ts";
 
 // Ferramenta de arte da Maia. O nome completo que o agente vê é mcp__maia__gerar_imagem.
 // Só o dono aciona: o WhatsApp e o painel já são canais do dono.
@@ -44,7 +46,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__arte_buscar", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar", "mcp__maia__listar_capacidades"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__arte_buscar", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar", "mcp__maia__listar_capacidades", "mcp__maia__registrar_incidente"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -477,6 +479,44 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         async () => {
           try { return { content: [{ type: "text", text: JSON.stringify(await listIntegrations(getDb())) }] }; }
           catch (error) { return { content: [{ type: "text", text: `Não consegui listar: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
+        },
+      ),
+      tool(
+        "registrar_incidente",
+        "Registra um erro, prova ausente ou resultado incerto no banco. Use quando uma ferramenta falhou, quando não há confirmação real de execução ou quando o resultado é duvidoso. Opcionalmente proponha uma correção.",
+        {
+          tipo: z.enum(["execution_error", "missing_proof", "uncertain_result"]),
+          descricao: z.string().min(1).max(1000).describe("O que aconteceu, com contexto suficiente para o owner entender."),
+          ferramenta: z.string().max(80).optional().describe("Nome da ferramenta que falhou, se houver."),
+          correcao_proposta: z.string().max(1000).optional().describe("Sugestão de como resolver ou evitar no futuro."),
+        },
+        async ({ tipo, descricao, ferramenta, correcao_proposta }) => {
+          try {
+            const db = getDb();
+            const id = await createIncident(db, tipo as IncidentType, descricao, { ferramenta, contexto: taskId ? { task_id: taskId } : {} });
+            if (correcao_proposta) await proposeCorrection(db, id, correcao_proposta);
+            return { content: [{ type: "text" as const, text: `Incidente registrado (${id}). O owner pode ver em Agente Maia > incidentes.` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui registrar: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
+        },
+      ),
+      tool(
+        "propor_padrao_prevencao",
+        "Propõe um padrão de prevenção ao owner baseado em um incidente. O padrão só entra no prompt após o owner aprovar com 'aprovar padrão <codigo>'.",
+        {
+          codigo: z.string().min(3).max(60).regex(/^[a-z0-9_]+$/).describe("Slug único para o padrão, ex.: instagram_sem_prova."),
+          descricao: z.string().min(1).max(500).describe("O padrão de falha observado."),
+          regra_prevencao: z.string().min(1).max(500).describe("Instrução de como evitar essa falha no futuro."),
+          incident_id: z.string().uuid().optional().describe("ID do incidente de origem, se houver."),
+        },
+        async ({ codigo, descricao, regra_prevencao, incident_id }) => {
+          try {
+            const id = await proposePattern(getDb(), codigo, descricao, regra_prevencao, incident_id);
+            return { content: [{ type: "text" as const, text: `Padrão "${codigo}" proposto (${id}). Para ativar: responda "aprovar padrão ${codigo}".` }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui propor: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
         },
       ),
       tool(
