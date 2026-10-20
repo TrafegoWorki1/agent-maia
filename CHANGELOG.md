@@ -20,14 +20,14 @@
 - **Não mudou:** não existe ferramenta para tornar público um repositório já existente, e membros continuam sem `github_*`.
 - **Regra e migração:** regra `site_publicar` (`2026-10-20.6`) na migração `20261020180000`, ainda não aplicada em produção. Aplicar depende de autorização.
 - **Testes:** `tests/github.test.ts` (criação privada por padrão, pública quando pedida, aprovação) e `tests/site.test.ts` (repositório público aceito).
-- **Pendências:** aplicar `20261020180000`; testar com repositório e Vercel reais.
+- **Pendências:** testar com repositório e Vercel reais.
 
 ## 2026-10-20 — site: repositório informado em cada pedido (sem MAIA_SITES_REPO)
 
 - **Causa:** MAIA_SITES_REPO fixo obrigava a editar o .env a cada repositório novo criado. O owner pediu que o repositório viesse no próprio pedido.
 - **Correção:** site_subir_github e site_publicar_vercel recebem repo (dono/nome). Antes de gravar, ou de ler o arquivo salvo, a ferramenta confere no GitHub que o repositório existe e é privado (assertPrivateRepo em server/integrations/github.ts). Público é recusado.
 - **Política:** sem mudança de permissão. Membro segue com site.publicar; o owner decide o repositório pelo pedido.
-- **Regra e migração:** regra site_publicar no catálogo (2026-10-20.6) e migração 20261020180000_site_repo_por_pedido_rule.sql (só atualiza texto; não cria tabelas). Aplicar em produção depende de autorização.
+- **Regra e migração:** regra site_publicar no catálogo (2026-10-20.6) e migração 20261020180000_site_repo_por_pedido_rule.sql (só atualiza texto; não cria tabelas). Aplicada em produção em 2026-10-20 (`rules:verify` alinhado, 2026-10-20.6, 46 regras).
 - **Testes:** tests/site.test.ts (15 testes), com repositório simulado (privado, público e arquivo ausente).
 - **Pendências:** remover MAIA_SITES_REPO do .env do servidor (não é mais lido); aplicar a migração 20261020180000; testar com repositório e Vercel reais.
 

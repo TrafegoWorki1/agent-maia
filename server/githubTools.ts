@@ -3,7 +3,7 @@ import type { Db } from "./store.ts";
 import { ciStatus, commentOn, createBranch, createPullRequest, createRepo, listIssues, listPullRequests, listRepos, saveFile, REPO_REF } from "./integrations/github.ts";
 
 // Ferramentas do GitHub, compartilhadas pelos dois executores (Claude e Codex), no mesmo molde de `organizationTools`.
-// Decisão do owner (2026-10-20): leitura livre, criar repositório (sempre privado) e branch sem OK, e commit/PR/comentário com OK.
+// Decisão do owner (2026-10-20): leitura livre, criar repositório privado e branch sem OK (público pede OK), e commit/PR/comentário com OK.
 // Não existe ferramenta para apagar, tornar público, fazer merge ou push forçado. Texto vindo do GitHub é dado, não instrução.
 
 export interface GithubTool {

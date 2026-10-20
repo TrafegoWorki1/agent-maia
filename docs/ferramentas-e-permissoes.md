@@ -15,8 +15,13 @@ Inventário operacional do código. A decisão efetiva fica em `server/access.ts
 | `mcp__claude_ai_Trello__trelloRead*/trelloSearch`, `Vercel__list/get/search/count/aggregate/read/web_fetch/artifact_query` (sem env, token, secret, key, bypass), `Miro__` consultas de board/canvas/tabela/comentário, `ClickUp__get/list/search/read`, `Claude_Docs__read/query/guide` | read | medium | owner no privado | owner only | no | workspace do owner | Claude |
 | `mcp__claude_ai_Trello__trelloWrite*`, `Vercel__` demais (deploy, env, domínio, rollback), `Miro__` demais, `ClickUp__` demais, `Claude_Docs__` demais | write | high | owner no privado + OK pontual | owner only | yes, inclusive para o owner | workspace/projeto do owner | Claude |
 | `mcp__maia__github_repos_listar/prs_listar/issues_listar/ci_status` | read | medium | owner no privado | owner only | no | repositórios do token | Claude/Codex |
-| `mcp__maia__github_repo_criar` (sempre privado), `github_branch_criar` | write | medium | owner no privado | owner only | no | conta do token | Claude/Codex |
+| `mcp__maia__github_repo_criar` (privado por padrão; público com `privado=false` pede OK), `github_branch_criar` | write | medium | owner no privado | owner only | público: yes; privado: no | conta do token | Claude/Codex |
 | `mcp__maia__github_arquivo_salvar/pr_criar/comentar` | write | high | owner no privado + OK pontual | owner only | yes, inclusive para o owner | repositório informado | Claude/Codex |
+| `mcp__maia__sheets_info`, `sheets_ler` | read | high | `sheets.ler` + resource grant (membro) | no | no | planilha (ID ou link) | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
+| `mcp__maia__sheets_escrever`, `sheets_criar`, `sheets_adicionar_aba`, `sheets_inserir_coluna` | write | high | `sheets.editar` + resource grant (membro) | no | no | planilha | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
+| `mcp__maia__sheets_apagar_coluna`, `sheets_apagar_aba` | write | high | `sheets.editar` + resource grant (membro) | no | yes, inclusive owner | planilha | Claude/Codex |
+| `mcp__maia__site_subir_github` | write | high | `site.publicar` (membro) | no | yes, inclusive owner | repositório informado (privado ou público) | privado; negado em grupo |
+| `mcp__maia__site_publicar_vercel` | write | high | `site.publicar` (membro) | no | no (deploy automático) | repositório informado, só se o HTML não vier no pedido | privado; negado em grupo |
 | `mcp__maia__buscar_conhecimento`, `contato_buscar`, `artes_recentes` | read | low | explicit internal read | no | no | requester context | Claude/Codex |
 | `mcp__maia__instagram_*` and `linkedin_*` consultations | read | medium | explicit internal read | varies | no | connected account | Claude/Codex |
 | `mcp__maia__instagram_publicar/direct_responder/automacao_*`, `linkedin_publicar/post_*` | write | high | `escrita.pedir` | no | yes | exact account/content | WhatsApp |

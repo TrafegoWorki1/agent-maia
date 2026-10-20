@@ -11,9 +11,9 @@
 ## 2026-10-20 — GitHub e site: owner escolhe repositório público ou privado
 
 - **Causa:** repositório sempre privado; o owner quer escolher a visibilidade a cada criação.
-- **Correção:** `github_repo_criar` com `privado` (padrão privado). Público pede OK. Sites aceitam repositório público ou privado. Regra `2026-10-20.6` (migração `20261020180000`, pendente de aplicação).
+- **Correção:** `github_repo_criar` com `privado` (padrão privado). Público pede OK. Sites aceitam repositório público ou privado. Regra `2026-10-20.6` (migração `20261020180000`, aplicada em produção em 2026-10-20).
 - **Evidência:** `tests/github.test.ts` e `tests/site.test.ts` passando; `rules:check`, `db:validate` e `db:guard` OK.
-- **Pendências:** aplicar `20261020180000`; testar com repositório real.
+- **Pendências:** testar com repositório real.
 
 ## 2026-10-20 — site: repositório informado em cada pedido (sem `MAIA_SITES_REPO`)
 
