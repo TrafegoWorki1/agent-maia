@@ -22,6 +22,7 @@ import { operationalSummary } from "./operationalSummary.ts";
 import { workTools } from "./workTasks.ts";
 import { saveOwnerMemory, searchOwnerMemories } from "./ownerMemory.ts";
 import { organizationTools } from "./organization.ts";
+import { githubTools } from "./githubTools.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { resolveRequester } from "./access.ts";
 import { addTaskEvent, getDb, recordMessage } from "./store.ts";
@@ -90,6 +91,10 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ...organizationTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
         catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no cadastro." }], isError: true }; }
+      })),
+      ...githubTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
+        catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha ao falar com o GitHub." }], isError: true }; }
       })),
       ...memberAccessTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try {

@@ -3,6 +3,7 @@ import { requiresApproval } from "./approvalPolicy.ts";
 import type { Db } from "./store.ts";
 import { groupToolDenial, type GroupScope } from "./groupScope.ts";
 import { isKnownMcpTool } from "./toolPolicy.ts";
+import { isOperationalConnector, isOperationalConnectorRead } from "./operationalConnectors.ts";
 
 // Quem pediu e o que pode. O sistema decide por código (não pela conversa): dono faz tudo que é interno e privado;
 // membro faz o que a permissão dele cobre; o resto vira pedido de OK ao dono. Ação pública ou de risco sempre pede OK.
@@ -129,9 +130,15 @@ export function decideAccess(toolName: string, who: Requester, ctx: AccessContex
   if (toolName.startsWith("mcp__") && !isKnownMcpTool(toolName)) return { decision: "deny", reason: "ferramenta sem política explícita no inventário" };
   if (toolName === "mcp__claude_ai_Google_Drive__share_file") return { decision: "deny", reason: "compartilhamento direto do conector bloqueado: use o fluxo gerenciado que registra e confere o permissionId" };
   if (/^mcp__maia__membro_acesso_(localizar|consultar|definir)$/.test(toolName)) return who.role === "owner" && !who.groupScope ? { decision: "allow", reason: "administração privada do proprietário" } : { decision: "deny", reason: "administração exclusiva do proprietário no privado" };
+  if (/^mcp__maia__github_/.test(toolName) && (who.role !== "owner" || who.groupScope)) return { decision: "deny", reason: "GitHub só para o owner no privado" };
   if (toolName === "mcp__maia__skill_propor" && (who.role !== "owner" || !!who.groupScope)) return { decision: "deny", reason: "proposta de skill só no privado do owner" };
   const scopeDenial = groupToolDenial(toolName, who, ctx.targetGroupJid);
   if (scopeDenial) return { decision: "deny", reason: scopeDenial };
+  if (isOperationalConnector(toolName)) {
+    if (who.role !== "owner" || who.groupScope) return { decision: "deny", reason: "conector de operação (Trello, Vercel, Miro, ClickUp, Docs) só para o owner no privado" };
+    if (isOperationalConnectorRead(toolName)) return { decision: "allow", reason: "consulta de conector de operação pelo owner" };
+    return { decision: "approve", reason: "ação em conector de operação exige OK pontual" };
+  }
   // Estes novos fluxos não consomem OK pontual: exigem capacidade vigente na transação.
   if(/^mcp__maia__(area_registro_salvar|oportunidade_converter)$/.test(toolName)&&who.role!=="owner"){
     const capability=neededPermission(toolName,false,ctx.toolInput)!;

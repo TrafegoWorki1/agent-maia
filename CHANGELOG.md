@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-20 — ferramentas do GitHub (`github_*`)
+
+- **Causa:** o conector nativo do GitHub no claude.ai é a integração do Claude GitHub App ("Apenas sessões na nuvem"): não entrega ferramentas MCP a uma sessão local nem ao worker da Maia. A Maia não tinha como falar com o GitHub.
+- **Decisão do owner (20/10/2026):** ferramentas próprias sobre a API REST, com token clássico de escopo `repo`; leitura livre, criação de repositório (sempre privado) e de branch sem OK, e commit, pull request e comentário com OK pontual.
+- **`server/integrations/github.ts`** (novo): cliente mínimo. Token do `.env` (`GITHUB_TOKEN`) ou do cofre (`INTEGRACAO_GITHUB_TOKEN`, via `cofre GITHUB_TOKEN | valor`); `.env` tem prioridade. Valida repositório, branch e caminho antes de chamar a rede; recusa `.github/workflows`; mensagens de erro nunca carregam o token. Repositório novo é criado com `private: true` e a resposta é conferida.
+- **`server/githubTools.ts`** (novo), registrado em `maiaImageTool.ts` e `codexMaiaMcp.ts` no molde de `organizationTools`: `github_repos_listar`, `github_prs_listar`, `github_issues_listar`, `github_ci_status`, `github_repo_criar`, `github_branch_criar`, `github_arquivo_salvar`, `github_pr_criar`, `github_comentar`. Não existe ferramenta para apagar, tornar público, fazer merge nem push forçado: o token com `repo` permitiria, quem limita é o código.
+- **Política:** `access.ts` nega tudo de `github_*` a não owner e em grupo; `approvalPolicy.ts` exige OK em `github_arquivo_salvar`, `github_pr_criar` e `github_comentar` (inclusive do owner) e marca as quatro consultas como leitura; `toolPolicy.ts` inclui os nomes no inventário; `actionDescriptions.ts` descreve as três ações aprovadas.
+- **Testes:** `tests/github.test.ts` (17): política por papel, ausência de ferramentas destrutivas, repositório sempre privado, validação de entrada, sha em arquivo existente, issues sem PRs, erro sem token.
+- **Pendências:** não testado contra o GitHub real nem pelo WhatsApp (testes usam `fetch` simulado); o worker precisa ser reiniciado para carregar as ferramentas. Os conectores Vercel citados no fluxo repositório → deploy seguem com OK em cada escrita.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 679/679 e 76/76, `pnpm build` OK. Uma execução do `pnpm test` falhou ao iniciar processos (`spawn UNKNOWN`, memória baixa na máquina) e passou ao repetir.
+
+## 2026-10-20 — conectores de operação liberados ao owner (Trello, Vercel, Miro, ClickUp, Docs)
+
+- **Causa:** o owner tentou usar os conectores Trello, Vercel e Miro pela Maia e a chamada foi negada com "ferramenta sem política explícita no inventário": a família não estava em `CONNECTOR_FAMILY` (`server/toolPolicy.ts`), e `decideAccess` nega qualquer `mcp__*` fora do inventário.
+- **Decisão do owner (20/10/2026):** liberar Trello, Vercel, Miro, ClickUp e Claude Docs.
+- **Correção:** módulo novo `server/operationalConnectors.ts` com a família e a lista explícita de leituras por serviço. `server/access.ts` aplica a regra logo após o escopo de grupo:
+  - só o owner no privado; membros, visitantes e grupos recebem negação;
+  - leitura listada → `allow`; qualquer outra operação (criar, editar, apagar, publicar, implantar, compartilhar) → `approve`, mesmo para o owner;
+  - operações sensíveis (`env`, `token`, `secret`, `key`, `bypass`, `sdk`, `kms`, `drain`, `webhook`) nunca são leitura livre.
+- **`server/toolPolicy.ts`**: `isKnownMcpTool` passa a reconhecer a família nova.
+- **`server/actionDescriptions.ts`**: mensagens de aprovação legíveis por serviço ("alterar algo na Vercel…").
+- **Paridade**: estas ferramentas são conectores exclusivos do Claude; por isso não entram em `maiaImageTool.ts` nem em `codexMaiaMcp.ts`, e o Codex não as herda.
+- **Testes**: `tests/operationalConnectors.test.ts` (inventário, leitura livre do owner, escrita com aprovação, credenciais, membro, grupo, família fora da lista, descrição).
+- **Pendências**: a família ClickUp ainda não aparece nas ferramentas desta sessão; o prefixo `mcp__claude_ai_ClickUp__` foi reservado e precisa ser confirmado quando o conector estiver disponível. Não foi testado no ambiente real de produção: confirmar se o processo `claude -p --restricted` do worker enxerga esses conectores (ver o registro de 2026-10 sobre subprocesso sem conectores). Regras do catálogo não foram alteradas.
+- **Verificação**: `pnpm typecheck` limpo; `tests/operationalConnectors.test.ts` e `tests/approvalPolicy.test.ts` 34/34; `pnpm test` 76/76; `pnpm build` OK.
+
 ## 2026-10-20 — Quality Audit, Self-Correction e Aprendizado com erros
 
 - **`server/incidents.ts`** (novo): `createIncident`, `proposeCorrection`, `resolveIncident`, `listOpenIncidents` — registro de erros, provas ausentes e resultados incertos na tabela `maia_incidents`.

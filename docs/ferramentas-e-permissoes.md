@@ -12,6 +12,11 @@ Inventário operacional do código. A decisão efetiva fica em `server/access.ts
 | `mcp__claude_ai_Google_Drive__share_file` | write | high | managed wrapper | no | yes | exact permission/resource | blocked until provider exists |
 | `mcp__claude_ai_Meta_ADS__ads_create/update/activate/boost/delete*` | write | high | `escrita.pedir` | no | yes | account/client | Claude/WhatsApp |
 | `mcp__claude_ai_instamany__send_message/set_flow_status` | write | high | `escrita.pedir` | no | yes | conversation/flow | Claude/WhatsApp |
+| `mcp__claude_ai_Trello__trelloRead*/trelloSearch`, `Vercel__list/get/search/count/aggregate/read/web_fetch/artifact_query` (sem env, token, secret, key, bypass), `Miro__` consultas de board/canvas/tabela/comentário, `ClickUp__get/list/search/read`, `Claude_Docs__read/query/guide` | read | medium | owner no privado | owner only | no | workspace do owner | Claude |
+| `mcp__claude_ai_Trello__trelloWrite*`, `Vercel__` demais (deploy, env, domínio, rollback), `Miro__` demais, `ClickUp__` demais, `Claude_Docs__` demais | write | high | owner no privado + OK pontual | owner only | yes, inclusive para o owner | workspace/projeto do owner | Claude |
+| `mcp__maia__github_repos_listar/prs_listar/issues_listar/ci_status` | read | medium | owner no privado | owner only | no | repositórios do token | Claude/Codex |
+| `mcp__maia__github_repo_criar` (sempre privado), `github_branch_criar` | write | medium | owner no privado | owner only | no | conta do token | Claude/Codex |
+| `mcp__maia__github_arquivo_salvar/pr_criar/comentar` | write | high | owner no privado + OK pontual | owner only | yes, inclusive para o owner | repositório informado | Claude/Codex |
 | `mcp__maia__buscar_conhecimento`, `contato_buscar`, `artes_recentes` | read | low | explicit internal read | no | no | requester context | Claude/Codex |
 | `mcp__maia__instagram_*` and `linkedin_*` consultations | read | medium | explicit internal read | varies | no | connected account | Claude/Codex |
 | `mcp__maia__instagram_publicar/direct_responder/automacao_*`, `linkedin_publicar/post_*` | write | high | `escrita.pedir` | no | yes | exact account/content | WhatsApp |

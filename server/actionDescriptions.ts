@@ -48,6 +48,9 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__maia__instagram_post_editar": (i) => `editar o post do Instagram ${str(i, "post_id") ?? "?"}${str(i, "legenda") ? `: nova legenda “${str(i, "legenda")?.slice(0, 140)}”` : ""}${str(i, "agendar_para") ? `; novo horário ${str(i, "agendar_para")}` : ""}`,
   "mcp__maia__linkedin_post_cancelar": (i) => `cancelar o post do LinkedIn ${str(i, "post_id") ?? "?"}`,
   "mcp__maia__linkedin_post_editar": (i) => `editar o post do LinkedIn ${str(i, "post_id") ?? "?"}${str(i, "conteudo") ? `: novo texto “${str(i, "conteudo")?.slice(0, 140)}”` : ""}${str(i, "agendar_para") ? `; novo horário ${str(i, "agendar_para")}` : ""}`,
+  "mcp__maia__github_arquivo_salvar": (i) => `salvar o arquivo ${str(i, "caminho") ?? "?"} no repositório ${str(i, "repo") ?? "?"}${str(i, "branch") ? ` (branch ${str(i, "branch")})` : ""}: “${str(i, "mensagem")?.slice(0, 120) ?? "sem mensagem"}”`,
+  "mcp__maia__github_pr_criar": (i) => `abrir um pull request em ${str(i, "repo") ?? "?"}: “${str(i, "titulo")?.slice(0, 140) ?? "sem título"}” (${str(i, "de") ?? "?"} → ${str(i, "para") ?? "?"})`,
+  "mcp__maia__github_comentar": (i) => `comentar em ${str(i, "repo") ?? "?"} #${String(i.numero ?? "?")}: “${str(i, "texto")?.slice(0, 140) ?? "sem texto"}”`,
   "mcp__claude_ai_instamany__send_message": () => "mandar uma mensagem direta no Instagram",
   "mcp__claude_ai_instamany__set_flow_status": () => "ativar ou desativar um fluxo do Instagram",
   "mcp__claude_ai_Google_Drive__share_file": () => "compartilhar um arquivo do Drive",
@@ -57,6 +60,11 @@ const PATTERNS: [RegExp, string][] = [
   [/^mcp__claude_ai_Gmail__(send_message|reply|forward)$/, "enviar um e-mail"],
   [/^mcp__claude_ai_Google_Calendar__(create_event|update_event|respond_to_event)$/, "alterar um evento da agenda (gera convite)"],
   [/^mcp__claude_ai_Meta_ADS__/, "alterar algo nos anúncios (Meta Ads)"],
+  [/^mcp__claude_ai_Trello__/, "alterar algo no Trello"],
+  [/^mcp__claude_ai_Vercel__/, "alterar algo na Vercel (implantação, variáveis, domínios ou projeto)"],
+  [/^mcp__claude_ai_Miro__/, "alterar algo no Miro"],
+  [/^mcp__claude_ai_ClickUp__/, "alterar algo no ClickUp"],
+  [/^mcp__claude_ai_Claude_Docs__/, "alterar um documento"],
   [/delete|trash/i, "apagar algo"],
 ];
 

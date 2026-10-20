@@ -1,5 +1,18 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-20 — ferramentas do GitHub
+
+- **Causa:** a integração nativa do GitHub no claude.ai vale só para sessões na nuvem; a Maia não tinha ferramenta para o GitHub.
+- **Correção:** `server/integrations/github.ts` e `server/githubTools.ts` (9 ferramentas `github_*`, nos dois executores). Leitura livre; repositório (sempre privado) e branch sem OK; commit, PR e comentário com OK; sem apagar, merge, tornar público nem push forçado. Só owner no privado.
+- **Pendências:** testar com o GitHub real e reiniciar o worker; o token fica em `GITHUB_TOKEN` (`.env`) ou no cofre.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 679/679 e 76/76, `pnpm build` OK, `tests/github.test.ts` 17/17.
+
+## 2026-10-20 — conectores de operação liberados ao owner
+
+- **Causa:** Trello, Vercel e Miro foram negados pela Maia com "ferramenta sem política explícita no inventário" (família fora de `CONNECTOR_FAMILY`).
+- **Correção:** `server/operationalConnectors.ts` (novo) + regra em `server/access.ts`: owner no privado lê livremente as consultas listadas; toda escrita pede OK pontual; membros e grupos ficam bloqueados. Descrições de aprovação em `server/actionDescriptions.ts`.
+- **Pendências:** confirmar o prefixo do ClickUp quando o conector aparecer; confirmar no ambiente real se o worker enxerga os conectores.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 76/76, `pnpm build` OK, `tests/operationalConnectors.test.ts` 34/34 com o teste de aprovação.
 ## 2026-10-19 — atendimento autônomo de contatos desconhecidos
 
 - **Nova capacidade:** `handleServiceMessage` em `maiaOwnerAgent.ts` — qualquer contato "other" não prospect vai para atendimento autônomo com a skill `atendimento:whatsapp`. Preferência de supressão verificada antes de qualquer ação. Sem skill ativa ou com supressão, avisa o dono e encerra.

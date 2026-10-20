@@ -1,3 +1,5 @@
+import { isOperationalConnector } from "./operationalConnectors.ts";
+
 // Inventário executável. Adicionar ferramenta local exige incluí-la aqui; caso contrário o servidor nega.
 // Conectores Claude são dinâmicos, mas somente estas famílias passam para a política de operação.
 export const MAIA_TOOL_NAMES = new Set([
@@ -19,6 +21,8 @@ export const MAIA_TOOL_NAMES = new Set([
   "oportunidade_converter", "tarefas_listar", "trabalho_contexto", "tarefa_criar", "tarefa_atualizar", "lembrete_criar",
   "lembrete_editar", "drive_enviar_arquivo", "drive_salvar_arquivo",
   "registrar_incidente", "propor_padrao_prevencao",
+  "github_repos_listar", "github_prs_listar", "github_issues_listar", "github_ci_status", "github_repo_criar", "github_branch_criar",
+  "github_arquivo_salvar", "github_pr_criar", "github_comentar",
 ]);
 
 const CONNECTOR_FAMILY = /^mcp__claude_ai_(Gmail|Meta_ADS|Google_Drive|Google_Calendar|instamany)__/;
@@ -26,5 +30,5 @@ const CONNECTOR_FAMILY = /^mcp__claude_ai_(Gmail|Meta_ADS|Google_Drive|Google_Ca
 export function isKnownMcpTool(toolName: string): boolean {
   const local = /^mcp__maia__(.+)$/.exec(toolName);
   if (local) return MAIA_TOOL_NAMES.has(local[1]);
-  return CONNECTOR_FAMILY.test(toolName);
+  return CONNECTOR_FAMILY.test(toolName) || isOperationalConnector(toolName);
 }

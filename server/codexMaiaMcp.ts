@@ -34,6 +34,7 @@ import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPla
 import { proposeSkill, proposeSkillUpdate } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
+import { githubTools } from "./githubTools.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { decideAccess, resolveRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
@@ -124,6 +125,11 @@ async function guarded(tool: string, input: Record<string, unknown>, run: () => 
 const server = new McpServer({ name: "maia", version: "1.0.0" });
 
 for (const t of organizationTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of githubTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
 }

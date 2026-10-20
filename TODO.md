@@ -151,6 +151,11 @@ Detalhes: [docs/painel-colaborativo.md](docs/painel-colaborativo.md).
 - [x] Desativar a aba Conversa com Maia, redirecionar links antigos para Regras ativas e publicar `80095aa` em produção.
 - [ ] Conferir visualmente o painel autenticado e exercitar um grupo de cliente autorizado.
 - [ ] Reiniciar o worker sempre que o código mudar.
+- [x] Conectores de operação liberados ao owner (Trello, Vercel, Miro, ClickUp, Claude Docs) em 20/10/2026: leitura livre, escrita com OK. Ver `server/operationalConnectors.ts`.
+- [ ] Confirmar o prefixo do conector ClickUp quando ele aparecer (`mcp__claude_ai_ClickUp__` está só reservado) e confirmar pelo WhatsApp que o worker enxerga Trello, Vercel, Miro e Docs.
+- [x] Ferramentas `github_*` criadas (20/10/2026); leitura real confirmada com o token do `.env`.
+- [ ] Testar o GitHub pelo WhatsApp depois de reiniciar o worker: listar repositórios, criar um repositório privado de teste e conferir o OK em commit/PR/comentário.
+- [ ] Revogar o token `github_pat_` que foi colado no chat em 20/10/2026, se ainda não foi.
 
 **Limpeza**
 - [x] Conferir o `db:drift`: 34 migrações e 788 objetos, sem divergência em 12/10/2026 antes da publicação do painel.
