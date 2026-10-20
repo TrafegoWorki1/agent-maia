@@ -1,5 +1,12 @@
 # Migrações do banco (Supabase)
 
+## GitHub e sites — aplicação confirmada em 20/10/2026
+
+A consulta `supabase migration list --linked` confirmou as versões `20261020160445`, `20261020160446`, `20261020170000` e `20261020180000` dos dois lados do histórico. A última atualiza a regra de sites para repositório por pedido e criação pública mediante OK. Código/documentação integrados na main por `7767b3d` após os commits `073610d` e `4d89f15`; publicação Vercel concluída.
+
+Esta conferência comprova o histórico de aplicação, não uma nova execução de drift nem um teste externo das ferramentas. Reinício dos workers e teste com GitHub/Vercel reais seguem pendentes. O texto aplicado conserva uma menção antiga a repositório fixo; a correção deve usar nova migração e catálogo versionado, preservando esta migração imutável.
+
+
 ## Regras de vibecoding — aplicadas em 16/10/2026
 
 `20261016223848_maia_vibecoding_access_retention.sql` cria autorizações por recurso, auditoria, registro de permissões do Drive e a limpeza configurável de mensagens brutas. É aditiva, mantém RLS habilitada e concede acesso somente ao `service_role`. Aplicar na ordem do diretório antes de habilitar acesso Drive de membros; depois executar `pnpm rules:verify`. Reversão deve ser por migration compensatória, preservando registros de autorização e auditoria.

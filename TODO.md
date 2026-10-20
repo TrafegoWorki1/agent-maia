@@ -1,5 +1,14 @@
 # Pendências atuais da Maia
 
+## GitHub e sites — acompanhamento de 20/10/2026
+
+- [x] Confirmar aplicação de `20261020180000` em produção pelo histórico remoto.
+- [x] Confirmar implementação `073610d` e documentação `4d89f15` na main pelo merge `7767b3d`; publicação Vercel concluída.
+- [ ] Atualizar os workers anteriores ao commit das 16h11; verificar trabalhos ativos e manter uma única instância operacional.
+- [ ] Validar pelo WhatsApp criação privada, criação pública com OK, commit aprovado e publicação real na Vercel.
+- [ ] Corrigir a expressão “repositório fixo de sites” da regra `site_publicar` com nova versão do catálogo, geração do documento e nova migração. Não editar `20261020180000`, já aplicada.
+
+
 ## Regras de vibecoding — estado de implantação
 
 - [x] Após autorização explícita posterior, aplicar a migration `20261016223848_maia_vibecoding_access_retention.sql`: 51 versões alinhadas, 40 regras alinhadas e drift de 1.850 objetos sem divergência.
