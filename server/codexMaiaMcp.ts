@@ -36,6 +36,8 @@ import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
 import { githubTools } from "./githubTools.ts";
 import { siteTools } from "./siteTools.ts";
+import { sheetsTools } from "./sheetsTools.ts";
+import { decideDriveToolAccess } from "./resourceAccess.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { decideAccess, resolveRequester, type Requester } from "./access.ts";
 import { isReadTool } from "./approvalPolicy.ts";
@@ -73,6 +75,16 @@ function result(text: string, isError = false) {
   return isError ? { content: [{ type: "text" as const, text }], isError: true } : { content: [{ type: "text" as const, text }] };
 }
 
+// Mesma combinação do executor Claude (maiaOwnerAgent): a política da ferramenta e a autorização por recurso (Drive/Sheets).
+async function verdictFor(db: ReturnType<typeof getDb>, who: Requester, tool: string, input: Record<string, unknown>): Promise<{ decision: "allow" | "approve" | "deny"; reason: string }> {
+  const base = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+  const resource = await decideDriveToolAccess(db, who, tool, input, channel === "painel" ? "painel" : "whatsapp");
+  if (resource?.decision === "deny") return resource;
+  if (base.decision === "deny") return base;
+  if (resource?.decision === "approve") return resource;
+  return base;
+}
+
 async function allowed(tool: string, input: Record<string, unknown>): Promise<{ ok: true; oneTimeApproval?: boolean } | { ok: false; message: string }> {
   const db = getDb();
   if (channel === "painel" && !(isReadTool(tool) || isLocalSafeTool(tool))) {
@@ -82,7 +94,7 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   let who: Requester;
   try { who = await refreshGroupRequester(db, requester()); }
   catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
-  const verdict = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+  const verdict = await verdictFor(db, who, tool, input);
   if (verdict.decision === "deny") { await addTaskEvent(db, taskId, "access_denied", tool, verdict.reason); return { ok: false, message: verdict.reason }; }
   if (verdict.decision === "allow") return { ok: true, oneTimeApproval:false };
   if (hasInFlightToolApproval(await openApprovals(db), taskId)) {
@@ -104,7 +116,7 @@ async function allowed(tool: string, input: Record<string, unknown>): Promise<{ 
   if (outcome === "approved") {
     try {
       who = await refreshGroupRequester(db, who);
-      const latest = decideAccess(tool, who, await accessContext(db, taskId, tool, input), isReadTool(tool) || isLocalSafeTool(tool));
+      const latest = await verdictFor(db, who, tool, input);
       if (latest.decision === "deny" || !await consumeApproval(db, approval.id, binding)) return { ok: false, message: "Acesso revogado, aprovação expirada ou já utilizada." };
     }
     catch (error) { return { ok: false, message: error instanceof Error ? error.message : "Acesso ao grupo indisponível." }; }
@@ -136,6 +148,11 @@ for (const t of githubTools) {
 }
 
 for (const t of siteTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of sheetsTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
 }

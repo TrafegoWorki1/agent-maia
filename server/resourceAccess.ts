@@ -1,5 +1,6 @@
 import type { Requester } from "./access.ts";
 import type { Db } from "./store.ts";
+import { parseSpreadsheetId } from "./integrations/googleSheets.ts";
 
 export type ResourceType = "drive_file" | "drive_folder" | "client" | "project" | "group" | "integration" | "task";
 export type ResourceCapability = "read" | "write" | "send" | "share" | "admin";
@@ -82,7 +83,21 @@ export async function decideResourceAccess(input: {
   return { decision: "deny", reason: "nenhuma autorização vigente para este arquivo, pasta, cliente ou projeto", scope };
 }
 
+const SHEETS_READ_TOOLS = /^mcp__maia__sheets_(info|ler)$/;
+
+// Planilha é um arquivo do Drive: a mesma autorização por recurso vale para ela. Criar não toca planilha existente.
+async function decideSheetsToolAccess(db: Db, requester: Requester, toolName: string, input: Record<string, unknown>, channel: "whatsapp" | "painel"): Promise<ResourceDecision> {
+  if (requester.role === "owner") return { decision: "allow", reason: "owner autenticado" };
+  if (toolName === "mcp__maia__sheets_criar") return { decision: "allow", reason: "criação de planilha: sheets.editar já verificada" };
+  let id: string;
+  try { id = parseSpreadsheetId(String(input.planilha ?? "")); }
+  catch { return { decision: "deny", reason: "informe a planilha pelo ID ou link para conferir a autorização" }; }
+  const capability: ResourceCapability = SHEETS_READ_TOOLS.test(toolName) ? "read" : "write";
+  return decideResourceAccess({ db, requester, operation: toolName, resource: { type: "drive_file", id }, capability, channel });
+}
+
 export async function decideDriveToolAccess(db: Db, requester: Requester, toolName: string, input: Record<string, unknown>, channel: "whatsapp" | "painel"): Promise<ResourceDecision | null> {
+  if (toolName.startsWith("mcp__maia__sheets_")) return decideSheetsToolAccess(db, requester, toolName, input, channel);
   if (!toolName.startsWith("mcp__claude_ai_Google_Drive__")) return null;
   if (requester.role === "owner") return { decision: "allow", reason: "owner autenticado" };
   const request = driveResourceFromTool(toolName, input);

@@ -125,6 +125,20 @@ export async function saveFile(db: Db, input: { repo: string; path: string; cont
   return { repo: input.repo, caminho: input.path, acao: sha ? "atualizado" : "criado", commit: saved.commit?.sha?.slice(0, 7) ?? null, url: saved.commit?.html_url ?? saved.content?.html_url ?? null };
 }
 
+// Lê o conteúdo de um arquivo de texto do repositório (leitura, sem OK). Devolve null se o arquivo não existe.
+export async function readFile(db: Db, input: { repo: string; path: string }): Promise<string | null> {
+  assertRepo(input.repo);
+  assertPath(input.path);
+  try {
+    const data = await call<{ content?: string; encoding?: string }>(db, "GET", `/repos/${input.repo}/contents/${encodePath(input.path)}`);
+    if (!data.content) throw new GithubError("Arquivo grande demais para ler pela API do GitHub.");
+    return Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
+  } catch (error) {
+    if (error instanceof GithubError && error.message.includes("404")) return null;
+    throw error;
+  }
+}
+
 export async function createPullRequest(db: Db, input: { repo: string; title: string; head: string; base: string; body?: string }) {
   assertRepo(input.repo);
   assertBranch(input.head);

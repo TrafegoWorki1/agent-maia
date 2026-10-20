@@ -1,5 +1,20 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-20 — Google Sheets (`sheets_*`)
+
+- **Causa:** o conector do Google Sheets não estava no inventário, e a Maia não tinha ferramenta própria para planilhas.
+- **Correção:** `server/integrations/googleSheets.ts` e `server/sheetsTools.ts` (8 ferramentas, nos dois executores), usando o token OAuth do owner. Leitura com `sheets.ler`, escrita com `sheets.editar`, autorização por planilha; apagar coluna ou aba pede OK. Codex passa a checar autorização por recurso.
+- **Ajuste (mesmo dia, pedido do owner):** planilhas passam a valer também no grupo interno Operacional; membros seguem as permissões cadastradas. Em grupo de cliente continuam negadas. A regra `google_sheets` foi corrigida na migração ainda não aplicada, sem nova versão.
+- **Pendências:** aplicar as duas migrações em produção, reiniciar o worker, testar numa planilha real; scripts do Apps Script ficam para depois (exigem outro escopo).
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate`/`db:guard`/`rules:check` OK, `tests/sheets.test.ts` 21/21.
+
+## 2026-10-20 — site em dois caminhos (`site_subir_github` e `site_publicar_vercel`)
+
+- **Causa:** `site_publicar` fazia commit e deploy na mesma chamada; não havia como subir sem publicar nem publicar um site já salvo.
+- **Correção:** duas ferramentas. `site_subir_github` (commit, OK do owner) e `site_publicar_vercel` (deploy direto, sem OK; lê o HTML salvo no repositório se o pedido não trouxer). Regra reescrita (`2026-10-20.5`), migração `20261020170000_site_caminhos_rule.sql`.
+- **Pendências:** aplicar em produção as migrações do Sheets e a nova, reiniciar o worker, testar com repositório e Vercel reais.
+- **Evidência:** `tests/site.test.ts` 15/15; ver as verificações finais no CHANGELOG.
+
 ## 2026-10-20 — criar e publicar site (`site_publicar`)
 
 - **Causa:** owner pediu que a Maia gerasse sites em HTML, mandasse no chat, comitasse no GitHub e publicasse na Vercel, direto pelo WhatsApp.

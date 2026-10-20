@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-20 — Google Sheets: ler, editar, criar e apagar colunas (`sheets_*`)
+
+- **Causa:** o conector `mcp__claude_ai_Google_Sheets__*` existe na conta, mas não estava em `CONNECTOR_FAMILY` (`server/toolPolicy.ts`), então toda chamada era negada como "sem política explícita". Verificado com o token OAuth do owner (escopo `drive`): a Sheets API aceita o token e lê planilhas.
+- **Decisão do owner (20/10/2026):** membros com permissão específica (leitura com `sheets.ler`, escrita com `sheets.editar`) e autorização por planilha; apagar coluna ou aba pede OK a cada vez; scripts do Apps Script ficam fora (o token não tem o escopo deles).
+- **`server/integrations/googleSheets.ts`** (novo): cliente REST da Sheets API v4, com o mesmo token do `googleDrive.ts`. Operações: metadados, ler, escrever valores (USER_ENTERED, fórmulas são calculadas), criar planilha, adicionar aba, inserir e apagar coluna, apagar aba. Aceita ID ou link. Erros nunca carregam o token.
+- **`server/sheetsTools.ts`** (novo), registrado em `maiaImageTool.ts` e `codexMaiaMcp.ts`: `sheets_info`, `sheets_ler`, `sheets_escrever`, `sheets_criar`, `sheets_adicionar_aba`, `sheets_inserir_coluna`, `sheets_apagar_coluna`, `sheets_apagar_aba`. Limites: 1000 linhas, 26 colunas, 20.000 células por escrita; leitura devolve até 200 linhas.
+- **Política:** `access.ts` mapeia leitura para `sheets.ler` e escrita para `sheets.editar`, vale no privado e no grupo interno Operacional (quem pode decide o owner pelas permissões, como nas outras ferramentas) e nega em grupo de cliente; `approvalPolicy.ts` exige OK em apagar e marca info/ler como consulta; `actionDescriptions.ts` descreve o que será apagado; `memberAccessTools.ts` aceita `sheets.editar` no painel.
+- **Autorização por planilha:** `resourceAccess.ts` trata planilha como arquivo do Drive e reaproveita `decideResourceAccess` (membro precisa de grant vigente para a planilha). `codexMaiaMcp.ts` passa a chamar essa checagem, o que também fecha a lacuna do Codex para o Drive.
+- **Regras e migrações:** regra `google_sheets` (catálogo `2026-10-20.4`), migração da regra e migração da permissão `sheets.editar` (sem conceder a ninguém).
+- **Testes:** `tests/sheets.test.ts` (21 novos): política por papel, bloqueio, grupo de cliente negado, grupo interno Operacional (owner e membro com permissão), checagem por recurso, ID/link, letras de coluna, escape de aba, limite de células, cliente com `fetch` simulado (leitura, deleteDimension, 404 sem token).
+- **Pendências:** aplicar as duas migrações em produção e reiniciar o worker; não testado contra a planilha real do owner; criar planilha não dá acesso automático ao membro que criou; a autorização por planilha depende de grant cadastrado no painel.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate` OK, `pnpm rules:check` OK.
+
+## 2026-10-20 — site em dois caminhos: `site_subir_github` e `site_publicar_vercel`
+
+- **Decisão do owner (20/10/2026):** o pedido escolhe o caminho. Só o HTML: não usa ferramenta. Subir no GitHub: `site_subir_github` (commit, com OK). Publicar na Vercel: `site_publicar_vercel` (deploy direto, sem OK; usa o HTML do pedido ou o arquivo já salvo no repositório). Pedido sem caminho claro: a Maia pergunta antes.
+- **Causa:** a ferramenta única `site_publicar` sempre fazia commit e deploy juntos. Sem caminho separado, não dava para subir primeiro e publicar depois.
+- **`server/integrations/github.ts`:** nova `readFile` (leitura do arquivo do repositório, sem OK).
+- **`server/siteTools.ts`:** `site_publicar` removida; `site_subir_github` e `site_publicar_vercel` (nos dois executores).
+- **Política:** `approvalPolicy.ts` exige OK só em `site_subir_github`; `access.ts` nega os dois em grupo e exige `site.publicar` para membro; `neededPermission` mapeia os dois para `site.publicar` (bloqueio individual vale); `toolPolicy.ts` e `actionDescriptions.ts` atualizados.
+- **Regras e migrações:** regra `site_publicar` reescrita no catálogo (`2026-10-20.5`) e migração `20261020170000_site_caminhos_rule.sql` (atualiza o texto da regra já aplicada; não cria tabelas). Ela depende da migração do Sheets (`.4`), que ainda não foi aplicada.
+- **Testes:** `tests/site.test.ts` reescrito (15 testes): política dos dois caminhos, leitura do repositório, recusas e erros sem token.
+- **Pendências:** aplicar as migrações do Sheets e a nova em produção, reiniciar o worker, testar com o repositório real (`MAIA_SITES_REPO`) e com a Vercel real.
+
 ## 2026-10-20 — criar e publicar site (HTML, GitHub e Vercel): `site_publicar`
 
 - **Causa:** o owner pediu, na própria conversa de desenvolvimento, que a Maia pudesse gerar um site em HTML, enviá-lo no chat, subir o arquivo ao GitHub e publicar na Vercel, sem precisar de uma sessão direta do Claude Code. Nenhuma ferramenta fazia isso: `github_*` já existia mas é genérico e só do owner (decisão de 20/10/2026, logo abaixo); não havia nenhuma ferramenta de deploy.

@@ -20,8 +20,10 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__maia__linkedin_post_(cancelar|editar)$/,
   // GitHub: commit, pull request e comentário alteram algo externo. Criar repositório (sempre privado) e branch não pedem OK.
   /^mcp__maia__github_(arquivo_salvar|pr_criar|comentar)$/,
-  // Site (HTML): o commit pede OK a cada vez; o deploy na Vercel acontece dentro da mesma ação já aprovada.
-  /^mcp__maia__site_publicar$/,
+  // Site (HTML): gravar no GitHub pede OK a cada vez. A publicação na Vercel (site_publicar_vercel) não pede: o owner já pediu.
+  /^mcp__maia__site_subir_github$/,
+  // Planilhas: apagar coluna ou aba remove dados; pede OK do owner a cada vez.
+  /^mcp__maia__sheets_(apagar_coluna|apagar_aba)$/,
   // InstaMany: mensagem direta e ativação de fluxo no Instagram
   /^mcp__claude_ai_instamany__(send_message|set_flow_status)$/,
   // Anúncios: criar, ativar, impulsionar, alterar e apagar (alterar pode ativar ou mudar orçamento)
@@ -35,7 +37,7 @@ export function requiresApproval(toolName: string): boolean {
   return NEEDS_APPROVAL.some((pattern) => pattern.test(toolName));
 }
 
-const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(mensagem_status|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
+const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(mensagem_status|sheets_(info|ler)|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);

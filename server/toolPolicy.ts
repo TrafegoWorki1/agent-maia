@@ -22,7 +22,9 @@ export const MAIA_TOOL_NAMES = new Set([
   "lembrete_editar", "drive_enviar_arquivo", "drive_salvar_arquivo",
   "registrar_incidente", "propor_padrao_prevencao",
   "github_repos_listar", "github_prs_listar", "github_issues_listar", "github_ci_status", "github_repo_criar", "github_branch_criar",
-  "github_arquivo_salvar", "github_pr_criar", "github_comentar", "site_publicar",
+  "github_arquivo_salvar", "github_pr_criar", "github_comentar", "site_subir_github", "site_publicar_vercel",
+  "sheets_info", "sheets_ler", "sheets_escrever", "sheets_criar", "sheets_adicionar_aba", "sheets_inserir_coluna",
+  "sheets_apagar_coluna", "sheets_apagar_aba",
 ]);
 
 const CONNECTOR_FAMILY = /^mcp__claude_ai_(Gmail|Meta_ADS|Google_Drive|Google_Calendar|instamany)__/;
