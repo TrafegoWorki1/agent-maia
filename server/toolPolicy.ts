@@ -1,7 +1,7 @@
 // Inventário executável. Adicionar ferramenta local exige incluí-la aqui; caso contrário o servidor nega.
 // Conectores Claude são dinâmicos, mas somente estas famílias passam para a política de operação.
 export const MAIA_TOOL_NAMES = new Set([
-  "anuncio_midia_url_temporaria", "arquivo_reenviar", "arte_buscar", "arte_reenviar", "artes_recentes", "avisar_dono", "buscar_conhecimento",
+  "anuncio_midia_url_temporaria", "arquivo_reenviar", "arte_buscar", "arte_reenviar", "arte_referencia_apagar", "arte_referencia_salvar", "arte_referencias_listar", "artes_recentes", "avisar_dono", "buscar_conhecimento",
   "contato_buscar", "contato_enviar_mensagem", "contato_instancia_buscar", "contato_salvar", "conversas_listar",
   "gerar_imagem", "grupo_agendar", "grupo_alterar_foto", "grupo_apagar_mensagem", "grupo_cadastrar", "grupo_cliente_classificar",
   "grupo_convite_link", "grupo_criar", "grupo_enviar_convite", "grupo_enviar_enquete", "grupo_enviar_texto",
@@ -11,7 +11,7 @@ export const MAIA_TOOL_NAMES = new Set([
   "instagram_desempenho", "instagram_direct_responder", "instagram_musica_buscar", "instagram_musica_detalhar",
   "instagram_post_cancelar", "instagram_post_editar", "instagram_publicar", "instagram_seguidor_status", "instagram_stories",
   "instagram_stories_metricas", "integracao_ativar", "integracao_chamar", "integracao_chamar_externa", "integracao_listar",
-  "integracao_propor", "linkedin_contas", "linkedin_desempenho", "linkedin_organizacoes", "linkedin_post_cancelar",
+  "integracao_propor", "listar_capacidades", "linkedin_contas", "linkedin_desempenho", "linkedin_organizacoes", "linkedin_post_cancelar",
   "linkedin_post_editar", "linkedin_publicar", "membro_acesso_consultar", "membro_acesso_definir", "membro_acesso_localizar",
   "membro_cadastrar", "memoria_buscar", "memoria_registrar", "mensagem_status", "operacao_resumo", "planilha_criar",
   "plano_atualizar", "plano_criar", "planos_ativos", "preferencia_propor", "prospeccao_descadastrar",

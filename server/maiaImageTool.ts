@@ -44,7 +44,7 @@ export const KNOWLEDGE_TOOL = "mcp__maia__buscar_conhecimento";
 export const OWNER_NOTICE_TOOL = "mcp__maia__avisar_dono";
 export const INSTAGRAM_PUBLISH_TOOL = "mcp__maia__instagram_publicar";
 // Ferramentas locais que não alteram nada externo: liberadas sem aprovação. A publicação NÃO está aqui.
-const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__arte_buscar", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar"]);
+const LOCAL_SAFE_TOOLS = new Set([IMAGE_TOOL, CREATIVE_JOB_TOOL, KNOWLEDGE_TOOL, OWNER_NOTICE_TOOL, "mcp__maia__memoria_buscar", "mcp__maia__memoria_registrar", "mcp__maia__preferencia_propor", "mcp__maia__instagram_desempenho", "mcp__maia__artes_recentes", "mcp__maia__arte_buscar", "mcp__maia__grupo_ler_enquetes", "mcp__maia__contato_buscar", "mcp__maia__operacao_resumo", "mcp__maia__tarefas_listar", "mcp__maia__trabalho_contexto", "mcp__maia__grupo_info", "mcp__maia__grupo_participantes", "mcp__maia__conversas_listar", "mcp__maia__contato_instancia_buscar", "mcp__maia__integracao_listar", "mcp__maia__listar_capacidades"]);
 export function isLocalSafeTool(name: string): boolean {
   return name === "mcp__maia__grupos_clientes_listar" || LOCAL_SAFE_TOOLS.has(name);
 }
@@ -477,6 +477,29 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
         async () => {
           try { return { content: [{ type: "text", text: JSON.stringify(await listIntegrations(getDb())) }] }; }
           catch (error) { return { content: [{ type: "text", text: `Não consegui listar: ${error instanceof Error ? error.message : String(error)}` }], isError: true }; }
+        },
+      ),
+      tool(
+        "listar_capacidades",
+        "Retorna o estado real das integrações externas agora: ativa/inativa e se o segredo está presente. Use quando estiver em dúvida sobre o que pode executar antes de responder ao owner.",
+        {},
+        async () => {
+          try {
+            type Row = { title: string; slug: string; status: string; secret_ref: string | null };
+            const lines: Array<{ integracao: string; status: string; segredo: string | null }> = [];
+            lines.push({ integracao: "Instagram / LinkedIn (Zernio)", status: process.env.ZERNIO_API_KEY ? "ativo" : "inativo", segredo: process.env.ZERNIO_API_KEY ? "presente" : "ausente — configure ZERNIO_API_KEY" });
+            const db = getDb();
+            const { data } = await db.from("maia_integrations").select("title, slug, status, secret_ref").order("title", { ascending: true });
+            for (const row of (data ?? []) as Row[]) {
+              if (!row.secret_ref) { lines.push({ integracao: `${row.title} (${row.slug})`, status: row.status, segredo: null }); continue; }
+              const inEnv = Boolean(process.env[row.secret_ref]);
+              const secretPresent = inEnv || ((await db.from("maia_secrets").select("*", { count: "exact", head: true }).eq("name", row.secret_ref)).count ?? 0) > 0;
+              lines.push({ integracao: `${row.title} (${row.slug})`, status: row.status, segredo: secretPresent ? "presente" : "ausente" });
+            }
+            return { content: [{ type: "text" as const, text: JSON.stringify(lines) }] };
+          } catch (error) {
+            return { content: [{ type: "text" as const, text: `Não consegui verificar capacidades: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+          }
         },
       ),
       tool(

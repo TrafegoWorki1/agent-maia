@@ -1,5 +1,22 @@
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-19 — atendimento autônomo de contatos desconhecidos
+
+- **Nova capacidade:** `handleServiceMessage` em `maiaOwnerAgent.ts` — qualquer contato "other" não prospect vai para atendimento autônomo com a skill `atendimento:whatsapp`. Preferência de supressão verificada antes de qualquer ação. Sem skill ativa ou com supressão, avisa o dono e encerra.
+- **Controle:** "não faça atendimento autônomo para desconhecidos" (ou variações) ativa supressão via preferência do owner; "não notifique" + "atend" silencia as notificações.
+- **Arquivos alterados:** `server/maiaOwnerAgent.ts` (+`handleServiceMessage`), `server/inboxWorker.ts` (roteamento "other" não prospect → `handleServiceMessage`).
+- **Pendências:** skill `atendimento-whatsapp` precisa estar ativa para o atendimento funcionar.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 76 passando.
+
+## 2026-10-19 — resposta autônoma a leads de prospecção
+
+- **Causa:** `inboxWorker.ts` tratava toda resposta de `sender === "other"` com `notifyOwner` direto, sem passar pelo agente. Leads de prospecção nunca recebiam resposta autônoma.
+- **Correção:** worker verifica `maia_prospects` (status `sent`); se houver registro, roteia para a nova função `handleProspectMessage` em `maiaOwnerAgent.ts`. Sem registro, comportamento anterior.
+- **Nova função `handleProspectMessage`:** skill `prospeccao:whatsapp` ativa instrui a triagem; SAIR dispara opt-out imediato; agente responde ao lead e avisa o dono com resumo curto. Preferência do owner controla modo detalhado ou silêncio.
+- **Arquivos alterados:** `server/inboxWorker.ts`, `server/maiaOwnerAgent.ts` (+`handleProspectMessage`, imports `listActiveSkills`, `recordSkillEvent`, `listOwnerPreferences`, `addOptOut`), `skills/prospeccao-whatsapp/SKILL.md` (regras 7–9).
+- **Pendências:** a skill `prospeccao-whatsapp` precisa estar **ativa** (não só proposta) para a triagem funcionar; ativar em Agente Maia → Núcleo e automações ou com `ATIVAR SKILL <uuid>`.
+- **Evidência:** `pnpm typecheck` limpo, `pnpm test` 76 passando.
+
 ## 2026-10-18 — skills de atendimento e prospecção com aprovação pelo WhatsApp
 
 - **Nova capacidade:** proposta e ativação de skills (novas e atualizações) pelo WhatsApp com `ATIVAR SKILL <uuid>`, sem precisar do painel.

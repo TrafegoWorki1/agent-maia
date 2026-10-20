@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-19 — Etapa 1: honestidade sobre capacidades
+
+- **Seção dinâmica no prompt do sistema** (`server/rules.ts`): `buildCapabilitiesSection` consulta `ZERNIO_API_KEY` (env) e `maia_integrations` + `maia_secrets` em tempo real, injeta bloco "Integrações externas — estado atual" a cada execução. O agente lê o estado real antes de responder.
+- **Nova ferramenta `mcp__maia__listar_capacidades`** em `server/maiaImageTool.ts` e `server/codexMaiaMcp.ts`: retorna JSON estruturado (integração, status, segredo) para quando o agente precisar de confirmação explícita. Adicionada a `LOCAL_SAFE_TOOLS` (sem aprovação).
+- **Nova regra `capacidades_reais`** (ordem 41, catálogo versão 2026-10-19.1): instrui o agente a verificar o bloco antes de afirmar acesso a integração; não improvisar caminho alternativo se a integração aparecer inativa.
+- **Inventário:** `listar_capacidades`, `arte_referencia_salvar`, `arte_referencias_listar`, `arte_referencia_apagar` adicionados a `MAIA_TOOL_NAMES` em `toolPolicy.ts` (`arte_referencia_*` estavam ausentes desde o commit 424a1e3).
+- **Migração:** `supabase/migrations/20261020015717_capacidades_reais_rule.sql` — INSERT da regra no banco.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm rules:check` OK, `pnpm db:validate` OK, `pnpm test` 654/654 passando (96 arquivos).
+
+## 2026-10-19 — atendimento autônomo e resposta autônoma a leads de prospecção
+
+- **Atendimento autônomo de contatos desconhecidos:** qualquer `sender === "other"` que não seja lead de prospecção é agora roteado para `handleServiceMessage`. A função verifica preferência de supressão primeiro (dono pode desligar a qualquer momento) e depois a skill `atendimento:whatsapp` ativa; sem skill, avisa o dono normalmente.
+- **Controle pelo WhatsApp:** dizer "não faça atendimento autônomo para desconhecidos" salva preferência de supressão; o atendimento volta a avisar o dono sem responder. Notificação por padrão é resumo curto; "detalh" + "atend" liga modo detalhado; "não notifique" + "atend" silencia.
+
+## 2026-10-19 — resposta autônoma a leads de prospecção e controle de notificação
+
+- **Bug corrigido:** quando um lead respondia à mensagem de prospecção, o worker apenas repassava o texto ao dono sem nenhuma resposta autônoma. Agora o `inboxWorker.ts` verifica se o número está em `maia_prospects` (status `sent`); se sim, roteia para `handleProspectMessage`; se não, mantém o repasse ao dono.
+- **Nova função `handleProspectMessage`** em `maiaOwnerAgent.ts`: carrega a skill `prospeccao:whatsapp` ativa, trata SAIR com opt-out imediato (sem passar pelo agente), monta o prompt com as instruções da skill + histórico da conversa e executa o agente com permissão de texto apenas (sem ferramentas). Responde ao lead e notifica o dono com resumo curto por padrão.
+- **Controle de notificação:** o dono pode ativar modo detalhado (preferência contendo "detalh", "cada resposta" ou "individual" + "prospec") ou suprimir as notificações (preferência "não notifique" ou "sem notifica" + "prospec") pelo fluxo normal de preferências do owner.
+- **`skills/prospeccao-whatsapp/SKILL.md`:** adicionadas regras 7–9 sobre como conduzir conversas de triagem com leads que respondem.
+- **Sem skill ativa:** fallback para o comportamento anterior (repasse direto ao dono) sem quebrar nada.
+- **Verificação:** `pnpm typecheck` limpo, `pnpm test` 76 passando.
+
 ## 2026-10-18 — skills de atendimento e prospecção com aprovação pelo WhatsApp
 
 - **Aprovação de skill pelo WhatsApp:** `handleSkillActivationCommand` intercepta `ATIVAR SKILL <uuid>` em `ownerRouter.ts` e `maiaOwnerAgent.ts` antes do agente, chama `activateSkill` e confirma ao owner. A ativação via painel (Núcleo e automações) continua funcionando.

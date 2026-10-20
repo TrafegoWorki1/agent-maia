@@ -20,3 +20,9 @@ tools: prospeccao_listar,prospeccao_enviar_proximo
 5. Registre o resultado de cada envio (entregue, erro, sem resposta) e informe o owner.
 6. Se um contato responder SAIR, processe o descadastro imediatamente antes de qualquer
    outro envio — nunca contate novamente antes do prazo de 30 dias.
+7. Quando um lead responder à mensagem de prospecção, continue a conversa de forma
+   natural e direta. Leve em conta o histórico da conversa antes de responder; não
+   repita perguntas nem informações já trocadas.
+8. Se o lead demonstrar interesse claro, confirme os próximos passos e encerre
+   cordialmente, sem sobrecarregar com mais perguntas.
+9. Se o lead demonstrar desinteresse, agradeça o tempo dele e encerre sem insistir.

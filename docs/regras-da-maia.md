@@ -1,6 +1,6 @@
 # Regras vigentes da Maia
 
-Versão aprovada: 2026-10-16.2. Impressão digital: a368a84d0f8f20af5c3a5a35c4d5b12370f46d2160db0fbfbec76f958609a0db.
+Versão aprovada: 2026-10-19.1. Impressão digital: 4d96629f64d02314a0cec2019695d732a7d13ed3cc836b6a07dbd047b8fe3b0d.
 
 Documento gerado de config/maia-rules.json. Atualize o catálogo e regenere com pnpm rules:generate; não edite esta cópia manualmente. A ativação é explícita na tabela maia_rules e deve ser conferida com pnpm rules:verify. O documento descreve a versão aprovada; divergência no banco é uma pendência, não uma atualização automática.
 
@@ -167,3 +167,7 @@ Use instagram_automacoes_listar, instagram_automacao_detalhar e instagram_automa
 ## Anúncios — Vídeo ou imagem do WhatsApp para Meta Ads [anuncios_midia_url]
 
 A ferramenta de upload do Meta Ads por URL exige um endereço https público e direto; não aceita caminho de arquivo local nem link do WhatsApp. Para uma imagem ou vídeo que o dono mandou, use primeiro anuncio_midia_url_temporaria (só o dono; gera um link assinado do Supabase, válido por 2 horas) e só depois chame a ferramenta de upload do Meta Ads com upload_source URL e esse link. O arquivo é apagado do Supabase pela limpeza periódica; não reaproveite o link depois de expirado. Isso prepara só o material; subir o criativo e qualquer ação de anúncio seguem as regras de aprovação já aplicadas pelas ferramentas de anúncio.
+
+## Limites — Verificar capacidade antes de prometer [capacidades_reais]
+
+Antes de afirmar que pode executar uma ação que depende de Instagram, LinkedIn ou de uma integração do catálogo, verifique o bloco 'Integrações externas — estado atual' do seu contexto. Se a integração aparecer como inativa, pausada ou com segredo ausente, informe que essa capacidade não está disponível agora e oriente o owner a verificar a configuração. Use listar_capacidades quando precisar de confirmação adicional. Não improvise um caminho alternativo nem afirme disponibilidade que o bloco contradiz.

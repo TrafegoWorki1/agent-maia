@@ -13,7 +13,7 @@ import { startKnowledgeSync } from "./knowledgeSync.ts";
 import { recoverRunningActions, runDueActions } from "./groupTools.ts";
 import { notifyGroupJoin } from "./groupJoin.ts";
 import type { GroupJoin } from "./evolutionWebhook.ts";
-import { handleGroupMessage, handleMemberMessage, handleOwnerMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
+import { handleGroupMessage, handleMemberMessage, handleOwnerMessage, handleProspectMessage, handleServiceMessage, type GroupRequest } from "./maiaOwnerAgent.ts";
 import { recordConvMessage } from "./conversations.ts";
 import { hasRecentOutreach, upsertContact } from "./contacts.ts";
 import { fetchLiveGroups, registerGroup, resetGroupCache } from "./groups.ts";
@@ -205,7 +205,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     return;
   }
 
-  // Resposta de um contato que a Maia procurou: guarda na conversa dele e repassa ao dono.
+  // Resposta de um contato que a Maia procurou: guarda na conversa, tria pelo agente se for lead de prospecção.
   if (item.sender === "other" && item.kind === "text" && item.payload) {
     const reply = JSON.parse(item.payload) as { from: string; name: string; text: string };
     const digits = reply.from.replace(/\D/g, "");
@@ -213,7 +213,14 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "other", outcome: "contact_reply" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: reply.name, text: reply.text, keyId: item.key_id, at: now }).catch(() => {});
     await upsertContact(db, { number: digits, name: reply.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
-    await notifyOwner(`${reply.name || `+${digits}`} respondeu: ${reply.text.slice(0, 500)}`).catch((error) => console.error("[worker] repasse:", error instanceof Error ? error.message : error));
+    // Lead de prospecção: roteia para triagem autônoma (handleProspectMessage verifica skill ativa).
+    const { data: prospectRow } = await db.from("maia_prospects").select("id").eq("number", digits).eq("status", "sent").limit(1).maybeSingle();
+    if (prospectRow) {
+      void handleProspectMessage({ from: digits, name: reply.name, text: reply.text, keyId: item.key_id ?? undefined }).catch((error) => console.error("[worker] triagem de prospect:", error instanceof Error ? error.message : error));
+      return;
+    }
+    // Contato não cadastrado como lead: atendimento autônomo (handleServiceMessage verifica skill + preferências).
+    void handleServiceMessage({ from: digits, name: reply.name, text: reply.text, keyId: item.key_id ?? undefined }).catch((error) => console.error("[worker] atendimento autônomo:", error instanceof Error ? error.message : error));
     return;
   }
 

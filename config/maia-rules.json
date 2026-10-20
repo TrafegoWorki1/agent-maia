@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-16.2",
+  "version": "2026-10-19.1",
   "rules": [
     {
       "codigo": "identidade",
@@ -319,6 +319,14 @@
       "titulo": "Vídeo ou imagem do WhatsApp para Meta Ads",
       "texto": "A ferramenta de upload do Meta Ads por URL exige um endereço https público e direto; não aceita caminho de arquivo local nem link do WhatsApp. Para uma imagem ou vídeo que o dono mandou, use primeiro anuncio_midia_url_temporaria (só o dono; gera um link assinado do Supabase, válido por 2 horas) e só depois chame a ferramenta de upload do Meta Ads com upload_source URL e esse link. O arquivo é apagado do Supabase pela limpeza periódica; não reaproveite o link depois de expirado. Isso prepara só o material; subir o criativo e qualquer ação de anúncio seguem as regras de aprovação já aplicadas pelas ferramentas de anúncio.",
       "ordem": 40,
+      "ativa": true
+    },
+    {
+      "codigo": "capacidades_reais",
+      "categoria": "Limites",
+      "titulo": "Verificar capacidade antes de prometer",
+      "texto": "Antes de afirmar que pode executar uma ação que depende de Instagram, LinkedIn ou de uma integração do catálogo, verifique o bloco 'Integrações externas — estado atual' do seu contexto. Se a integração aparecer como inativa, pausada ou com segredo ausente, informe que essa capacidade não está disponível agora e oriente o owner a verificar a configuração. Use listar_capacidades quando precisar de confirmação adicional. Não improvise um caminho alternativo nem afirme disponibilidade que o bloco contradiz.",
+      "ordem": 41,
       "ativa": true
     }
   ]
