@@ -4,7 +4,8 @@
 - [x] Nove áreas, aliases de 32 telas antigas e duas telas novas.
 - [x] Panorama, gráficos, filtros e detalhamento; regras e permissões preservadas.
 - [x] Fontes configuráveis, coleta de leitura, histórico, RLS e testes locais.
-- [ ] Aplicar migrações e conferir drift remoto antes do deploy.
+- [x] Coletor independente iniciado oculto e tarefa Maia-Painel-Coletor no login Windows.
+- [x] Aplicar as duas migrações; drift 2.064/2.064 sem divergência e regras preservadas.
 - [ ] Publicar e validar as APIs autenticadas de produção.
 - [ ] Conectar planilhas reais e conferir resultados com o proprietário.
 - [ ] Inspecionar layout no navegador desktop/celular quando o navegador estiver disponível.

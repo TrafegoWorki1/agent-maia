@@ -1,3 +1,5 @@
+import {useSnapshot} from "../../lib/useSnapshot";
+import {formatMoney,formatWhen} from "../../lib/snapshotApi";
 import {useEffect,useState} from "react";
 import {PageHeader,Panel} from "../../components/ui";
 import {IndicatorCard} from "../../components/WorkIndicators";
@@ -29,5 +31,15 @@ export function SourceResults({kind,codes}:{kind:"sales"|"finance"|"campaign";co
  })}</>;
 }
 export function SourceResultsPage({kind}:{kind:"sales"|"campaign"}){
- return <><PageHeader eyebrow={kind==="sales"?"Comercial":"Marketing"} title={kind==="sales"?"Resultados de vendas":"Resultados de campanhas"} subtitle="Indicadores por fonte, período e escopo. Vendas internas e receita atribuída de clientes mantêm fontes separadas."/><SourceResults kind={kind}/></>;
+ return <><PageHeader eyebrow={kind==="sales"?"Comercial":"Marketing"} title={kind==="sales"?"Resultados de vendas":"Resultados de campanhas"} subtitle="Indicadores por fonte, período e escopo. Vendas internas e receita atribuída de clientes mantêm fontes separadas."/><SourceResults kind={kind}/>{kind==="campaign"&&<ExistingMetaSnapshot/>}</>;
+}
+
+function ExistingMetaSnapshot(){
+ const {snapshot,error}=useSnapshot(),source=snapshot?.sources.meta;
+ return <details><summary>Consulta geral de Meta Ads já existente</summary><Panel title="Snapshot geral das contas" caption="A lista geral da conta permanece separada das fontes de clientes e campanhas. O horário abaixo representa a tentativa, não a data de um dado antigo preservado.">
+ {error&&<p role="alert">{error}</p>}{source?.error&&<p role="status">{source.error}</p>}
+ <p>Última tentativa: {formatWhen(source?.fetched_at)}. Último sucesso conhecido: {formatWhen(snapshot?.sourceHealth?.meta?.last_success_at)}.</p>
+ <div className="table-wrap"><table><thead><tr><th>Conta</th><th>Gasto de sete dias informado na coleta</th><th>Moeda</th></tr></thead><tbody>{source?.data?.accounts.map((a,i)=><tr key={a.name+String(i)}><td>{a.name}</td><td>{formatMoney(a.spend_7d,a.currency)}</td><td>{a.currency}</td></tr>)}</tbody></table></div>
+ {!source?.data?.accounts.length&&<p>Sem contas disponíveis neste snapshot. Fontes novas ficam em Administração → Fontes gerenciais.</p>}
+ </Panel></details>;
 }

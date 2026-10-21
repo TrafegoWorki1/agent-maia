@@ -1,3 +1,7 @@
+## Painel gerencial - 20/10/2026
+
+Migrações 20261020231500 e 20261020231552 aplicadas por supabase db push --linked --yes após autorização de implementação do plano e dry-run que listou somente essas duas versões. A primeira reconcilia estrutura criativa já existente; a segunda adiciona três tabelas gerenciais e duas RPCs internas, com RLS e acesso exclusivo do servidor. Nenhuma migração anterior foi editada. Drift posterior: 2.064 objetos em cada lado, sem divergência. As 46 regras 2026-10-20.6 permanecem com checksum idêntico. Reversão de código mantém tabelas e histórico.
+
 # Migrações do banco (Supabase)
 
 ## GitHub e sites — aplicação confirmada em 20/10/2026

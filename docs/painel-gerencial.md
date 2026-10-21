@@ -41,11 +41,11 @@ As fontes adicionadas são exclusivas do proprietário. O financeiro existente d
 
 ## Coleta e saúde
 
-`pnpm panel:collect` inicia um processo próprio, a cada 30 minutos, sem depender de pnpm dev e sem chamar a IA. O processo não altera nem reinicia o worker do WhatsApp. No desenvolvimento, o painel também agenda a mesma coleta de leitura. As fontes configuradas têm lease no banco; a coleta de metadados de saúde é idempotente por fonte.
+`pnpm panel:collect` inicia um processo próprio, a cada 30 minutos, sem depender de pnpm dev e sem chamar a IA. O processo não altera nem reinicia o worker do WhatsApp. O launcher scripts/start-panel-collector.ps1 abre o coletor oculto e evita iniciar outra instância já ativa. A tarefa Windows Maia-Painel-Coletor inicia no login do usuário; depende deste computador ligado e conectado. Logs locais em logs/panel-collector.*.log. Para pausar somente a coleta, desabilite essa tarefa e encerre apenas o PID correspondente, sem tocar no inboxWorker. O diretório isolado maia-gerencial deve ser mantido enquanto for o destino da tarefa. No desenvolvimento, o painel também agenda a mesma coleta de leitura. As fontes configuradas têm lease no banco; a coleta de metadados de saúde é idempotente por fonte.
 
 O botão Conexões → Atualizar fontes coleta metadados Google e diagnóstico Meta e aguarda o resultado, autenticado e exclusivo do proprietário. Fontes gerenciais individuais têm botão Coletar. Atualizar leitura apenas lê o banco.
 
-Google Drive fornece nomes/datas das cinco planilhas recentes; Calendar fornece nomes dos calendários; Gmail consulta até 100 IDs por busca, sem ler corpo ou assunto. O OAuth configurado pode não possuir os escopos Gmail/Calendar: nesse caso a falha fica visível. O painel não usa os conectores da conta Claude para improvisar uma coleta. Meta direto não está conectado: campanhas podem usar uma fonte Sheets explícita. Não se promove a integração a saudável por estar cadastrada.
+Google Drive fornece nomes/datas das cinco planilhas recentes; Calendar fornece nomes dos calendários; Gmail consulta até 100 IDs por busca, sem ler corpo ou assunto. O OAuth configurado pode não possuir os escopos Gmail/Calendar: nesse caso a falha fica visível. O painel não usa os conectores da conta Claude para improvisar uma coleta. Meta direto não está conectado: campanhas podem usar uma fonte Sheets explícita. A consulta geral Meta anterior continua disponível na mesma tela, em um bloco próprio, preservando os dados antigos com o diagnóstico de desatualização. Não se promove a integração a saudável por estar cadastrada.
 
 Última tentativa e último sucesso ficam separados. Após 60 minutos, a fonte requer atenção. Os snapshots antigos não têm data de sucesso recuperável após erro. O histórico da primeira coleta nova passa a informar essa data sem inventar dados anteriores.
 
@@ -66,7 +66,7 @@ TypeScript, build, 740 testes da aplicação e 81 testes de Postgres temporário
 
 O navegador integrado está indisponível nesta sessão (nenhuma instância vinculada). Testes de componentes em DOM simulado não substituem a inspeção visual desktop/celular. Fontes de negócio reais ainda aguardam indicação/configuração; nenhum envio, publicação ou gasto de IA foi usado para testar.
 
-Estado de aplicação do banco e publicação: registrado no CHANGELOG e no resumo de mudanças após a execução.
+Banco aplicado antes do código dependente: 66 migrações e comparação de 2.064 objetos locais/remotos sem divergência. Regras 2026-10-20.6, 46 entradas e checksum 1bcf561b784a0f53211f7af748c9a0a83787e66f8361de94cfebe8e6f36fa0ba preservados. Seis APIs existentes e a API panel-sources responderam 200 autenticadas e 401 anônimas usando o banco real. Publicação final será registrada no CHANGELOG.
 
 ## Matriz de telas, APIs, fonte e acesso
 
