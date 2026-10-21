@@ -56,7 +56,7 @@ describe("áreas são visões da Central",()=>{
   await act(async()=>[...node.querySelectorAll("button")].find(button=>button.textContent==="Editar registro")!.click());
   const reason=[...node.querySelectorAll("label")].find(label=>label.textContent?.includes("Motivo da alteração"))!.querySelector("textarea")!;
   await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(reason,"Atualização confirmada pelo cliente");reason.dispatchEvent(new Event("input",{bubbles:true}));});
-  await act(async()=>{node.querySelector("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));});
+  await act(async()=>{reason.closest("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));});
   expect(mutateCollaboration).toHaveBeenCalledWith(expect.objectContaining({action:"department_save",kind:"cs",id:"record",revision:7,reason:"Atualização confirmada pelo cliente"}));
   expect(fetchCollaboration).toHaveBeenCalledTimes(2);
  });

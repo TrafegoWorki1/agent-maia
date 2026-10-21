@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect,useState, type FormEvent } from "react";
 import { Panel } from "../../components/ui";
-import { mutateCollaboration, type CollaborationData, type CollaborationTask } from "../../lib/collaborationApi";
+import { fetchTaskHistory,mutateCollaboration, type CollaborationData, type CollaborationTask } from "../../lib/collaborationApi";
 
 export function stateHours(history:Array<Record<string,unknown>>,now:Date){
  const ordered=[...history].sort((a,b)=>String(a.at).localeCompare(String(b.at)));
@@ -15,7 +15,14 @@ export function TaskDetailPanel({task,data,reload,onClose}:{task:CollaborationTa
  const [reason,setReason]=useState(""),[comment,setComment]=useState(""),[label,setLabel]=useState(""),[uri,setUri]=useState(""),[dependency,setDependency]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const closed=["completed","cancelled"].includes(task.workflow_status);
- const history=data.history.filter(row=>Number(row.work_task_id)===task.id),artifacts=data.artifacts.filter(row=>Number(row.work_task_id)===task.id);
+ const [loadedHistory,setLoadedHistory]=useState<Array<Record<string,unknown>>>([]),[historyPage,setHistoryPage]=useState(0),[historyRetry,setHistoryRetry]=useState(0),[hasMore,setHasMore]=useState(false),[historyLoading,setHistoryLoading]=useState(false),[historyError,setHistoryError]=useState("");
+ useEffect(()=>{
+  if(!data.readWindow?.historyOnDemand)return;
+  const controller=new AbortController();setHistoryLoading(true);setHistoryError("");
+  void fetchTaskHistory(task.id,historyPage,controller.signal).then(v=>{if(!controller.signal.aborted){setLoadedHistory(prior=>historyPage===0?v.history:[...prior,...v.history.filter(row=>!prior.some(p=>p.id===row.id))]);setHasMore(v.hasMore);}}).catch(e=>{if(!controller.signal.aborted){setHistoryError(e instanceof Error?e.message:"Falha no histórico");}}).finally(()=>{if(!controller.signal.aborted)setHistoryLoading(false);});
+  return()=>controller.abort();
+ },[task.id,task.revision,historyPage,historyRetry,data.readWindow?.historyOnDemand]);
+ const history=data.readWindow?.historyOnDemand?loadedHistory:data.history.filter(row=>Number(row.work_task_id)===task.id),artifacts=data.artifacts.filter(row=>Number(row.work_task_id)===task.id);
  const durations=stateHours(history,new Date(data.generatedAt));
  async function act(operation:string,payload:Record<string,unknown>){setBusy(true);setError("");try{await mutateCollaboration({action:"task_action",taskId:task.id,revision,operation,payload});await reload();onClose();}catch(error){setError(error instanceof Error?error.message:"Não foi possível salvar.");}finally{setBusy(false);}}
  async function save(event:FormEvent){event.preventDefault();await act("edit",{title,objective,briefing,acceptance_criteria:criteria,estimated_effort_hours:effort===""?null:Number(effort),reason,...(task.allowedActions.prioritize?{project_ref_id:projectId||null,deliverable_id:deliverableId||null,reviewer_person_id:reviewer||null,approver_person_id:approver||null}:{})});}
@@ -23,8 +30,8 @@ export function TaskDetailPanel({task,data,reload,onClose}:{task:CollaborationTa
   {error&&<p role="alert">{error}</p>}
   <p>{task.objective||"Objetivo não informado."}</p><p>{task.briefing||"Briefing não informado."}</p><p>Critérios de aceite: {task.acceptance_criteria||"não informados"}</p><p>Evidência: {task.completion_evidence||"ainda não registrada"}</p>
   <p>Cliente: {data.clients.find(client=>client.id===task.client_ref_id)?.name??"Não vinculado"} · Projeto: {String(data.projects.find(project=>project.id===task.project_ref_id)?.name??"Não vinculado")} · Origem: {task.origin_kind}{task.source_task_id?" · execução Maia #"+task.source_task_id:""}</p>
-  <details><summary>Tempo nos estados</summary><p>Intervalos de calendário entre registros; não medem horas efetivamente trabalhadas.</p><ul>{Object.entries(durations).map(([state,hours])=><li key={state}>{({in_progress:"Em execução",review:"Aguardando revisão",awaiting_approval:"Aguardando aprovação",team:"Aguardando equipe",owner:"Aguardando proprietário",client:"Aguardando cliente",external:"Aguardando externo"} as Record<string,string>)[state]}: {hours.toFixed(1)} h</li>)}</ul></details>
-  <details><summary>Histórico, autoria e valores anteriores</summary><ol>{history.map(event=><li key={String(event.id)}>{new Date(String(event.at)).toLocaleString("pt-BR")} · {String(event.event_type)} · {data.people.find(person=>person.id===event.actor_person_id)?.name??"Pessoa cadastrada"} · {String(event.reason??"")}<details><summary>Alteração registrada</summary><pre>{JSON.stringify({antes:event.from_value,depois:event.to_value},null,2)}</pre></details></li>)}</ol></details>
+  <details><summary>Tempo nos estados</summary><p>Intervalos de calendário entre registros; não medem horas efetivamente trabalhadas.</p>{historyLoading||historyError||hasMore?<p>Carregue o histórico completo desta tarefa para calcular os intervalos.</p>:<ul>{Object.entries(durations).map(([state,hours])=><li key={state}>{({in_progress:"Em execução",review:"Aguardando revisão",awaiting_approval:"Aguardando aprovação",team:"Aguardando equipe",owner:"Aguardando proprietário",client:"Aguardando cliente",external:"Aguardando externo"} as Record<string,string>)[state]}: {hours.toFixed(1)} h</li>)}</ul>}</details>
+  <details><summary>Histórico, autoria e valores anteriores</summary>{historyLoading&&<p role="status">Carregando histórico…</p>}{historyError&&<p role="alert">{historyError} <button onClick={()=>setHistoryRetry(v=>v+1)}>Tentar novamente</button></p>}<ol>{history.map(event=><li key={String(event.id)}>{new Date(String(event.at)).toLocaleString("pt-BR")} · {String(event.event_type)} · {data.people.find(person=>person.id===event.actor_person_id)?.name??"Pessoa cadastrada"} · {String(event.reason??"")}<details><summary>Alteração registrada</summary><pre>{JSON.stringify({antes:event.from_value,depois:event.to_value},null,2)}</pre></details></li>)}</ol>{hasMore&&!historyError&&<button disabled={historyLoading} onClick={()=>setHistoryPage(p=>p+1)}>Carregar mais 100 eventos</button>}</details>
   <ul>{artifacts.map(artifact=><li key={String(artifact.id)}><a href={String(artifact.uri)} target="_blank" rel="noreferrer">{String(artifact.label)}</a> · {String(artifact.evidence_kind)}</li>)}</ul>
   <ul>{data.dependencies.filter(item=>Number(item.task_id)===task.id).map(item=><li key={Number(item.depends_on_task_id)}>Depende de #{Number(item.depends_on_task_id)} · {data.tasks.find(row=>row.id===Number(item.depends_on_task_id))?.title}{!closed&&task.allowedActions.prioritize&&<button disabled={busy||reason.trim().length<3} onClick={()=>void act("dependency",{depends_on:Number(item.depends_on_task_id),remove:true,reason})}>Remover dependência</button>}</li>)}</ul>
   {task.allowedActions.update&&!closed&&<details><summary>Editar briefing, esforço e vínculos</summary><form className="work-form" onSubmit={event=>void save(event)}>

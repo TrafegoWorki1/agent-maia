@@ -1,3 +1,13 @@
+## 20/10/2026 — complementação do painel gerencial
+
+- Gráficos de rosca, colunas agrupadas, linhas e barras empilhadas, com cores estáveis, teclado e tabelas. Cronograma mostra prazo e conclusão dos entregáveis.
+- Análises de entregas semanais, idade dos itens, devoluções, pontualidade dos entregáveis, encerramentos comerciais e retornos de CS; filtros compartilhados e mesmas populações do detalhamento.
+- Comparações explícitas de fontes: previsto/recebido, fluxo/margem de caixa, custo por resultado, ROAS e taxa de ganho; validações de cobertura, escopo, moeda, atualização e denominador, preservando estornos e recusando sobreposição de custos/despesas.
+- Novas APIs de leitura do painel: histórico global deixa de acompanhar cada atualização; detalhe de tarefa paginado sob demanda e contexto da primeira revisão preservado. API original, ferramentas, permissões e comportamento da IA inalterados.
+- Séries operacionais de falhas e custos, custo por execução com valor informado, estados dos recibos e saúde da coleta; sem conteúdo de mensagens. Botão de atualizar fontes sinaliza a execução enquanto aguarda.
+- Verificação: 768 testes da aplicação, 81 de banco, tipos/build, checks de banco/regras e drift 2.064/2.064. Novas APIs 200 autenticadas/401 anônimas com banco real; mesmos 21 IDs e ações da API original. Sem nova migração ou reinício de worker. Backup anterior preservado.
+- Dependências: fontes reais ainda não indicadas/configuradas, OAuth Gmail/Agenda sem escopo e navegador indisponível para homologação visual. Contratos e critérios de aceite em docs/painel-gerencial.md e docs/plano-painel-gerencial-maia.md.
+
 # Contatos compartilhados pelo WhatsApp
 
 A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.

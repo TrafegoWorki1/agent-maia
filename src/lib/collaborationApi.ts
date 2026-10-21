@@ -13,6 +13,7 @@ export interface CollaborationTask {
   allowedActions:{update:boolean;review:boolean;approve:boolean;reassign:boolean;prioritize:boolean};
 }
 export interface CollaborationData {
+  readWindow?:{start:string;end:string;historyOnDemand:boolean};
   departmentRecords?:DepartmentRecord[];departmentHistory?:Array<Record<string,unknown>>;departmentMetrics?:DepartmentMetric[];
   planningTeamIds:string[];portfolioClientIds:string[];
   baselines:Array<{plan_id:string;created_at?:string;task_snapshots:Array<{id:number;priority:number;committed_due_at:string|null}>}>;
@@ -50,5 +51,7 @@ async function request(method:"GET"|"POST",body?:unknown,signal?:AbortSignal,pat
   return value;
 }
 export async function fetchPanelIdentity(signal?:AbortSignal):Promise<CollaborationData["identity"]>{return request("GET",undefined,signal,"/api/collaboration?identity=1");}
-export async function fetchCollaboration(signal?:AbortSignal):Promise<CollaborationData>{return request("GET",undefined,signal);}
+export async function fetchCollaboration(signal?:AbortSignal,period?:{start:string;end:string}):Promise<CollaborationData>{return request("GET",undefined,signal,"/api/panel-collaboration"+(period?"?"+new URLSearchParams(period).toString():""));}
+export async function fetchTaskHistory(taskId:number,page:number,signal?:AbortSignal):Promise<{history:Array<Record<string,unknown>>;hasMore:boolean}>{return request("GET",undefined,signal,`/api/panel-collaboration?task=${taskId}&page=${page}`);}
+export async function panelReadRequest(path:string,signal?:AbortSignal){return request("GET",undefined,signal,path);}
 export async function mutateCollaboration(command:unknown):Promise<unknown>{return (await request("POST",command)).result;}
