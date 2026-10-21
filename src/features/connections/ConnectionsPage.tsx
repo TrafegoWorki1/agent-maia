@@ -53,11 +53,11 @@ export function ConnectionsPage() {
           <div className="table-wrap"><table>
             <thead><tr><th>Conexão</th><th>Status</th><th>Objetivo atual</th></tr></thead>
             <tbody><tr>
-              <td>Instagram da Worki</td>
+              <td>Instagram de Herickson Maia</td>
               <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar posts, Stories, métricas, músicas e conversas; publicar fotos, carrosséis, Reels e Stories; editar/cancelar posts ainda não publicados; responder Direct com aprovação dentro de 24h; gerenciar automações de comentário para DM com aprovação. A busca de áudio depende de reconexão Facebook Login.</td>
             </tr><tr>
-              <td>LinkedIn da Worki</td>
+              <td>LinkedIn de Herickson Maia</td>
               <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar conta, organizações e métricas; publicar ou agendar posts com aprovação. DMs/InMail não estão disponíveis.</td>
             </tr></tbody>

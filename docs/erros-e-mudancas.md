@@ -1,3 +1,7 @@
+## 20/10/2026 - redes sociais de Herickson Maia
+
+Causa: rótulos e descrições legadas atribuíam as redes sociais à Worki. Correção informada pelo owner: Instagram e LinkedIn são de Herickson Maia. Tela, descrições, catálogo e documentação corrigidos; migração altera somente os títulos com proteção contra edição concorrente. Os textos das 46 regras, permissões, aprovações e seleção de contas por ID permanecem iguais. Typecheck, build, 742 testes da aplicação e 81 de banco aprovados. Migração 20261021011039 aplicada, catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 e base normativa sincronizada sem erro. Publicação do painel pelo fluxo GitHub/Vercel; descrições do worker são recarregadas no próximo início. A consulta Zernio com a credencial local retornou HTTP 401; conexão não confirmada nessa leitura.
+
 ## 20/10/2026 - painel gerencial
 
 A navegação passa a nove áreas com Gestão e Meu trabalho separados. Panorama e gráficos abrem os registros reais do cálculo; a camada de fontes exige configuração explícita e preserva histórico, revisões e o último lote válido. A coleta usa APIs de leitura e processo próprio, sem chamar a IA. A contagem acumulada dos grupos deixa de ser apresentada como sete dias; cadastro/atividade sobrevivem à falha da lista externa.

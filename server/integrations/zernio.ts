@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Cliente da Zernio (API de redes sociais) para o Instagram da Worki.
+// Cliente da Zernio (API de redes sociais) para o Instagram e LinkedIn de Herickson Maia.
 // Leitura: contas, desempenho dos posts e artes recentes. Escrita: publicar ou agendar UM post com imagem,
 // sempre depois da aprovação (o fluxo de aprovação fica no agente, não aqui).
 // Fora de escopo, de propósito: mensagens diretas, comentários, seguir ou prospectar. Isso exige decisão do owner.

@@ -1,3 +1,7 @@
+## Identificação das redes sociais - 20/10/2026
+
+A migração 20261021011039 corrige somente os títulos das regras Instagram e LinkedIn para Herickson Maia, conforme informação do owner. Foi aplicada após dry-run exclusivo desta versão e testes locais; compara os registros anteriores completos, preserva alterações concorrentes e não muda os 46 textos/estados ou IDs de contas. Catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 sem divergência e documento normativo reindexado sem erros.
+
 ## Painel gerencial - 20/10/2026
 
 Migrações 20261020231500 e 20261020231552 aplicadas por supabase db push --linked --yes após autorização de implementação do plano e dry-run que listou somente essas duas versões. A primeira reconcilia estrutura criativa já existente; a segunda adiciona três tabelas gerenciais e duas RPCs internas, com RLS e acesso exclusivo do servidor. Nenhuma migração anterior foi editada. Drift posterior: 2.064 objetos em cada lado, sem divergência. As 46 regras 2026-10-20.6 permanecem com checksum idêntico. Reversão de código mantém tabelas e histórico.

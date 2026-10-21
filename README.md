@@ -1,5 +1,9 @@
 # Agent · Maia
 
+## Contas sociais
+
+Instagram e LinkedIn identificados no painel e nas ferramentas pertencem a **Herickson Maia**, conforme correção do proprietário em 20/10/2026. A integração usa Zernio; a seleção de conta por ID e as aprovações permanecem as existentes.
+
 ## GitHub e sites — estado confirmado em 20/10/2026
 
 Repositórios novos são privados por padrão; criar público exige OK do owner. As ferramentas de site aceitam repositório público ou privado informado no pedido. O commit no GitHub exige OK; a publicação na Vercel envia o HTML pela API e não configura deploy automático por git push. Membros dependem de `site.publicar` e continuam sem as ferramentas genéricas `github_*`.
