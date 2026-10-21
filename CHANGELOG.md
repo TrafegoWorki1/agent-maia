@@ -4,6 +4,16 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — implantação do PR #36 e acerto de ambientes (Zernio, workers duplicados)
+
+- **Causa raiz dos erros de conexão (achada nesta sessão):** o worker do WhatsApp roda em `agent-maia` e o coletor do painel gerencial roda num **worktree separado**, `maia-gerencial` (tarefa agendada do Windows `Maia-Painel-Coletor`, script `scripts/start-panel-collector.ps1`). Cada pasta tem seu próprio `.env`; a chave `ZERNIO_API_KEY` só tinha sido corrigida em `agent-maia`, nunca em `maia-gerencial` — por isso o coletor do painel continuava vendo `HTTP 401` mesmo depois da Maia do WhatsApp já responder certo.
+- **Correção:** copiado o valor atual de `ZERNIO_API_KEY` de `agent-maia/.env` para `maia-gerencial/.env` (valor nunca exibido no chat); testado ao vivo, `HTTP 200` nas duas pastas.
+- **PR #36 mergeada na `main`** (commit `5d2adbf`): `maia-gerencial` atualizado por fast-forward; `agent-maia` também, trazendo os dois pra cima do mesmo commit.
+- **Reinício dos processos:** coletor do painel reiniciado via `Start-ScheduledTask Maia-Painel-Coletor` (novo PID, código atualizado). Worker do WhatsApp reiniciado via `pnpm start`.
+- **Achado no reinício:** durante o restart do worker, uma segunda instância subiu em paralelo pelo **`Iniciar Maia.bat`** (clicado por fora, quase no mesmo segundo) — mesma classe de bug do incidente anterior (dois `inboxWorker.ts` rodando ao mesmo tempo, cada um com seu próprio estado de `.env`/processo). Identificado pela árvore de processos (`ParentProcessId`) e encerrado, mantendo só a instância iniciada por este terminal.
+- **Estado final confirmado:** uma única instância de cada processo (`inboxWorker.ts` PID 23636, `panel-collector.ts` PID 23364), ambos carregando o código do PR #36.
+- **Pendência:** confirmar no próximo ciclo (até 30 min) que `calendar`/`gmail`/`meta` gravam `status: "ok"` em `snapshots`.
+
 ## 21/10/2026 — Calendar/Gmail/Meta Ads do painel passam a usar os conectores da conta (Claude)
 
 - **Decisão do owner (21/10/2026):** em vez de corrigir o escopo do `GOOGLE_OAUTH_REFRESH_TOKEN` (só tinha `drive`) e implementar um coletor direto de Meta Ads, essas três fontes do painel passam a consultar pelos conectores `mcp__claude_ai_*` da conta — os mesmos já usados pela própria Maia. Sheets continua lendo o Drive direto (mais barato, sem depender do CLI).
