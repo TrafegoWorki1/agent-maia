@@ -4,6 +4,13 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — orçamento e ferramenta do Meta Ads (visto em produção após o PR #36)
+
+- **Causa:** `sheets`/`gmail` já gravaram "ok" no primeiro ciclo real. `calendar` estourou o teto de custo (`error_max_budget_usd`) porque o CLI carrega o contexto de todos os servidores MCP configurados na máquina, não só os da fonte. `meta` tentou `ads_get_ad_entities`, fora da lista liberada, e devolveu erro em vez de inventar dado.
+- **Correção:** teto subiu para US$1,50/12 turnos (`panelCollection.ts`, `refreshJob.ts`); `SOURCES.meta` libera `ads_get_ad_entities`.
+- **Evidência:** `tests/panelCollection.test.ts` cobrindo a nova ferramenta; typecheck, 772/772 testes e build aprovados.
+- **Pendência:** confirmar "ok" em calendar/meta no próximo ciclo.
+
 ## 2026-10-21 — implantação: dois ambientes com .env separados + Iniciar Maia.bat duplicado
 
 - **Causa:** worker do WhatsApp (`agent-maia`) e coletor do painel (`maia-gerencial`, worktree separado, tarefa agendada `Maia-Painel-Coletor`) têm `.env` independentes. A correção da chave Zernio só tinha ido para `agent-maia`; `maia-gerencial` continuava com a chave velha (HTTP 401).

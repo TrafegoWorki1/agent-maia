@@ -8,8 +8,8 @@ import { finishRun, readSnapshots, saveSnapshot, startRun, type Db, type SourceI
 
 // Teto por fonte. Cada consulta carrega o contexto de todos os conectores MCP, por isso o
 // modelo é o Haiku e cada fonte só recebe as ferramentas de leitura que precisa.
-const MAX_BUDGET_USD = 0.5;
-const MAX_TURNS = 8;
+const MAX_BUDGET_USD = 1.5;
+const MAX_TURNS = 12;
 const INTERVAL_MS = 30 * 60 * 1000;
 const MODEL = "haiku";
 
@@ -31,7 +31,7 @@ export const SOURCES: Record<SourceId, { prompt: string; tools: string[]; valida
   },
   meta: {
     prompt: `Consulte o Meta Ads desta conta: liste as contas de anúncio e o gasto total dos últimos 7 dias em cada uma. Formato: {"accounts": [{"name": string, "spend_7d": number, "currency": string}]}. ${JSON_RULE}`,
-    tools: ["mcp__claude_ai_Meta_ADS__ads_get_ad_accounts", "mcp__claude_ai_Meta_ADS__ads_insights_performance_trend"],
+    tools: ["mcp__claude_ai_Meta_ADS__ads_get_ad_accounts", "mcp__claude_ai_Meta_ADS__ads_insights_performance_trend", "mcp__claude_ai_Meta_ADS__ads_get_ad_entities"],
     validate: (v) => {
       if (!Array.isArray(v.accounts)) throw new Error("formato inesperado");
       return {
