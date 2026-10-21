@@ -4,7 +4,7 @@ A navegação passa a nove áreas com Gestão e Meu trabalho separados. Panorama
 
 Backup anterior preservado em branch/tag no GitHub e ZIP/patch local. Regras, prompts, modelos, políticas, ferramentas, estados e efeitos operacionais preservados. Novas fontes restritas ao proprietário; escopos existentes inalterados. Migrações aditivas, sem apagar dados.
 
-Verificação local: 740 testes da aplicação, 81 de banco, typecheck, build e validação de 66 migrações aprovados. Fontes reais e inspeção visual dependem de configuração/navegador; implantação em andamento. Detalhes em [painel gerencial](painel-gerencial.md) e [backup](backup-painel-anterior.md).
+Verificação local: 740 testes da aplicação, 81 de banco, typecheck, build e validação de 66 migrações aprovados. Fontes reais e inspeção visual dependem de configuração/navegador; Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa. Detalhes em [painel gerencial](painel-gerencial.md) e [backup](backup-painel-anterior.md).
 
 # Contatos compartilhados
 

@@ -66,7 +66,7 @@ TypeScript, build, 740 testes da aplicação e 81 testes de Postgres temporário
 
 O navegador integrado está indisponível nesta sessão (nenhuma instância vinculada). Testes de componentes em DOM simulado não substituem a inspeção visual desktop/celular. Fontes de negócio reais ainda aguardam indicação/configuração; nenhum envio, publicação ou gasto de IA foi usado para testar.
 
-Banco aplicado antes do código dependente: 66 migrações e comparação de 2.064 objetos locais/remotos sem divergência. Regras 2026-10-20.6, 46 entradas e checksum 1bcf561b784a0f53211f7af748c9a0a83787e66f8361de94cfebe8e6f36fa0ba preservados. Seis APIs existentes e a API panel-sources responderam 200 autenticadas e 401 anônimas usando o banco real. Publicação final será registrada no CHANGELOG.
+Banco aplicado antes do código dependente: 66 migrações e comparação de 2.064 objetos locais/remotos sem divergência. Regras 2026-10-20.6, 46 entradas e checksum 1bcf561b784a0f53211f7af748c9a0a83787e66f8361de94cfebe8e6f36fa0ba preservados. Seis APIs existentes e a API panel-sources responderam 200 autenticadas e 401 anônimas usando o banco real. Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa.
 
 ## Matriz de telas, APIs, fonte e acesso
 

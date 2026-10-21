@@ -6,7 +6,9 @@
 - [x] Fontes configuráveis, coleta de leitura, histórico, RLS e testes locais.
 - [x] Coletor independente iniciado oculto e tarefa Maia-Painel-Coletor no login Windows.
 - [x] Aplicar as duas migrações; drift 2.064/2.064 sem divergência e regras preservadas.
-- [ ] Publicar e validar as APIs autenticadas de produção.
+- [x] PR #31 integrado por 8a0f1c9 e publicado; página/assets e seis APIs de dados verificados em produção.
+- [x] Evolution de produção corrigida: WhatsApp open; fallback de grupos preservou 12 registros durante timeout externo.
+- [ ] Autorizar escopos OAuth de Gmail/Agenda se essas fontes forem usadas; ambos retornaram 403. Meta direto ainda não conectado.
 - [ ] Conectar planilhas reais e conferir resultados com o proprietário.
 - [ ] Inspecionar layout no navegador desktop/celular quando o navegador estiver disponível.
 
@@ -47,7 +49,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Remover editor duplicado da área técnica e abrir áreas operacionais somente por telas autorizadas.
 - [x] Financeiro lê observações autorizadas persistidas; sem coletor novo, sem somar períodos/moedas incompatíveis.
 - [x] Aplicar `20261016180722_maia_department_workspace.sql` no projeto Supabase `Agent Maia` antes da publicação dependente; dry-run listou somente essa migration e o ledger local/remoto está alinhado.
-- [ ] Revalidar drift do schema remoto: `pnpm db:drift` respondeu HTTP 401 na Management API; corrigir/renovar credencial de leitura e executar após a integração.
+- [x] Drift remoto revalidado em 20/10/2026 pela entrega gerencial: 2.064/2.064 objetos, sem divergência.
 - [x] Enviar e integrar PR #23 por squash `5c504d4`, com checks aprovados.
 - [ ] Confirmar publicação de produção e atualizar/reiniciar uma única instância do worker, em etapa separada.
 - [ ] Validar visualmente com logins de homologação e fontes externas configuradas. Nenhum envio/publicação real foi usado como teste.

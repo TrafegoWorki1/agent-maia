@@ -1,7 +1,7 @@
 # Plano de evolução do painel gerencial da Maia
 
 Data: 20/10/2026.
-Estado: implementação autorizada em 20/10/2026, validação e implantação em andamento. Contratos e matriz final em [painel gerencial](painel-gerencial.md). Backup da referência anterior preservado antes da implementação.
+Estado: primeira entrega implementada e publicada pelo PR #31 (8a0f1c9). Banco aplicado e sem drift. Fontes de negócio reais, escopos OAuth ausentes e inspeção visual seguem pendentes, conforme o registro de execução ao final. Contratos e matriz final em [painel gerencial](painel-gerencial.md). Backup da referência anterior preservado antes da implementação.
 Base: [auditoria do painel e do banco](auditoria-painel-banco-2026-10-20.md).
 Objetivo: permitir ao gerente entender compromissos, capacidade, riscos e resultados por setor, cliente e projeto, preservando o comportamento operacional da Maia.
 
@@ -211,3 +211,17 @@ Decisões de implementação sugeridas:
 - Usar os componentes e padrões atuais; escolher biblioteca de gráficos somente se os recursos existentes forem insuficientes.
 - Metas comerciais e limites de alerta devem vir da operação; não adotar percentuais arbitrários.
 - Priorizar visualização de compromissos e exceções antes de indicadores financeiros sem fonte.
+
+
+## Registro de execução - primeira entrega publicada
+
+- Backup remoto anterior no commit 2af93da, branch e tag painel-antes-gestao-20261020; patch e ZIP locais preservados.
+- Fases 0, 2 e 4: referência, leitura gerencial e Panorama implementados.
+- Fase 1: Evolution corrigida, migrações reconciliadas e coletor independente ativo; faltam escopos Gmail/Agenda e conexão Meta direta. Fallback protege a lista de grupos durante timeout externo.
+- Fase 3: nove áreas, 34 telas, aliases, filtros, gráficos e alternativas tabulares implementados; inspeção visual desktop/celular aguarda navegador disponível.
+- Fase 5: recortes e gráficos de trabalho usam os registros existentes; indicadores que dependem de fonte/atribuição sem cadastro permanecem indisponíveis.
+- Fase 6: conector Sheets e histórico/configuração/validação/lease prontos; escolha e conferência de planilhas reais aguardam o proprietário.
+- Fase 7: 740 testes da aplicação, 81 de banco, typecheck, build, db:validate, db:guard e CI aprovados. Drift 2.064/2.064 e 46 regras com checksum preservado. APIs de produção verificadas; sem teste visual ou de negócio com fonte real.
+- Publicação: https://agent-maia.vercel.app, merge 8a0f1c9, sem reiniciar/alterar o worker operacional.
+
+Detalhes reproduzíveis e matriz de telas: [painel gerencial](painel-gerencial.md).
