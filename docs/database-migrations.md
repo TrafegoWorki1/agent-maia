@@ -1,3 +1,7 @@
+## Regra meta_ads — 21/10/2026
+
+A migração 20261021120000 insere a regra `meta_ads` (catálogo 2026-10-21.1, 47 regras) com `ON CONFLICT DO UPDATE`. Não cria nem altera tabelas, permissões ou aprovações; `meta.ler` já existe desde a primeira migração de permissões. Reversão: migração compensatória (`ativa = false`).
+
 ## Complementação gerencial — 20/10/2026
 
 Gráficos, análises e APIs de leitura utilizam somente as estruturas já versionadas. Nenhuma migração nova, DDL ou alteração de dados de negócio foi necessária. Conferência: 67 migrações aplicam do zero, 81 testes do banco aprovados e drift 2.064 objetos locais/remotos sem divergência. Catálogo de 46 regras 2026-10-20.7 alinhado. Backup anterior e compatibilidade com o schema preservados.
