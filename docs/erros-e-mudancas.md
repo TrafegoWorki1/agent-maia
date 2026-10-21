@@ -4,6 +4,11 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — lições registradas (por que a Maia negava o Meta Ads)
+
+- **Causa raiz:** capacidade existente no código sem regra de capacidade no catálogo; a Maia só sabe o que está nas regras. A recusa se autoalimentou pelo histórico de conversa (7 respostas iguais), e problemas técnicos (`--restricted`, `isReadTool()`, `.env` divergentes, worker duplicado, `MAIA_CLAUDE_BIN` corrompido) mascaravam o diagnóstico.
+- **Prevenção:** checklist de conector novo (regra + migração + `rules:verify` + `knowledge:sync` + teste real), diagnóstico por `kind = conversa`, `.env` independentes, instância única do worker e cuidado com barras no `.env` agora estão no `CLAUDE.md` (seção Integrações e limites).
+
 ## 2026-10-21 — Maia dizia não ter Meta Ads (regra meta_ads)
 
 - **Causa:** o catálogo de regras só citava o Meta Ads no upload de mídia. Sem regra de capacidade, a Maia respondeu 7 vezes que "Meta Ads nunca fez parte das ferramentas" sem sequer tentar a ferramenta (tarefas 850/852 como `conversa`), e o histórico com essas respostas reforçou a recusa. O conector e a permissão `meta.ler` já funcionavam.
