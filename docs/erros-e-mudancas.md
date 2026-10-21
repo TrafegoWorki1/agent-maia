@@ -4,6 +4,10 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — confirmação final: 4/4 fontes em "ok"
+
+Ciclo completo do coletor gravou `status: "ok"` em `sheets`, `calendar`, `gmail` e `meta` (03:13–03:16 UTC), depois do merge do PR #39. Investigação encerrada. Causas tratadas nas entradas anteriores: worker duplicado com `.env` velho, checkout atrás da `main`, coletor rodando de pasta separada (`maia-gerencial`), escopo do OAuth do Google, bug em `isReadTool()`, orçamento do CLI, `MAIA_CLAUDE_BIN` corrompido e validador do Meta Ads rígido demais.
+
 ## 2026-10-21 — causa do erro linux-x64 e Meta Ads tolerante a conta sem gasto
 
 - **Causa:** `MAIA_CLAUDE_BIN` tinha sido salvo com valor corrompido (barras invertidas comidas por escaping de shell), não um problema do executor. Corrigido escrevendo o `.env` direto por script. `sheets`/`calendar`/`gmail` confirmados `status: "ok"` em produção depois disso.
