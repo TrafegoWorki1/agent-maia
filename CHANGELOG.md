@@ -9,7 +9,7 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 - Corrigidos Instagram e LinkedIn na tela Conexões, comentário de ambiente/cliente Zernio e descrições de ferramentas que atribuíam o Instagram à Worki.
 - Catálogo 2026-10-20.7 corrige somente os títulos das duas regras; todos os 46 textos e seus estados/ordem são preservados. Documentos gerados regenerados; nova migração com comparação dos valores anteriores, sem mudar IDs de contas, permissões ou aprovações.
 - Leitura das contas Zernio pela credencial local retornou HTTP 401; a propriedade dos perfis foi informada pelo owner. Nenhuma publicação, mensagem ou troca de credencial executada.
-- Verificação e implantação em andamento.
+- Verificação: typecheck, build, 742 testes de aplicação, 81 de banco, validação de 67 migrações, guarda de migrações e documentos aprovados. A migração 20261021011039 foi aplicada: regras 2026-10-20.7 alinhadas e drift 2.064/2.064 sem divergência. Documento normativo reindexado sem erros. O painel segue o fluxo de publicação GitHub/Vercel; descrições de ferramentas do worker são recarregadas no próximo início do processo.
 
 
 ## 2026-10-20 - painel gerencial com backup preservado

@@ -1,3 +1,10 @@
+## Identificação das redes sociais - 20/10/2026
+
+- [x] Instagram e LinkedIn identificados como perfis de Herickson Maia no painel, catálogo e documentação.
+- [x] Migração 20261021011039 aplicada; 46 textos e estados preservados, regras alinhadas e base normativa sincronizada.
+- [ ] Revalidar autenticação Zernio: consulta de contas com a credencial local retornou HTTP 401.
+- [ ] Descrições de ferramentas já carregadas no worker serão atualizadas no próximo início do processo, sem reinício forçado nesta correção.
+
 ## Painel gerencial - 20/10/2026
 
 - [x] Backup do painel anterior no GitHub e ZIP/patch local.
