@@ -1,3 +1,5 @@
+import { SourceResults } from "../management/SourceResults";
+import { SourceComparisons } from "../management/SourceComparisons";
 import { PageHeader, Panel } from "../../components/ui";
 import { useCollaboration } from "../collaboration/CollaborationPage";
 import { MetricsPanel } from "../collaboration/MetricsPanel";
@@ -11,6 +13,6 @@ export function FinanceWorkspace({kind}:{kind:"receipts"|"costs"}){
   {loading&&!data&&<p role="status">Carregando fontes autorizadas…</p>}
   {error&&<p role="alert">{error} <button onClick={()=>void reload()}>Tentar novamente</button></p>}
   {stale&&data&&<p role="status">Leitura desatualizada; confira a última coleta de cada fonte.</p>}
-  {data&&<><Panel title="Limites da fonte"><p>Atualizar a tela não executa coleta nem ativa integração. Não somamos moedas ou períodos diferentes. {catalog.length?"O catálogo abaixo identifica as fontes esperadas.":"Nenhuma métrica deste tipo está catalogada e autorizada neste escopo."}</p></Panel><MetricsPanel data={{...data,metrics:data.metrics.filter(row=>allowedCodes.has(row.code)),metricCatalog:catalog,externalMetrics:data.externalMetrics.filter(row=>allowedCodes.has(String(row.metric_code))),departmentMetrics:[]}}/></>}
+  {data&&<>{data.identity.owner&&<><SourceResults kind="finance" codes={[...codes]}/><SourceComparisons kind="finance"/></>}<Panel title="Limites da fonte"><p>Atualizar a tela não executa coleta nem ativa integração. Não somamos moedas ou períodos diferentes. {catalog.length?"O catálogo abaixo identifica as fontes esperadas.":"Nenhuma métrica deste tipo está catalogada e autorizada neste escopo."}</p></Panel><MetricsPanel data={{...data,metrics:data.metrics.filter(row=>allowedCodes.has(row.code)),metricCatalog:catalog,externalMetrics:data.externalMetrics.filter(row=>allowedCodes.has(String(row.metric_code))),departmentMetrics:[]}}/></>}
  </>;
 }

@@ -1,4 +1,23 @@
+## Complementação gerencial — 20/10/2026
+
+Gráficos, análises e APIs de leitura utilizam somente as estruturas já versionadas. Nenhuma migração nova, DDL ou alteração de dados de negócio foi necessária. Conferência: 67 migrações aplicam do zero, 81 testes do banco aprovados e drift 2.064 objetos locais/remotos sem divergência. Catálogo de 46 regras 2026-10-20.7 alinhado. Backup anterior e compatibilidade com o schema preservados.
+
+## Identificação das redes sociais - 20/10/2026
+
+A migração 20261021011039 corrige somente os títulos das regras Instagram e LinkedIn para Herickson Maia, conforme informação do owner. Foi aplicada após dry-run exclusivo desta versão e testes locais; compara os registros anteriores completos, preserva alterações concorrentes e não muda os 46 textos/estados ou IDs de contas. Catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 sem divergência e documento normativo reindexado sem erros.
+
+## Painel gerencial - 20/10/2026
+
+Migrações 20261020231500 e 20261020231552 aplicadas por supabase db push --linked --yes após autorização de implementação do plano e dry-run que listou somente essas duas versões. A primeira reconcilia estrutura criativa já existente; a segunda adiciona três tabelas gerenciais e duas RPCs internas, com RLS e acesso exclusivo do servidor. Nenhuma migração anterior foi editada. Drift posterior: 2.064 objetos em cada lado, sem divergência. As 46 regras 2026-10-20.6 permanecem com checksum idêntico. Reversão de código mantém tabelas e histórico.
+
 # Migrações do banco (Supabase)
+
+## GitHub e sites — aplicação confirmada em 20/10/2026
+
+A consulta `supabase migration list --linked` confirmou as versões `20261020160445`, `20261020160446`, `20261020170000` e `20261020180000` dos dois lados do histórico. A última atualiza a regra de sites para repositório por pedido e criação pública mediante OK. Código/documentação integrados na main por `7767b3d` após os commits `073610d` e `4d89f15`; publicação Vercel concluída.
+
+Esta conferência comprova o histórico de aplicação, não uma nova execução de drift nem um teste externo das ferramentas. Reinício dos workers e teste com GitHub/Vercel reais seguem pendentes. O texto aplicado conserva uma menção antiga a repositório fixo; a correção deve usar nova migração e catálogo versionado, preservando esta migração imutável.
+
 
 ## Regras de vibecoding — aplicadas em 16/10/2026
 

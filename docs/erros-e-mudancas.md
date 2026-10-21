@@ -1,15 +1,15 @@
 # Contatos compartilhados
 
-Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Implantação requer webhook e worker atualizados; sem migração de banco.
+Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
 
 # Erros e mudanças — resumo do projeto
 
-## 2026-10-20 — conectores Gmail/Calendar/Meta Ads desconectados na conta
+## 2026-10-20 — conectores Gmail/Calendar/Meta Ads: correção da causa (sessão de investigação)
 
-- **Causa:** `operacao_resumo` reportou `calendar`/`gmail`/`meta` em erro. Os conectores `mcp__claude_ai_Gmail`, `mcp__claude_ai_Google_Calendar` e `mcp__claude_ai_Meta_ADS` estavam desautenticados na conta Claude.ai (não é bug de código). Além disso, o comentário em `server/refreshJob.ts` dizia erroneamente que uma falha de refresh nunca reflete o conector real quebrado; na prática o código não atualiza o status no erro, então um "erro" antigo fica parado até o próximo sucesso.
-- **Correção:** comentário de `server/refreshJob.ts` corrigido para refletir o comportamento real (status "error" só muda quando um refresh tem sucesso; a falha pode ser conta ou subprocesso, sem como diferenciar por ali).
-- **Evidência:** owner reconectou os três conectores em claude.ai; chamadas diretas a `ads_get_ad_accounts`, `list_labels` (Gmail) e `list_calendars` (Calendar) responderam normalmente na sessão seguinte.
-- **Pendências:** confirmar overwrite para "ok" no próximo ciclo do `refreshJob`/reinício do worker.
+- **Diagnóstico inicial (errado):** a entrada original desta seção, escrita antes de notar que o checkout local estava 9 commits atrás da `main`, concluiu que reconectar os conectores `mcp__claude_ai_Gmail`/`Google_Calendar`/`Meta_ADS` desta sessão de Claude Code resolveria o problema. Esses conectores não têm nenhuma relação com o coletor de produção.
+- **Causa real:** quem escreve `calendar`/`gmail`/`meta` em `snapshots` é `server/panelCollection.ts` (só existe na `main`, não existia neste checkout). Ele usa `getAccessToken()` de `server/integrations/googleDrive.ts` — um OAuth2 **próprio do servidor** (`GOOGLE_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN` no `.env`), sem relação com conectores do Claude.ai. Testado ao vivo: o token troca normalmente, mas `tokeninfo` do Google confirma `scope: "https://www.googleapis.com/auth/drive"` — **nunca teve escopo de Gmail nem de Calendar**. Sheets funciona porque usa Drive. Meta Ads não tem coletor direto implementado (`else` lança "sem coletor direto configurado"); não é problema de credencial.
+- **Correção real necessária:** gerar um novo `GOOGLE_OAUTH_REFRESH_TOKEN` com consentimento incluindo escopos de Calendar e Gmail, e atualizar onde esse valor estiver configurado (local e produção); para Meta Ads, cadastrar uma fonte manual em "Fontes Gerenciais" (não existe coletor automático).
+- **Zernio (Instagram/LinkedIn):** sistema totalmente separado (`ZERNIO_API_KEY`, `server/integrations/zernio.ts`). Chave testada ao vivo nesta sessão: `HTTP 200`, respondendo normalmente. O erro relatado horas antes pelo agente no WhatsApp era por dois workers (`inboxWorker.ts`) rodando ao mesmo tempo — um iniciado 23h antes com `.env` desatualizado, outro com a chave corrigida; o antigo foi encerrado e confirmado único processo ativo.
 
 ## 2026-10-20 — remoção do `--restricted` no executor Claude CLI
 
@@ -17,6 +17,26 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 - **Correção:** removida a flag `--restricted` em `buildCliArgs` (`server/ai/providers/claudeCli.ts`). As demais proteções (Bash/Edit/Write/WebFetch bloqueados, leitura de arquivo confinada ao projeto, ferramentas MCP fora do inventário negadas por padrão) continuam por caminhos independentes dessa flag.
 - **Verificações:** `pnpm typecheck`, `pnpm test` (721 testes) e `pnpm build` aprovados após ajustar `tests/claudeCli.test.ts` e `tests/claudeSimple.test.ts`.
 - **Pendências:** testar com o worker reiniciado uma pergunta real pelo WhatsApp que use o Meta Ads; avaliar isolar `CLAUDE_CONFIG_DIR` pra reduzir o risco residual de conexão a servidores MCP alheios deste computador.
+
+## 20/10/2026 — complementação do plano gerencial
+
+Publicação confirmada: PR #34, main b0bc9fe, CI e Vercel aprovados. Às 23:15 BRT, página/gráficos responderam 200, APIs gerenciais 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. A inspeção visual e as fontes reais seguem como dependências, não como entregas presumidas.
+
+Causa: a primeira entrega organizou o painel, mas manteve gráficos em barras e deixou análises setoriais/comparações sem implementação completa. Correção: rosca, colunas, linhas, empilhados, cronograma, evolução semanal, idade, devoluções, encerramentos/retornos por eventos, filtros comuns e análises operacionais. Comparações externas agora têm fórmulas e validações explícitas; não presumem moeda, cobertura ou atribuição equivalentes.
+
+A leitura própria do painel omite o histórico global e busca o histórico da tarefa por páginas, preservando a primeira revisão quando anterior ao período. API original, comandos da Maia, catálogo de regras e permissões permanecem iguais. Validação: 768 testes de aplicação, 81 de banco, tipos/build e checks de banco/regras; drift 2.064/2.064 sem divergência. APIs novas conferidas com banco real: 200 autenticadas, 401 anônimas, mesmos 21 IDs e ações do contrato original. Sem migração ou reinício de worker. Fontes reais, OAuth Gmail/Agenda e inspeção visual continuam como dependências explícitas; aceite integral do plano ainda condicionado a elas.
+
+## 20/10/2026 - redes sociais de Herickson Maia
+
+Causa: rótulos e descrições legadas atribuíam as redes sociais à Worki. Correção informada pelo owner: Instagram e LinkedIn são de Herickson Maia. Tela, descrições, catálogo e documentação corrigidos; migração altera somente os títulos com proteção contra edição concorrente. Os textos das 46 regras, permissões, aprovações e seleção de contas por ID permanecem iguais. Typecheck, build, 742 testes da aplicação e 81 de banco aprovados. Migração 20261021011039 aplicada, catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 e base normativa sincronizada sem erro. Publicação do painel pelo fluxo GitHub/Vercel; descrições do worker são recarregadas no próximo início. A consulta Zernio com a credencial local retornou HTTP 401; conexão não confirmada nessa leitura.
+
+## 20/10/2026 - painel gerencial
+
+A navegação passa a nove áreas com Gestão e Meu trabalho separados. Panorama e gráficos abrem os registros reais do cálculo; a camada de fontes exige configuração explícita e preserva histórico, revisões e o último lote válido. A coleta usa APIs de leitura e processo próprio, sem chamar a IA. A contagem acumulada dos grupos deixa de ser apresentada como sete dias; cadastro/atividade sobrevivem à falha da lista externa.
+
+Backup anterior preservado em branch/tag no GitHub e ZIP/patch local. Regras, prompts, modelos, políticas, ferramentas, estados e efeitos operacionais preservados. Novas fontes restritas ao proprietário; escopos existentes inalterados. Migrações aditivas, sem apagar dados.
+
+Verificação local: 742 testes da aplicação, 81 de banco, typecheck, build e validação de 66 migrações aprovados. Fontes reais e inspeção visual dependem de configuração/navegador; Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa. Detalhes em [painel gerencial](painel-gerencial.md) e [backup](backup-painel-anterior.md).
 
 ## 2026-10-20 — conferência de GitHub, sites e produção
 

@@ -1,3 +1,8 @@
+import { DepartmentAnalytics } from "../management/DepartmentAnalytics";
+import { RelationshipAnalytics } from "../management/RelationshipAnalytics";
+import { AnalyticsFilters as FilterControls } from "../../components/AnalyticsFilters";
+import {filterPortfolio} from "../../lib/sectorAnalytics";
+import { defaultAnalyticsFilters,matchingTasks } from "../../lib/managementAnalytics";
 import { useMemo, useState, type FormEvent } from "react";
 import { EmptyState, PageHeader, Panel } from "../../components/ui";
 import { mutateCollaboration, type CollaborationData, type DepartmentRecord } from "../../lib/collaborationApi";
@@ -22,29 +27,34 @@ export function departmentTasks(data:CollaborationData,mode:DepartmentMode,clien
 }
 
 export function DepartmentWorkspace({mode}:{mode:DepartmentMode}){
- const {data,error,loading,stale,reload}=useCollaboration();
- const [clientId,setClientId]=useState(""),[projectId,setProjectId]=useState(()=>new URLSearchParams(window.location.hash.split("?")[1]??"").get("project")??""),[view,setView]=useState<"list"|"board"|"calendar">("list");
+ const [filters,setFilters]=useState(()=>({...defaultAnalyticsFilters(),project:new URLSearchParams(window.location.hash.split("?")[1]??"").get("project")??""}));
+ const {data,error,loading,stale,reload}=useCollaboration(filters);
+ const clientId=filters.client,projectId=filters.project;
+ const setClientId=(client:string)=>setFilters(f=>({...f,client,project:""})),setProjectId=(project:string)=>setFilters(f=>({...f,project}));
+ const [view,setView]=useState<"list"|"board"|"calendar">("list");
  const [title,subtitle]=titles[mode];
- const items=useMemo(()=>data?departmentTasks(data,mode,clientId,projectId):[],[data,mode,clientId,projectId]);
+ const items=useMemo(()=>data?matchingTasks(departmentTasks(data,mode,clientId,projectId),filters):[],[data,mode,filters]);
  if(loading&&!data)return <p role="status">Carregando registros autorizados…</p>;
- const portfolio=data?{...data,clients:data.clients.filter(row=>!clientId||row.id===clientId),contracts:data.contracts.filter(row=>!clientId||row.client_id===clientId),projects:data.projects.filter(row=>(!clientId||row.client_id===clientId)&&(!projectId||row.id===projectId)),deliverables:data.deliverables.filter(row=>data.projects.some(project=>project.id===row.project_id&&(!clientId||project.client_id===clientId)&&(!projectId||project.id===projectId)))}:null;
+ const portfolio=data?filterPortfolio(data,filters,items):null;
  const kind=mode==="cs"?"cs":"opportunity";
- const records=(data?.departmentRecords??[]).filter(row=>row.kind===kind&&(!clientId||row.client_id===clientId)&&(!projectId||row.project_id===projectId||row.converted_project_id===projectId));
+ const records=(data?.departmentRecords??[]).filter(row=>row.kind===kind&&(!clientId||row.client_id===clientId)&&(!projectId||row.project_id===projectId||row.converted_project_id===projectId)&&(!filters.team||row.responsible_team_id===filters.team)&&(!filters.person||row.responsible_person_id===filters.person));
  const marketingMetrics=(data?.externalMetrics??[]).filter(row=>["marketing.","content.","traffic."].some(prefix=>String(row.metric_code).startsWith(prefix))&&(!clientId||row.client_id===clientId)&&(!projectId||row.project_id===projectId));
  return <><PageHeader eyebrow="OPERAÇÃO COMPARTILHADA" title={title} subtitle={subtitle}/>
   {error&&<p role="alert">{error} <button onClick={()=>void reload()}>Tentar novamente</button></p>}
   {stale&&data&&<p role="status">Leitura desatualizada. Não confunda atualizar esta tela com coletar uma fonte externa.</p>}
   {data&&portfolio&&<>
    <p>Fonte: banco da Maia · leitura em {new Date(data.generatedAt).toLocaleString("pt-BR")}. <a href="#trabalho/meu-dia">Ir para Meu dia</a> · <a href="#trabalho/planejamento">Planejamento autorizado</a></p>
-   <div className="work-form"><label>Cliente<select value={clientId} onChange={event=>{setClientId(event.target.value);setProjectId("");}}><option value="">Todos autorizados</option>{data.clients.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label>Projeto<select value={projectId} onChange={event=>setProjectId(event.target.value)}><option value="">Todos autorizados</option>{data.projects.filter(row=>!clientId||row.client_id===clientId).map(row=><option key={String(row.id)} value={String(row.id)}>{String(row.name)}</option>)}</select></label></div>
+   <FilterControls data={data} value={filters} onChange={setFilters} area={!["opportunities","funnel","cs"].includes(mode)}/>
+   <p className="work-source-note">O período seleciona conclusões, revisões e compromissos. Filas e estados mostram a leitura atual. {data.readWindow&&`Histórico de alterações: ${data.readWindow.start} a ${data.readWindow.end}.`}</p>
    {["projects","implementations","marketing"].includes(mode)&&<WorkOverview key={data.identity.accessVersion+mode+clientId+projectId} data={data} tasks={items} mode="department" renderRecords={rows=><Tasks items={rows} data={data} people={data.people} reload={reload}/>}/>}
    {["projects","implementations"].includes(mode)&&<ProjectProgress data={portfolio} tasks={items} onOpen={setProjectId}/>}
    {["projects","implementations"].includes(mode)&&<PortfolioPanel key={data.identity.accessVersion+mode+clientId+projectId} data={portfolio} reload={reload} initialKind={mode==="implementations"?"deliverable":"project"} onOpenProject={setProjectId}/>}
    {["opportunities","funnel","cs"].includes(mode)&&<DepartmentRecordsPanel key={data.identity.accessVersion+mode+clientId+projectId} data={data} rows={records} kind={kind} reload={reload} board={mode==="funnel"}/>}
+   {["opportunities","funnel","cs"].includes(mode)&&<RelationshipAnalytics data={data} records={records} filters={filters} kind={kind}/>}
    {mode==="marketing"&&<Panel title="Fontes de resultados e publicação" caption="Produção, revisão, aprovação e publicação são fatos distintos."><p>Este calendário mostra prazos comprometidos de trabalho, não confirma publicação. Resultados de campanhas só ficam disponíveis com fonte e vínculo explícito por IDs.</p>{marketingMetrics.length?<ul>{marketingMetrics.map(row=><li key={String(row.id)}>{String(row.metric_code)} · {row.value===null?String(row.unavailable_reason??"Indisponível"):String(row.value)+" "+String(row.unit)} · Fonte: {String(row.source_name)} · Período: {String(row.period_start)} a {String(row.period_end)} · Última tentativa: {String(row.last_attempt_at??"Não informada")} · Último sucesso: {String(row.last_success_at??"Não informado")}</li>)}</ul>:<p>Sem observações externas autorizadas disponíveis. Nenhuma conta foi associada por semelhança de nome.</p>}{data.identity.owner&&<a href="#marketing/campanhas">Consultar snapshot geral Meta, separado da carteira de clientes</a>}</Panel>}
    {mode==="cs"&&<Panel title="Clientes no seu escopo">{portfolio.clients.length?<ul>{portfolio.clients.map(client=><li key={client.id}><button onClick={()=>{setClientId(client.id);setProjectId("");}}>{client.name}</button> · {data.projects.filter(row=>row.client_id===client.id).length} projetos autorizados</li>)}</ul>:<EmptyState title="Nenhum cliente autorizado" detail="Cadastros e acessos são administrados pelo proprietário."/>}</Panel>}
    <div role="group" aria-label="Visualização do trabalho" className="collab-view-switch"><button aria-pressed={view==="list"} onClick={()=>setView("list")}>Lista</button><button aria-pressed={view==="board"} onClick={()=>setView("board")}>Quadro de produção</button><button aria-pressed={view==="calendar"} onClick={()=>setView("calendar")}>Calendário de prazos</button></div>
-   <Panel title="Tarefas compartilhadas" caption="Mesmos IDs, detalhe, permissões e transições da Central. Criação pela Maia no WhatsApp.">{view==="calendar"?<WorkCalendar items={items} data={data} reload={reload}/>:view==="board"?<div className="work-funnel" role="region" aria-label="Quadro de produção" tabIndex={0}>{[["pending","Pendente"],["in_progress","Em execução"],["review","Em revisão"],["awaiting_approval","Aguardando aprovação"],["blocked","Bloqueado"],["completed","Concluído"],["cancelled","Cancelado"]].map(([status,label])=><section className="work-funnel-column" key={status}><div className="work-funnel-heading"><h3>{label}</h3><span>{items.filter(task=>task.workflow_status===status).length}</span></div><Tasks items={items.filter(task=>task.workflow_status===status)} data={data} people={data.people} reload={reload}/></section>)}</div>:<Tasks items={items} data={data} people={data.people} reload={reload}/>}</Panel>
+   <DepartmentAnalytics data={data} tasks={items} reload={reload} filters={filters} projects={["projects","implementations"].includes(mode)}/><Panel title="Tarefas compartilhadas" caption="Mesmos IDs, detalhe, permissões e transições da Central. Criação pela Maia no WhatsApp.">{view==="calendar"?<WorkCalendar items={items} data={data} reload={reload}/>:view==="board"?<div className="work-funnel" role="region" aria-label="Quadro de produção" tabIndex={0}>{[["pending","Pendente"],["in_progress","Em execução"],["review","Em revisão"],["awaiting_approval","Aguardando aprovação"],["blocked","Bloqueado"],["completed","Concluído"],["cancelled","Cancelado"]].map(([status,label])=><section className="work-funnel-column" key={status}><div className="work-funnel-heading"><h3>{label}</h3><span>{items.filter(task=>task.workflow_status===status).length}</span></div><Tasks items={items.filter(task=>task.workflow_status===status)} data={data} people={data.people} reload={reload}/></section>)}</div>:<Tasks items={items} data={data} people={data.people} reload={reload}/>}</Panel>
   </>}
  </>;
 }

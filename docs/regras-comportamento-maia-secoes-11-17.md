@@ -1,6 +1,6 @@
 # Regras de comportamento — seções 11 a 17
 
-Recorte gerado do catálogo normativo, versão 2026-10-20.6. Não edite manualmente.
+Recorte gerado do catálogo normativo, versão 2026-10-20.7. Não edite manualmente.
 
 ## Grupos — Criar grupo [criar_grupo]
 

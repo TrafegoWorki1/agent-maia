@@ -1,0 +1,27 @@
+import {useEffect,useState} from "react";
+import {Panel} from "../../components/ui";
+import {IndicatorCard,IndicatorGrid} from "../../components/WorkIndicators";
+import {ManagementChart} from "../../components/ManagementCharts";
+import {defaultAnalyticsFilters} from "../../lib/managementAnalytics";
+import {summarizeOperations,type OperationReading} from "../../lib/operationAnalytics";
+import {panelReadRequest} from "../../lib/collaborationApi";
+export function OperationsAnalytics(){
+ const [period,setPeriod]=useState(()=>defaultAnalyticsFilters()),[data,setData]=useState<OperationReading|null>(null),[error,setError]=useState(""),[revision,setRevision]=useState(0);
+ useEffect(()=>{const c=new AbortController();setData(null);setError("");void panelReadRequest("/api/panel-operations?"+new URLSearchParams({start:period.start,end:period.end}),c.signal).then(v=>{if(!c.signal.aborted)setData(v);}).catch(e=>{if(!c.signal.aborted){setData(null);setError(e instanceof Error?e.message:"Falha na leitura");}});return()=>c.abort();},[period.start,period.end,revision]);
+ const a=data?summarizeOperations(data):null;
+ return <Panel title="Evolução da operação" caption="Leitura direta dos registros da Maia. Custos informados pelo provedor e recibos técnicos mantêm populações distintas.">
+  <div className="management-filters"><label>De<input type="date" max={period.end} value={period.start} onChange={e=>setPeriod(p=>({...p,start:e.target.value}))}/></label><label>Até<input type="date" min={period.start} value={period.end} onChange={e=>setPeriod(p=>({...p,end:e.target.value}))}/></label><button className="button button-outline" onClick={()=>setRevision(v=>v+1)}>Atualizar leitura</button></div>
+  {error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Carregando registros operacionais…</p>}
+  {data&&a&&<>
+   <p className="work-source-note">Leitura: {new Date(data.generatedAt).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}. {a.known} de {data.runs.length} execuções com custo; {a.missing} sem custo informado. A média considera somente a amostra com custo.</p>
+   <IndicatorGrid label="Custo e aprovações"><IndicatorCard label="Custo informado" value={a.cost===null?null:a.cost.toLocaleString("pt-BR",{maximumFractionDigits:6})} unit="USD" helper="Soma somente dos custos conhecidos; não é estimativa do total sem cobertura completa."/><IndicatorCard label="Custo por execução com valor informado" value={a.costPerRun===null?null:a.costPerRun.toLocaleString("pt-BR",{maximumFractionDigits:6})} unit="USD" helper={`${a.known} execuções na amostra.`}/><IndicatorCard label="Aprovações do período ainda pendentes" value={a.pending} unit="itens" helper="Solicitações feitas no período selecionado que ainda aguardam decisão."/></IndicatorGrid>
+   <div className="management-chart-grid"><ManagementChart title="Falhas por dia de encerramento" kind="line" caption="Execuções operacionais encerradas com falha; usa finished_at, sem inferir o dia do erro pela criação do pedido." rows={a.failures} primaryLabel="Falhas"/><ManagementChart title="Custos informados por dia" kind="line" caption="Execuções iniciadas no período; dias sem custo conhecido ficam fora da série." rows={a.costs} primaryLabel="Custo conhecido" unit=" USD"/><ManagementChart title="Estado atual dos envios do período" kind="donut" caption="Recibos criados no período, pelo estado mais recente. Aceite do serviço não confirma entrega; leitura não comprova resolução." rows={a.receipts} primaryLabel="Recibos"/></div>
+   <details><summary>Registros e cobertura dos cálculos</summary><OperationRecords data={data}/></details>
+   <div className="table-wrap"><table><thead><tr><th>Fonte</th><th>Última tentativa</th><th>Último sucesso</th><th>Saúde da coleta</th></tr></thead><tbody>{data.health.map(h=><tr key={h.source}><th>{h.source}</th><td>{new Date(h.last_attempt_at).toLocaleString("pt-BR")}</td><td>{h.last_success_at?new Date(h.last_success_at).toLocaleString("pt-BR"):"Sem sucesso registrado"}</td><td>{h.error??(!h.last_success_at||Date.parse(data.generatedAt)-Date.parse(h.last_success_at)>3600000?"Desatualizada":"Atualizada")}</td></tr>)}</tbody></table></div>
+  </>}
+ </Panel>;
+}
+function OperationRecords({data}:{data:OperationReading}){
+ const [page,setPage]=useState(0),rows=[...data.runs.map(r=>({id:"Execução #"+r.id,date:r.started_at,state:r.status,value:r.cost_usd===null?"Custo não informado":r.cost_usd+" USD"})),...data.failures.map(r=>({id:"Pedido #"+r.id,date:r.finished_at!,state:r.status,value:"Falha operacional"})),...data.receipts.map(r=>({id:"Recibo "+r.message_id,date:r.created_at,state:r.status,value:"Estado atual"})),...data.approvals.map(r=>({id:"Aprovação #"+r.id,date:r.requested_at,state:r.status,value:"Estado atual"}))],pages=Math.max(1,Math.ceil(rows.length/100)),safe=Math.min(page,pages-1);
+ return <><div className="table-wrap"><table><thead><tr><th>Registro</th><th>Data da população</th><th>Estado</th><th>Valor / observação</th></tr></thead><tbody>{rows.slice(safe*100,(safe+1)*100).map(r=><tr key={r.id}><th>{r.id}</th><td>{new Date(r.date).toLocaleString("pt-BR")}</td><td>{r.state}</td><td>{r.value}</td></tr>)}</tbody></table></div><div className="management-reading"><button disabled={!safe} onClick={()=>setPage(safe-1)}>Anterior</button><span>Página {safe+1} de {pages} · {rows.length} registros</span><button disabled={safe+1>=pages} onClick={()=>setPage(safe+1)}>Próxima</button></div></>;
+}

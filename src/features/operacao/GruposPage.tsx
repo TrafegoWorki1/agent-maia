@@ -6,7 +6,7 @@ import { useSnapshot } from "../../lib/useSnapshot";
 import { useOrganization, type OrganizationData, type RegisteredGroupRow } from "../../lib/organizationApi";
 import { OrganizationFeedback } from "../organization/OrganizationFeedback";
 
-type LiveRow = { jid: string; subject: string; size: number | null; messages7d: number; lastActivity: string | null };
+type LiveRow = { jid: string; subject: string; size: number | null; messages7d: number | null; recordedMessages?: number | null; lastActivity: string | null };
 export function GruposPage() {
   const { snapshot, error: snapshotError } = useSnapshot();
   const { data, error, notice, reload, save, busy } = useOrganization();
@@ -17,7 +17,7 @@ export function GruposPage() {
   const registrations = new Map((data?.groups ?? []).map((g) => [g.jid, g]));
   const rows: LiveRow[] = [...(snapshot?.groups.groups ?? [])];
   const known = new Set(rows.map((g) => g.jid));
-  for (const g of data?.groups ?? []) if (!known.has(g.jid)) rows.push({ jid: g.jid, subject: g.name, size: null, messages7d: 0, lastActivity: null });
+  for (const g of data?.groups ?? []) if (!known.has(g.jid)) rows.push({ jid: g.jid, subject: g.name, size: null, messages7d: null, recordedMessages: null, lastActivity: null });
   const visible = rows.filter((g) => {
     const reg = registrations.get(g.jid);
     const text = (g.subject + " " + (data?.clients.find((c) => c.id === reg?.client_id)?.name ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -31,17 +31,17 @@ export function GruposPage() {
     <OrganizationFeedback error={error} notice={notice} reload={reload} />
     {(snapshotError || snapshot?.groups.error) && <p className="empty-note" role="alert">A lista do WhatsApp não pôde ser atualizada. {snapshot?.groups.error ?? snapshotError}</p>}
     {!snapshot && !data && !error ? <p className="empty-note">Carregando grupos…</p> : <>
-      <Panel title="Seus grupos" caption={`${visible.length} de ${rows.length} grupo(s) · atividade dos últimos 7 dias`}>
+      <Panel title="Seus grupos" caption={`${visible.length} de ${rows.length} grupo(s) · contador acumulado dos grupos com atividade recente`}>
         <div className="organization-toolbar">
           <label className="people-search"><Search size={16} /><span className="sr-only">Buscar grupo ou cliente</span><input type="search" placeholder="Grupo ou cliente" value={query} onChange={(e) => setQuery(e.target.value)} /></label>
           <label><span className="sr-only">Filtrar grupos</span><select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="todos">Todos os grupos</option><option value="cadastrados">Cadastrados na Maia</option><option value="cliente">Grupos de clientes</option><option value="interno">Grupos internos</option><option value="pendentes">Não cadastrados</option></select></label>
           <label><span className="sr-only">Filtrar por cliente</span><select value={client} onChange={(e) => setClient(e.target.value)}><option value="">Todos os clientes</option>{data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         </div>
-        <div className="table-wrap"><table><thead><tr><th>Grupo</th><th>Cliente / equipe</th><th>Maia atende</th><th>Pessoas</th><th>Mensagens · 7 dias</th><th>Última atividade</th><th>Ação</th></tr></thead><tbody>{visible.map((g) => {
+        <div className="table-wrap"><table><thead><tr><th>Grupo</th><th>Cliente / equipe</th><th>Maia atende</th><th>Pessoas</th><th>Mensagens registradas (acumulado)</th><th>Última atividade</th><th>Ação</th></tr></thead><tbody>{visible.map((g) => {
           const reg = registrations.get(g.jid);
           const c = data?.clients.find((c) => c.id === reg?.client_id);
           const access = data?.accessGroups.find((a) => a.id === reg?.access_group_id);
-          return <tr key={g.jid}><td><strong>{g.subject}</strong>{access && <small className="organization-cell-note">Acesso: {access.name}</small>}</td><td>{!data ? "Cadastro indisponível" : reg?.kind === "cliente" ? c?.name ?? "Cliente" : reg ? "Equipe interna" : "Não classificado"}</td><td>{!data ? "—" : reg?.active && (!c || c.active) && (!access || access.active) ? "Ativo" : "Pausado"}</td><td>{g.size ?? "—"}</td><td>{g.messages7d}</td><td>{g.lastActivity ? formatWhen(g.lastActivity) : "Sem atividade"}</td><td><button type="button" className="text-button" disabled={!data || busy} onClick={() => setSelected(g.jid)}>Organizar</button></td></tr>;
+          return <tr key={g.jid}><td><strong>{g.subject}</strong>{access && <small className="organization-cell-note">Acesso: {access.name}</small>}</td><td>{!data ? "Cadastro indisponível" : reg?.kind === "cliente" ? c?.name ?? "Cliente" : reg ? "Equipe interna" : "Não classificado"}</td><td>{!data ? "—" : reg?.active && (!c || c.active) && (!access || access.active) ? "Ativo" : "Pausado"}</td><td>{g.size ?? "—"}</td><td>{g.recordedMessages ?? "Sem registro"}</td><td>{g.lastActivity ? formatWhen(g.lastActivity) : "Sem atividade"}</td><td><button type="button" className="text-button" disabled={!data || busy} onClick={() => setSelected(g.jid)}>Organizar</button></td></tr>;
         })}</tbody></table></div>
         {!visible.length && <p className="empty-note">Nenhum grupo corresponde aos filtros.</p>}
       </Panel>

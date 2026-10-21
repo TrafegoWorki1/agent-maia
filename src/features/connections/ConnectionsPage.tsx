@@ -16,15 +16,19 @@ function whatsappState(state: string | null, error: string | null): { status: "a
 
 export function ConnectionsPage() {
   const { snapshot, error: loadError, reload: load } = useSnapshot();
+  const [collecting,setCollecting]=useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const refreshing = snapshot?.refreshing ?? false;
+  const refreshing = collecting || (snapshot?.refreshing ?? false);
 
   async function refreshNow() {
+    if(refreshing)return;
+    setCollecting(true);setNotice(null);
     try {
       const started = await requestRefresh();
       setNotice(started ? "Atualização das fontes solicitada. Acompanhe o resultado abaixo." : "Já existe uma atualização em andamento.");
       await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Falha ao atualizar"); }
+    finally{setCollecting(false);}
   }
 
   const whatsapp = whatsappState(snapshot?.whatsapp.state ?? null, snapshot?.whatsapp.error ?? null);
@@ -32,8 +36,8 @@ export function ConnectionsPage() {
   return (
     <>
       <PageHeader eyebrow="Sistema e integrações" title="Conexões e fontes" subtitle="Disponibilidade, atualização e erros das fontes. O painel consulta o estado a cada 30 segundos."
-        action={import.meta.env.VITE_MAIA_HOSTED !== "1" ? <button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Atualizando…" : "Atualizar fontes"}</button> : undefined} />
-      {import.meta.env.VITE_MAIA_HOSTED === "1" && <p className="empty-note">A atualização das fontes é executada pelo computador da operação.</p>}
+        action={ <button type="button" className="button button-outline" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Atualizando…" : "Atualizar fontes"}</button>} />
+      <p className="empty-note">Coleta direta de leitura, sem executar a IA. O coletor independente consulta as fontes a cada 30 minutos quando ativo.</p>
       {loadError && <p role="alert" className="empty-note">Não foi possível atualizar o estado: {loadError}{snapshot ? " Exibindo a última leitura disponível." : ""}</p>}
       {notice && <p role="status" className="empty-note">{notice}</p>}
       {!snapshot && !loadError && <p className="empty-note">Carregando conexões…</p>}
@@ -51,11 +55,11 @@ export function ConnectionsPage() {
           <div className="table-wrap"><table>
             <thead><tr><th>Conexão</th><th>Status</th><th>Objetivo atual</th></tr></thead>
             <tbody><tr>
-              <td>Instagram da Worki</td>
+              <td>Instagram de Herickson Maia</td>
               <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar posts, Stories, métricas, músicas e conversas; publicar fotos, carrosséis, Reels e Stories; editar/cancelar posts ainda não publicados; responder Direct com aprovação dentro de 24h; gerenciar automações de comentário para DM com aprovação. A busca de áudio depende de reconexão Facebook Login.</td>
             </tr><tr>
-              <td>LinkedIn da Worki</td>
+              <td>LinkedIn de Herickson Maia</td>
               <td><StatusPill status="sem_dado" label="Sem consulta recente" /></td>
               <td>Consultar conta, organizações e métricas; publicar ou agendar posts com aprovação. DMs/InMail não estão disponíveis.</td>
             </tr></tbody>
@@ -66,14 +70,15 @@ export function ConnectionsPage() {
             <thead><tr><th>Fonte</th><th>Estado da coleta</th><th>Última tentativa</th><th>Diagnóstico</th></tr></thead>
             <tbody>{Object.entries(SOURCE_LABELS).map(([key, label]) => {
               const source = snapshot.sources[key as keyof typeof SOURCE_LABELS];
+              const health=snapshot.sourceHealth?.[key];
               const age = source ? Date.parse(snapshot.generatedAt) - Date.parse(source.fetched_at) : NaN;
               const stale = !Number.isFinite(age) || age > 60 * 60_000;
               const usable = source?.status === "ok" && source.data !== null;
               const status = source?.status === "error" ? "critico" : usable ? stale ? "atencao" : "alvo" : "sem_dado";
-              return <tr key={key}><td>{label}</td><td><StatusPill status={status} label={source?.status === "error" ? "Falha na coleta" : usable ? stale ? "Desatualizada" : "Atualizada" : "Sem coleta válida"} /></td><td>{formatWhen(source?.fetched_at)}</td><td>{source?.error ?? (usable ? stale ? "Solicite uma atualização da fonte" : "Dados disponíveis para consulta" : "Aguardando primeira coleta válida")}</td></tr>;
+              return <tr key={key}><td>{label}</td><td><StatusPill status={status} label={source?.status === "error" ? "Falha na coleta" : usable ? stale ? "Desatualizada" : "Atualizada" : "Sem coleta válida"} /></td><td>{formatWhen(health?.last_attempt_at??source?.fetched_at)}<small className="organization-cell-note">Sucesso: {formatWhen(health?.last_success_at)}</small></td><td>{source?.error ?? (usable ? stale ? "Solicite uma atualização da fonte" : "Dados disponíveis para consulta" : "Aguardando primeira coleta válida")}</td></tr>;
             })}</tbody>
           </table></div>
-          <p className="empty-note">Em caso de falha, o horário indica a tentativa mais recente. A idade do último dado preservado não é informada pelo registro atual.</p>
+          <p className="empty-note">Em caso de falha, o horário indica a tentativa mais recente. Os sucessos anteriores à nova coleta não têm data recuperável. Gmail retorna até 100 IDs por consulta; isso não representa o total da caixa.</p>
         </Panel>
       </>}
     </>

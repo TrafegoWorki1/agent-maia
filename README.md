@@ -1,5 +1,18 @@
 # Agent · Maia
 
+## Contas sociais
+
+Instagram e LinkedIn identificados no painel e nas ferramentas pertencem a **Herickson Maia**, conforme correção do proprietário em 20/10/2026. A integração usa Zernio; a seleção de conta por ID e as aprovações permanecem as existentes.
+
+## GitHub e sites — estado confirmado em 20/10/2026
+
+Repositórios novos são privados por padrão; criar público exige OK do owner. As ferramentas de site aceitam repositório público ou privado informado no pedido. O commit no GitHub exige OK; a publicação na Vercel envia o HTML pela API e não configura deploy automático por git push. Membros dependem de `site.publicar` e continuam sem as ferramentas genéricas `github_*`.
+
+A migração `20261020180000` está aplicada e a implementação/documentação estão na `main` pelo merge `7767b3d`, com publicação Vercel concluída. Ainda faltam atualizar os workers e validar o fluxo com repositório e Vercel reais. A conferência encontrou dois workers anteriores ao commit; o deploy web não atualiza esses processos.
+
+Detalhes e limites: [histórico da conferência](CHANGELOG.md), [migrações](docs/database-migrations.md) e [pendências](TODO.md).
+
+
 ## Segurança por recurso e retenção
 
 O limite geral de execução fica em `config/ai-routing.json`. Acesso de membros ao Google Drive exige a capacidade base `sheets.ler` e uma autorização vigente para arquivo, pasta, cliente ou projeto; buscas globais e ferramentas não mapeadas são bloqueadas. Compartilhamentos só podem ser confirmados pelo fluxo gerenciado que persiste e confere o `permissionId`.
@@ -18,9 +31,19 @@ O registro de recibos distingue aceite pela Evolution de entrega/leitura; o pain
 
 Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
+## Painel gerencial
+
+Complementação publicada pelo [PR #34](https://github.com/TrafegoWorki1/agent-maia/pull/34), merge b0bc9fe. Conferência em produção de 20/10/2026 às 23:15 (Brasília): página/gráficos e APIs novas disponíveis, acesso anônimo recusado. Fontes reais e homologação visual continuam com os critérios abertos no plano.
+
+A gestão oferece cartões de KPI, rosca para composição, colunas para comparações, barras empilhadas por área, linhas de evolução e cronograma de entregáveis. Os setores compartilham filtros e os registros autorizados. Há análises de entregas semanais, idade do trabalho, devoluções, encerramentos comerciais, retornos de CS e operação técnica. Financeiro e campanhas permitem comparações explícitas entre fontes compatíveis, incluindo fluxo/margem de caixa, custo por resultado e ROAS; a ausência de fonte ou denominador mantém o resultado indisponível.
+
+O painel lê `/api/panel-collaboration` com histórico por período e busca paginada do histórico de uma tarefa ao abrir seu detalhe. `/api/collaboration` continua atendendo as ações e a leitura completa das ferramentas da Maia. `/api/panel-operations` fornece as séries técnicas exclusivas do proprietário. Esta complementação não exige migração nem reinício do worker.
+
+A implementação e os contratos de indicadores/fontes estão em [painel gerencial](docs/painel-gerencial.md). A versão anterior está preservada em [backup do painel](docs/backup-painel-anterior.md). Fontes reais de vendas, campanhas e financeiro precisam ser configuradas em Administração → Fontes gerenciais. O coletor independente inicia com pnpm panel:collect; não altera o worker da Maia.
+
 ## Organização do painel
 
-O menu usa a Central de Trabalho como entrada. Projetos, Marketing, Comercial e Clientes/CS oferecem visões dos mesmos registros autorizados. Saúde da Maia e Operação da Maia mantêm diagnósticos técnicos exclusivos do proprietário; Financeiro depende da competência e do escopo financeiro. Cadastros globais, acessos, regras e integrações continuam administrativos. Links antigos são preservados; membros não recebem acesso às páginas administrativas por terem acesso à área operacional.
+O menu tem nove áreas. O proprietário entra em Gestão, com Panorama, indicadores e detalhamento; Meu trabalho concentra a execução pessoal. Projetos, Marketing, Comercial e Clientes/CS oferecem visões dos mesmos registros autorizados. Saúde da Maia e Operação da Maia mantêm diagnósticos técnicos exclusivos do proprietário; Financeiro depende da competência e do escopo financeiro. Cadastros globais, acessos, regras e integrações continuam administrativos. Links antigos são preservados; membros não recebem acesso às páginas administrativas por terem acesso à área operacional.
 
 Projetos/Implementações consultam a carteira da Central; Marketing filtra tarefas e calendário; Comercial e CS usam registros internos persistidos com próxima ação, revisão e histórico. As ferramentas `area_registro_salvar` e `oportunidade_converter` são compartilhadas por Claude/Codex, revalidam acesso no banco e não ativam CRM externo. Criação permanece pelo WhatsApp; o painel altera registros existentes. Migração `20261016180722_maia_department_workspace.sql` aplicada ao Supabase e código integrado pelo PR #23 (`5c504d4`); o reinício do worker é separado. Detalhes, matriz e limites em [integração do painel](docs/integracao-painel-maia.md).
 

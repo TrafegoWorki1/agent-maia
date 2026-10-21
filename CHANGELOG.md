@@ -1,10 +1,43 @@
 # Contatos compartilhados pelo WhatsApp
 
-A triagem passa a extrair nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra contatos automaticamente. A implantação requer atualizar o webhook e o worker; nenhuma migração de banco é necessária.
+A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
 
 # Changelog
 
-## 2026-10-20 — conectores Gmail/Calendar/Meta Ads desconectados na conta (não no código)
+## 20/10/2026 — complementação do painel gerencial
+
+- Publicado pelo PR #34 (b0bc9fe), CI da main e Vercel aprovados. Produção conferida às 23:15 BRT: página/gráficos 200, APIs novas 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. Zero fontes reais cadastradas; critérios externos/visuais continuam explícitos no plano.
+- Gráficos de rosca, colunas agrupadas, linhas e barras empilhadas, com cores estáveis, teclado e tabelas. Cronograma mostra prazo e conclusão dos entregáveis.
+- Análises de entregas semanais, idade dos itens, devoluções, pontualidade dos entregáveis, encerramentos comerciais e retornos de CS; filtros compartilhados e mesmas populações do detalhamento.
+- Comparações explícitas de fontes: previsto/recebido, fluxo/margem de caixa, custo por resultado, ROAS e taxa de ganho; validações de cobertura, escopo, moeda, atualização e denominador, preservando estornos e recusando sobreposição de custos/despesas.
+- Novas APIs de leitura do painel: histórico global deixa de acompanhar cada atualização; detalhe de tarefa paginado sob demanda e contexto da primeira revisão preservado. API original, ferramentas, permissões e comportamento da IA inalterados.
+- Séries operacionais de falhas e custos, custo por execução com valor informado, estados dos recibos e saúde da coleta; sem conteúdo de mensagens. Botão de atualizar fontes sinaliza a execução enquanto aguarda.
+- Verificação: 768 testes da aplicação, 81 de banco, tipos/build, checks de banco/regras e drift 2.064/2.064. Novas APIs 200 autenticadas/401 anônimas com banco real; mesmos 21 IDs e ações da API original. Sem nova migração ou reinício de worker. Backup anterior preservado.
+- Dependências: fontes reais ainda não indicadas/configuradas, OAuth Gmail/Agenda sem escopo e navegador indisponível para homologação visual. Contratos e critérios de aceite em docs/painel-gerencial.md e docs/plano-painel-gerencial-maia.md.
+
+## 2026-10-20 - identificação das redes sociais de Herickson Maia
+
+- Corrigidos Instagram e LinkedIn na tela Conexões, comentário de ambiente/cliente Zernio e descrições de ferramentas que atribuíam o Instagram à Worki.
+- Catálogo 2026-10-20.7 corrige somente os títulos das duas regras; todos os 46 textos e seus estados/ordem são preservados. Documentos gerados regenerados; nova migração com comparação dos valores anteriores, sem mudar IDs de contas, permissões ou aprovações.
+- Leitura das contas Zernio pela credencial local retornou HTTP 401; a propriedade dos perfis foi informada pelo owner. Nenhuma publicação, mensagem ou troca de credencial executada.
+- Verificação: typecheck, build, 742 testes de aplicação, 81 de banco, validação de 67 migrações, guarda de migrações e documentos aprovados. A migração 20261021011039 foi aplicada: regras 2026-10-20.7 alinhadas e drift 2.064/2.064 sem divergência. Documento normativo reindexado sem erros. O painel segue o fluxo de publicação GitHub/Vercel; descrições de ferramentas do worker são recarregadas no próximo início do processo.
+
+## 2026-10-20 - painel gerencial com backup preservado
+
+- **Problema:** navegação fragmentada, visão gerencial distribuída e fontes sem configuração/auditoria confiável. Contador acumulado de grupos aparecia como sete dias.
+- **Entrega:** nove áreas e 34 telas, Panorama com seis indicadores, filtros, gráficos e abertura dos registros; gráficos nos recortes de setor do proprietário; Meu trabalho e todas as ações existentes preservados. Aliases mantêm tarefa/projeto.
+- **Carregamento:** a lista retorna metadados; resultados carregam um lote de uma fonte selecionada por vez, com validação do ID no endpoint.
+- **Fontes:** cadastro de planilhas, escopo por IDs, unidade/regime/cobertura, validação do lote, unicidade, reserva de coleta, revisões, histórico e último sucesso separado de tentativa. Novos dados são exclusivos do proprietário; membros mantêm seus acessos anteriores.
+- **Coleta:** processo gerencial independente do worker e da IA; metadados Google diretos e fontes Sheets explicitamente configuradas. Meta direto e escopos Google ausentes aparecem como indisponíveis. Nenhum dado de negócio foi inventado.
+- **Banco:** migração idempotente de reconciliação da estrutura criativa existente e migração aditiva das fontes aplicadas. Drift 2.064/2.064 sem divergência; 46 regras com checksum preservado. Sem alteração do catálogo de regras ou das consultas compartilhadas da Maia.
+- **Backup:** branch backup/painel-antes-gestao-20261020 e tag painel-antes-gestao-20261020 no GitHub, commit 2af93da; ZIP/patch/documentos preservados localmente.
+- **Verificação local:** typecheck, build, 742 testes de aplicação e 81 de banco aprovados. Validação de 66 migrações aprovada. Conferência visual e fontes reais pendentes, conforme documentação.
+- **Implantação:** banco aplicado; Evolution e OAuth de leitura configurados em production. Coletor independente iniciado e programado no login Windows. Sete APIs com banco real responderam 200 autenticadas e 401 anônimas. Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa.
+- Documentação: [painel gerencial](docs/painel-gerencial.md), [plano](docs/plano-painel-gerencial-maia.md), [backup](docs/backup-painel-anterior.md).
+
+## 2026-10-20 — conectores Gmail/Calendar/Meta Ads: diagnóstico desta sessão (ver nota de correção abaixo)
+
+> **Nota de correção (mesma sessão):** a entrada abaixo foi escrita antes de descobrir que o checkout local estava 9 commits atrás da `main` e que `server/panelCollection.ts`/`panelSources.ts` (o código que realmente coleta essas fontes) nem existiam localmente. A causa real, confirmada depois: o token OAuth do Google usado pelo coletor (`GOOGLE_OAUTH_REFRESH_TOKEN`) só tem o escopo `drive` — nunca teve Gmail nem Calendar —, e Meta Ads não tem coletor direto implementado (por design, não por credencial). Isso já estava documentado acima, em "Dependências", na entrada do PR #34. Reconectar conectores `mcp__claude_ai_*` desta sessão de Claude Code não tem efeito nenhum sobre o coletor de produção.
 
 - **Causa:** `operacao_resumo` mostrou `calendar`/`gmail`/`meta` com status "erro" no WhatsApp. Investigação encontrou duas coisas: (1) os conectores `mcp__claude_ai_Gmail`, `mcp__claude_ai_Google_Calendar` e `mcp__claude_ai_Meta_ADS` estavam de fato desautenticados no nível da conta Claude.ai (confirmado por uma sessão de Claude Code reportando os mesmos MCPs como `CONNECTION_CLOSED` ao conectar); (2) o comentário em `server/refreshJob.ts` (linhas ao redor de `runSource`) afirmava que uma falha de refresh "nunca" indica conector quebrado, só falta de acesso do subprocesso — mas o código não grava status "error" no snapshot nessa falha (só loga em `agent_runs`), então um "erro" visto em `operacao_resumo` fica parado desde a última falha real até o próximo refresh ter sucesso.
 - **Correção:** comentário de `server/refreshJob.ts` reescrito para não afirmar que a falha nunca é o conector real; registra que os dois cenários produzem o mesmo erro e não dá pra diferenciar só pelo código.

@@ -61,6 +61,7 @@ export interface Snapshot {
   events24h: Record<string, number>;
   chat: { started_at: string; status: string; error: string | null } | null;
   approvals: { requested_at: string; tool_name: string }[];
+  sourceHealth?: Record<string,{last_attempt_at:string;last_success_at:string|null;error:string|null}>;
   sources: {
     gmail?: SourceResult<GmailData>;
     meta?: SourceResult<MetaData>;
@@ -72,7 +73,7 @@ export interface Snapshot {
     recent: TaskRow[];
   };
   quality: { current: Scorecard; previous: { week: string; overall: number | null } };
-  groups: { groups: { jid: string; subject: string; size: number | null; messages7d: number; lastActivity: string | null }[]; error: string | null; total: number };
+  groups: { groups: { jid: string; subject: string; size: number | null; messages7d: number | null; recordedMessages?: number | null; lastActivity: string | null }[]; error: string | null; total: number };
   jev: JevData;
   regras: MaiaRuleView[];
   modelos: ModelosView;
@@ -126,7 +127,7 @@ export async function fetchSnapshot(): Promise<Snapshot> {
 
 // Retorna false se já há uma atualização rodando.
 export async function requestRefresh(): Promise<boolean> {
-  const response = await fetch("/api/refresh", { method: "POST" });
+  const response = await fetch("/api/refresh", { method: "POST", headers: await authHeaders() });
   if (response.status === 409) return false;
   if (!response.ok) throw new Error(`Não foi possível atualizar (HTTP ${response.status})`);
   return true;

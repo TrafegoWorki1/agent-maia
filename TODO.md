@@ -1,4 +1,43 @@
+## Identificação das redes sociais - 20/10/2026
+
+- [x] Instagram e LinkedIn identificados como perfis de Herickson Maia no painel, catálogo e documentação.
+- [x] Migração 20261021011039 aplicada; 46 textos e estados preservados, regras alinhadas e base normativa sincronizada.
+- [ ] Revalidar autenticação Zernio: consulta de contas com a credencial local retornou HTTP 401.
+- [ ] Descrições de ferramentas já carregadas no worker serão atualizadas no próximo início do processo, sem reinício forçado nesta correção.
+
+## Painel gerencial - 20/10/2026
+
+- [x] Complementação integrada pelo PR #34 (b0bc9fe), CI e Vercel aprovados; novas APIs verificadas em produção com autenticação/recusa anônima e gráficos publicados.
+- [x] Complementar gráficos com rosca, colunas, linhas, barras empilhadas e cronograma de entregáveis, mantendo alternativa tabular e acesso por teclado.
+- [x] Evolução semanal, idade dos itens, composição por área, motivos de devolução e pontualidade dos entregáveis.
+- [x] Encerramentos comerciais por período, próximas ações vencidas e evolução dos retornos de CS com eventos reais.
+- [x] Filtros compartilhados de período, cliente, projeto, equipe, pessoa e área; períodos históricos não reconstroem o estado passado.
+- [x] Leitura própria do painel com histórico sob demanda, sem alterar a leitura completa das ferramentas da IA; contexto anterior da primeira revisão preservado.
+- [x] Comparações explícitas de previsto/recebido, fluxo/margem de caixa, custo por resultado, ROAS e ganho externo, condicionadas a fonte/cobertura/compatibilidade/denominador.
+- [x] Séries de falhas e custos, custo por execução com valor informado, recibos e saúde das fontes; dados técnicos sem texto de mensagens.
+- [x] Conferência com banco real: novas APIs 200 autenticadas e 401 anônimas, mesmos 21 IDs e ações da API original, histórico global omitido; 768 testes da aplicação e 81 do banco aprovados.
+- [x] Backup do painel anterior no GitHub e ZIP/patch local.
+- [x] Nove áreas, aliases de 32 telas antigas e duas telas novas.
+- [x] Panorama, gráficos, filtros e detalhamento; regras e permissões preservadas.
+- [x] Fontes configuráveis, coleta de leitura, histórico, RLS e testes locais.
+- [x] Coletor independente iniciado oculto e tarefa Maia-Painel-Coletor no login Windows.
+- [x] Aplicar as duas migrações; drift 2.064/2.064 sem divergência e regras preservadas.
+- [x] PR #31 integrado por 8a0f1c9 e publicado; página/assets e seis APIs de dados verificados em produção.
+- [x] Evolution de produção corrigida: WhatsApp open; fallback de grupos preservou 12 registros durante timeout externo.
+- [ ] Autorizar escopos OAuth de Gmail/Agenda se essas fontes forem usadas; ambos retornaram 403. Meta direto ainda não conectado.
+- [ ] Conectar planilhas reais e conferir resultados com o proprietário.
+- [ ] Inspecionar layout no navegador desktop/celular quando o navegador estiver disponível.
+
 # Pendências atuais da Maia
+
+## GitHub e sites — acompanhamento de 20/10/2026
+
+- [x] Confirmar aplicação de `20261020180000` em produção pelo histórico remoto.
+- [x] Confirmar implementação `073610d` e documentação `4d89f15` na main pelo merge `7767b3d`; publicação Vercel concluída.
+- [ ] Atualizar os workers anteriores ao commit das 16h11; verificar trabalhos ativos e manter uma única instância operacional.
+- [ ] Validar pelo WhatsApp criação privada, criação pública com OK, commit aprovado e publicação real na Vercel.
+- [ ] Corrigir a expressão “repositório fixo de sites” da regra `site_publicar` com nova versão do catálogo, geração do documento e nova migração. Não editar `20261020180000`, já aplicada.
+
 
 ## Regras de vibecoding — estado de implantação
 
@@ -15,7 +54,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Baseline semanal por equipe/período, capacidade em horas e avanço de entregáveis com denominador explícito.
 - [x] Funil comercial em colunas; quadro de produção nas áreas; taxa de ganho independente do filtro de etapa.
 - [x] Regras/tipos, 571 testes Vitest + 75 de banco temporário e build aprovados; capturas isoladas desktop/celular conferidas.
-- [ ] Publicar a evolução visual após validação; sem nova migration e sem alteração de worker.
+- [x] Evolução visual incluída na publicação gerencial; complementação do PR #34 em produção, sem nova migration e sem alteração de worker. Inspeção visual integrada permanece na seção de homologação acima.
 
 ## Integração das áreas — PR #23 integrado
 
@@ -26,7 +65,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Remover editor duplicado da área técnica e abrir áreas operacionais somente por telas autorizadas.
 - [x] Financeiro lê observações autorizadas persistidas; sem coletor novo, sem somar períodos/moedas incompatíveis.
 - [x] Aplicar `20261016180722_maia_department_workspace.sql` no projeto Supabase `Agent Maia` antes da publicação dependente; dry-run listou somente essa migration e o ledger local/remoto está alinhado.
-- [ ] Revalidar drift do schema remoto: `pnpm db:drift` respondeu HTTP 401 na Management API; corrigir/renovar credencial de leitura e executar após a integração.
+- [x] Drift remoto revalidado em 20/10/2026 pela entrega gerencial: 2.064/2.064 objetos, sem divergência.
 - [x] Enviar e integrar PR #23 por squash `5c504d4`, com checks aprovados.
 - [ ] Confirmar publicação de produção e atualizar/reiniciar uma única instância do worker, em etapa separada.
 - [ ] Validar visualmente com logins de homologação e fontes externas configuradas. Nenhum envio/publicação real foi usado como teste.

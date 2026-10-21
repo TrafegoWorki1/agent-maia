@@ -7,8 +7,13 @@ import { answerFromPanel } from "./server/maiaOwnerAgent.ts";
 import { buildSnapshot } from "./server/snapshot.ts";
 import { handleWorkspace, json } from "./server/workspaceApi.ts";
 import { handleOrganization } from "./server/organizationApi.ts";
-import { isRefreshing, refreshAll, scheduleRefresh } from "./server/refreshJob.ts";
+import { schedulePanelCollection } from "./server/panelCollection.ts";
+import refreshHandler from "./api/refresh.ts";
+import panelSourcesHandler from "./api/panel-sources.ts";
+import nucleusHandler from "./api/nucleus.ts";
 import collaborationHandler from "./api/collaboration.ts";
+import panelCollaborationHandler from "./api/panel-collaboration.ts";
+import panelOperationsHandler from "./api/panel-operations.ts";
 
 // Só o próprio computador lê o painel: o painel mostra dados pessoais de contas reais.
 function isLocalRequest(host: string | undefined): boolean {
@@ -37,11 +42,15 @@ function maiaAgentApi(): Plugin {
       loadLocalEnv();
       const db = getDb();
       server.middlewares.use("/api/collaboration",(req,res)=>{void collaborationHandler(req,res);});
+      server.middlewares.use("/api/panel-collaboration",(req,res)=>{void panelCollaborationHandler(req,res);});
+      server.middlewares.use("/api/panel-operations",(req,res)=>{void panelOperationsHandler(req,res);});
       // Tarefas da conversa do painel que estavam em andamento antes deste processo: viram "incerta".
       void recoverStaleTasks(db, "painel").catch((error) => console.error("[painel] recuperação de tarefas:", error instanceof Error ? error.message : error));
       // Atualização periódica das fontes (Gmail, Meta Ads, Sheets), só neste processo local.
-      const stopRefresh = scheduleRefresh(db);
+      const stopRefresh = schedulePanelCollection(db);
       server.httpServer?.once("close", stopRefresh);
+      server.middlewares.use("/api/panel-sources",(req,res)=>{void panelSourcesHandler(req,res);});
+      server.middlewares.use("/api/nucleus",(req,res)=>{void nucleusHandler(req,res);});
       server.middlewares.use("/api/workspace", (req, res) => {
         if (!isLocalRequest(req.headers.host)) return json(res,403,{ error: "local_only" });
         void handleWorkspace(req,res,db,"owner-local");
@@ -68,19 +77,7 @@ function maiaAgentApi(): Plugin {
         }
       });
 
-      server.middlewares.use("/api/refresh", async (req, res) => {
-        const send = (status: number, body: unknown) => {
-          res.statusCode = status;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(body));
-        };
-        if (!isLocalRequest(req.headers.host)) return send(403, { error: "local_only" });
-        if (req.method !== "POST") return send(405, { error: "method_not_allowed" });
-        if (isRefreshing()) return send(409, { error: "already_running" });
-        // Não espera o fim: as consultas levam alguns minutos. O painel acompanha pelo snapshot.
-        void refreshAll(db).catch((error) => console.error("[refresh]", error instanceof Error ? error.message : error));
-        send(202, { ok: true });
-      });
+      server.middlewares.use("/api/refresh",(req,res)=>{void refreshHandler(req,res);});
 
       // Conversa do painel com a Maia. Mesmo histórico do WhatsApp; escrita continua só pelo WhatsApp.
       server.middlewares.use("/api/conversa", async (req, res) => {

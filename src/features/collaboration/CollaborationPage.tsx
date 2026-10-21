@@ -8,6 +8,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, PageHeader, Panel } from "../../components/ui";
 import { CollaborationApiError, fetchCollaboration, mutateCollaboration, type CollaborationData, type CollaborationTask, type WorkflowStatus } from "../../lib/collaborationApi";
 import { supabase } from "../../lib/supabaseBrowser";
+import {defaultAnalyticsFilters,matchingTasks} from "../../lib/managementAnalytics";
+import {AnalyticsFilters as FilterControls} from "../../components/AnalyticsFilters";
+import {filterPortfolio} from "../../lib/sectorAnalytics";
+import {DepartmentAnalytics} from "../management/DepartmentAnalytics";
 
 export type CollaborationMode = "meu-dia"|"minha-equipe"|"coordenacao"|"direcao"|"planejamento"|"metricas";
 const labels:Record<WorkflowStatus,string>={pending:"Pendente",in_progress:"Em execução",review:"Em revisão",awaiting_approval:"Aguardando aprovação",blocked:"Bloqueada",completed:"Concluída",cancelled:"Cancelada"};
@@ -20,15 +24,17 @@ const titles:Record<CollaborationMode,[string,string,string]>={
   metricas:["INDICADORES","Indicadores auditáveis","Cada valor abre os registros da população; falta de fonte aparece como indisponível."],
 };
 
-export function useCollaboration(){
+export function useCollaboration(period?:{start:string;end:string}){
   const [data,setData]=useState<CollaborationData|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[stale,setStale]=useState(false);
   const sequence=useRef(0), controller=useRef<AbortController|null>(null);
   const reload=useCallback(async()=>{
+    setLoading(true);
     const id=++sequence.current; controller.current?.abort(); const next=new AbortController(); controller.current=next;
-    try { const value=await fetchCollaboration(next.signal); if(id===sequence.current){setData(value);setError("");setStale(false);} }
+    try { const value=await fetchCollaboration(next.signal,period); if(id===sequence.current){setData(value);setError("");setStale(false);} }
     catch(err){if(!next.signal.aborted&&id===sequence.current){setError(err instanceof Error?err.message:"Falha ao carregar");if(err instanceof CollaborationApiError&&(err.status===401||err.status===403)){setData(null);setStale(false);}else setStale(true);}}
     finally{if(id===sequence.current)setLoading(false);}
-  },[]);
+  },[period?.start,period?.end]);
+  useEffect(()=>{setData(null);setLoading(true);},[period?.start,period?.end]);
   useEffect(()=>{
     void reload(); const timer=setInterval(()=>void reload(),30_000);
     const online=()=>void reload(), visible=()=>{if(document.visibilityState==="visible")void reload();};
@@ -65,21 +71,23 @@ export function Tasks({items,reload,people=[],data,empty="Nenhum item neste reco
 function Load({data}:{data:CollaborationData}){return <CapacityOverview data={data}/>;}
 
 export function CollaborationPage({mode}:{mode:CollaborationMode}){
-  const {data,error,loading,stale,reload}=useCollaboration(); const [view,setView]=useState<"list"|"board"|"calendar"|"load">("list");
-  const [teamFilter,setTeamFilter]=useState(""),[clientFilter,setClientFilter]=useState(""),[personFilter,setPersonFilter]=useState("");
+  const [filters,setFilters]=useState(()=>defaultAnalyticsFilters());
+  const {data,error,loading,stale,reload}=useCollaboration(filters); const [view,setView]=useState<"list"|"board"|"calendar"|"load">("list");
+  const teamFilter=filters.team,clientFilter=filters.client,personFilter=filters.person;
   const [eyebrow,title,subtitle]=titles[mode];
-  const items=useMemo(()=>{const rows=!data?[]:mode==="meu-dia"?data.dashboards.myDay.priorities:data.tasks;return rows.filter(task=>(!teamFilter||task.responsible_team_id===teamFilter)&&(!clientFilter||task.client_ref_id===clientFilter)&&(!personFilter||task.responsible_person_id===personFilter));},[data,mode,teamFilter,clientFilter,personFilter]);
+  const items=useMemo(()=>{const rows=!data?[]:mode==="meu-dia"?data.dashboards.myDay.priorities:data.tasks;return matchingTasks(rows,filters);},[data,mode,filters]);
   if(loading&&!data)return <p role="status" className="empty-note">Carregando seu escopo de trabalho…</p>;
   return <><PageHeader eyebrow={eyebrow} title={title} subtitle={subtitle}/>{error&&<p role="alert">{error} <button onClick={()=>void reload()}>Tentar novamente</button></p>}{stale&&data&&<p role="status">Dados podem estar desatualizados; a última leitura permanece visível.</p>}
   {data&&<>
     {mode==="meu-dia"&&(data.departmentRecords??[]).some(row=>row.responsible_person_id===data.identity.personId)&&<Panel title="Combinados de CS e próximas ações comerciais" caption="Registros compartilhados com as áreas, sem criar tarefas duplicadas."><ul>{(data.departmentRecords??[]).filter(row=>row.responsible_person_id===data.identity.personId&&!["won","lost","completed","cancelled"].includes(row.status)).map(row=><li key={row.id}><a href={row.kind==="cs"?"#clientes-cs/acompanhamento":"#comercial/oportunidades"}>{row.title}</a> · {row.next_action} · {row.next_action_at?new Date(row.next_action_at).toLocaleString("pt-BR"):"Prazo não informado"}</li>)}</ul></Panel>}
-    {["meu-dia","minha-equipe","coordenacao"].includes(mode)&&<div className="work-form"><label>Equipe<select value={teamFilter} onChange={event=>setTeamFilter(event.target.value)}><option value="">Todas no seu escopo</option>{data.teams.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Cliente<select value={clientFilter} onChange={event=>setClientFilter(event.target.value)}><option value="">Todos no seu escopo</option>{data.clients.map(client=><option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Responsável<select value={personFilter} onChange={event=>setPersonFilter(event.target.value)}><option value="">Todos no seu escopo</option>{data.people.map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label></div>}
-    {["meu-dia","minha-equipe","coordenacao"].includes(mode)&&<WorkOverview key={[data.identity.accessVersion,mode,teamFilter,clientFilter,personFilter].join(":")} data={data} tasks={data.tasks.filter(task=>(mode!=="meu-dia"||task.responsible_person_id===data.identity.personId||task.reviewer_person_id===data.identity.personId||task.approver_person_id===data.identity.personId)&&(!teamFilter||task.responsible_team_id===teamFilter)&&(!clientFilter||task.client_ref_id===clientFilter)&&(!personFilter||task.responsible_person_id===personFilter))} mode={mode==="meu-dia"?"day":mode==="coordenacao"?"coordination":"team"} teamId={teamFilter} renderRecords={rows=><Tasks data={data} items={rows} people={data.people} reload={reload}/>}/>}
-    {["minha-equipe","coordenacao","direcao"].includes(mode)&&<PortfolioPanel data={data} reload={reload}/>}
+    {["meu-dia","minha-equipe","coordenacao"].includes(mode)&&<FilterControls data={data} value={filters} onChange={setFilters}/>}
+    {["minha-equipe","coordenacao"].includes(mode)&&<details className="management-more"><summary>Evolução e riscos do trabalho no recorte</summary><DepartmentAnalytics data={data} tasks={items} filters={filters} reload={reload}/></details>}
+    {["meu-dia","minha-equipe","coordenacao"].includes(mode)&&<WorkOverview key={[data.identity.accessVersion,mode,teamFilter,clientFilter,personFilter].join(":")} data={data} tasks={matchingTasks(data.tasks.filter(task=>mode!=="meu-dia"||task.responsible_person_id===data.identity.personId||task.reviewer_person_id===data.identity.personId||task.approver_person_id===data.identity.personId),filters)} mode={mode==="meu-dia"?"day":mode==="coordenacao"?"coordination":"team"} teamId={teamFilter} renderRecords={rows=><Tasks data={data} items={rows} people={data.people} reload={reload}/>}/>}
+    {["minha-equipe","coordenacao","direcao"].includes(mode)&&<PortfolioPanel data={filterPortfolio(data,filters)} reload={reload}/>}
 
     {mode==="metricas"||mode==="direcao"?<><MetricsPanel data={data} direction={mode==="direcao"}/>{mode==="direcao"&&<Panel title="Capacidade informada da semana"><Load data={data}/></Panel>}{mode==="direcao"&&data.identity.owner&&<TeamAdministration data={data} reload={reload}/>}</>:
     mode==="planejamento"?<PlanningPanel data={data} reload={reload}/>:
-    <><div className="collab-view-switch" role="group" aria-label="Visualização">{(["list","board","calendar","load"] as const).map(v=><button className={view===v?"button button-dark":"button button-outline"} key={v} onClick={()=>setView(v)}>{v==="list"?"Lista":v==="board"?"Quadro":v==="calendar"?"Calendário":"Carga"}</button>)}</div>{mode==="meu-dia"&&view==="list"&&<div className="collab-board"><Panel title="Entregas próximas e atrasadas"><Tasks data={data} items={data.dashboards.myDay.dueSoon} people={data.people} reload={reload}/></Panel><Panel title="Bloqueios atribuídos a você"><Tasks data={data} items={data.dashboards.myDay.blocked} people={data.people} reload={reload}/></Panel><Panel title="Revisões atribuídas"><Tasks data={data} items={data.dashboards.myDay.reviews} people={data.people} reload={reload}/></Panel><Panel title="Aprovações atribuídas"><Tasks data={data} items={data.dashboards.myDay.approvals} people={data.people} reload={reload}/></Panel></div>}{view==="load"?<Panel title="Capacidade informada da semana" caption="Disponibilidade e esforço no escopo completo da semana por pessoa; o filtro de cliente não divide a capacidade."><CapacityOverview data={data} personIds={personFilter?new Set([personFilter]):teamFilter?new Set(data.teamMembers.filter(row=>row.active&&row.team_id===teamFilter).map(row=>row.person_id)):undefined}/></Panel>:view==="board"?<div className="collab-board">{Object.entries(labels).filter(([s])=>s!=="cancelled").map(([status,label])=><Panel key={status} title={label}><Tasks data={data} items={items.filter(t=>t.workflow_status===status)} people={data.people} reload={reload}/></Panel>)}</div>:view==="calendar"?<WorkCalendar items={items} data={data} reload={reload}/>:<Panel title={mode==="meu-dia"?"Prioridades acordadas":"Trabalho no escopo"} caption={`Leitura reconciliada em ${new Date(data.generatedAt).toLocaleTimeString("pt-BR")}.`}><Tasks data={data} items={items} people={data.people} reload={reload}/></Panel>}</>}
+    <><div className="collab-view-switch" role="group" aria-label="Visualização">{(["list","board","calendar","load"] as const).map(v=><button className={view===v?"button button-dark":"button button-outline"} key={v} onClick={()=>setView(v)}>{v==="list"?"Lista":v==="board"?"Quadro":v==="calendar"?"Calendário":"Carga"}</button>)}</div>{mode==="meu-dia"&&view==="list"&&<div className="collab-board"><Panel title="Entregas próximas e atrasadas"><Tasks data={data} items={matchingTasks(data.dashboards.myDay.dueSoon,filters)} people={data.people} reload={reload}/></Panel><Panel title="Bloqueios atribuídos a você"><Tasks data={data} items={matchingTasks(data.dashboards.myDay.blocked,filters)} people={data.people} reload={reload}/></Panel><Panel title="Revisões atribuídas"><Tasks data={data} items={matchingTasks(data.dashboards.myDay.reviews,filters)} people={data.people} reload={reload}/></Panel><Panel title="Aprovações atribuídas"><Tasks data={data} items={matchingTasks(data.dashboards.myDay.approvals,filters)} people={data.people} reload={reload}/></Panel></div>}{view==="load"?<Panel title="Capacidade informada da semana" caption="Disponibilidade e esforço no escopo completo da semana por pessoa; o filtro de cliente não divide a capacidade."><CapacityOverview data={data} personIds={personFilter?new Set([personFilter]):teamFilter?new Set(data.teamMembers.filter(row=>row.active&&row.team_id===teamFilter).map(row=>row.person_id)):undefined}/></Panel>:view==="board"?<div className="collab-board">{Object.entries(labels).filter(([s])=>s!=="cancelled").map(([status,label])=><Panel key={status} title={label}><Tasks data={data} items={items.filter(t=>t.workflow_status===status)} people={data.people} reload={reload}/></Panel>)}</div>:view==="calendar"?<WorkCalendar items={items} data={data} reload={reload}/>:<Panel title={mode==="meu-dia"?"Prioridades acordadas":"Trabalho no escopo"} caption={`Leitura reconciliada em ${new Date(data.generatedAt).toLocaleTimeString("pt-BR")}.`}><Tasks data={data} items={items} people={data.people} reload={reload}/></Panel>}</>}
   </>}</>;
 }
 
