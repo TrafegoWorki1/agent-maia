@@ -4,6 +4,13 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — implantação: dois ambientes com .env separados + Iniciar Maia.bat duplicado
+
+- **Causa:** worker do WhatsApp (`agent-maia`) e coletor do painel (`maia-gerencial`, worktree separado, tarefa agendada `Maia-Painel-Coletor`) têm `.env` independentes. A correção da chave Zernio só tinha ido para `agent-maia`; `maia-gerencial` continuava com a chave velha (HTTP 401).
+- **Correção:** `ZERNIO_API_KEY` copiada de um `.env` para o outro (sem expor o valor); testado HTTP 200 nos dois. PR #36 mergeada na `main`, os dois checkouts atualizados por fast-forward, processos reiniciados (coletor via `Start-ScheduledTask`, worker via `pnpm start`).
+- **Achado:** ao reiniciar o worker, uma segunda instância subiu em paralelo via `Iniciar Maia.bat` clicado por fora — mesmo padrão do incidente de worker duplicado já visto antes. Resolvido via árvore de processos (`ParentProcessId`), mantendo uma instância só.
+- **Pendência:** confirmar `status: "ok"` em `calendar`/`gmail`/`meta` no próximo ciclo do coletor.
+
 ## 2026-10-21 — Calendar/Gmail/Meta Ads pelo Claude + bug de isReadTool corrigido
 
 - **Causa/decisão:** owner escolheu usar os conectores `mcp__claude_ai_*` da conta para Calendar/Gmail/Meta Ads no painel, em vez de corrigir o escopo OAuth do servidor ou implementar coletor direto de Meta.
