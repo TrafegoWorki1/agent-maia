@@ -4,6 +4,15 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — Calendar/Gmail/Meta Ads do painel passam a usar os conectores da conta (Claude)
+
+- **Decisão do owner (21/10/2026):** em vez de corrigir o escopo do `GOOGLE_OAUTH_REFRESH_TOKEN` (só tinha `drive`) e implementar um coletor direto de Meta Ads, essas três fontes do painel passam a consultar pelos conectores `mcp__claude_ai_*` da conta — os mesmos já usados pela própria Maia. Sheets continua lendo o Drive direto (mais barato, sem depender do CLI).
+- **`server/panelCollection.ts`:** `collectSourceHealth` chama `runClaudeSimple` (Claude Code CLI/SDK) para `calendar`/`gmail`/`meta`, reaproveitando os prompts e validadores de `server/refreshJob.ts` (agora exportados como `SOURCES`). Resposta fora do formato ou `{"error": ...}` vira status de erro no painel; nunca inventa dado.
+- **Achado durante o teste (bug pré-existente, não introduzido aqui):** `isReadTool()` em `server/approvalPolicy.ts` só casava o verbo sozinho (`list`, `get`, `ads_get`…), nunca o nome real da ferramenta (`list_calendars`, `ads_get_ad_accounts`…). Isso significa que **todo uso de `isReadTool` com um conector `mcp__claude_ai_*` sempre devolvia falso**, inclusive em `codexMaiaMcp.ts` e `maiaOwnerAgent.ts` (produção), e o `refreshJob.ts` original nunca teria conseguido liberar ferramenta nenhuma se tivesse sido ligado. Corrigido: o verbo agora é prefixo (`get_`, `list_`, `ads_get_`, etc.), opcionalmente seguido de mais palavras. `requiresApproval()` continua barrando create/update/delete/share/send independente disso — confirmado com os nomes reais de ferramenta antes e depois da correção.
+- **Custo/dependência aceitos conscientemente:** cada ciclo de 30 min agora abre um subprocesso Claude (modelo Haiku, teto US$ 0,50) por fonte; depende do Claude Code estar logado nesta máquina com esses conectores ativos. Isso contraria o design original ("processo independente da IA") — decisão explícita do owner, documentada aqui.
+- **Testes:** `tests/panelCollection.test.ts` (novo, 4 testes): sheets não chama o Claude; calendar/gmail/meta liberam só a ferramenta certa; `{"error"}` ou formato inesperado viram status de erro. Suíte completa: typecheck limpo, 772/772 testes (111→112 arquivos), build OK.
+- **Pendências:** aplicar em produção (reiniciar o processo `Maia-Painel-Coletor`/`scripts/panel-collector.ts` e o worker, se houver, para carregar o código novo); confirmar ao vivo que o próximo ciclo grava `status: "ok"` nas três fontes.
+
 ## 20/10/2026 — complementação do painel gerencial
 
 - Publicado pelo PR #34 (b0bc9fe), CI da main e Vercel aprovados. Produção conferida às 23:15 BRT: página/gráficos 200, APIs novas 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. Zero fontes reais cadastradas; critérios externos/visuais continuam explícitos no plano.

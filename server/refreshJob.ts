@@ -20,7 +20,7 @@ type Validator = (value: Record<string, unknown>) => unknown;
 
 const isCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
 
-const SOURCES: Record<SourceId, { prompt: string; tools: string[]; validate: Validator }> = {
+export const SOURCES: Record<SourceId, { prompt: string; tools: string[]; validate: Validator }> = {
   gmail: {
     prompt: `Consulte o Gmail com a busca "is:unread" e conte os resultados (até 100). Depois conte os que chegaram nas últimas 24 horas com a busca "is:unread newer_than:1d". Não inclua remetentes, assuntos nem conteúdo. Formato: {"unread_count": number, "unread_last_24h": number}. ${JSON_RULE}`,
     tools: ["mcp__claude_ai_Gmail__search_threads"],

@@ -1,6 +1,9 @@
 import {getAccessToken} from "./integrations/googleDrive.ts";
 import {saveSnapshot,type Db,type SourceId} from "./store.ts";
 import {collectConfiguredSources} from "./panelSources.ts";
+import {runClaudeSimple} from "./ai/providers/claudeSimple.ts";
+import {isReadTool} from "./approvalPolicy.ts";
+import {SOURCES,parseJsonObject} from "./refreshJob.ts";
 let refreshing=false;
 export const isPanelRefreshing=()=>refreshing;
 async function googleGet(path:string):Promise<any>{
@@ -8,15 +11,23 @@ async function googleGet(path:string):Promise<any>{
  if(!response.ok)throw new Error("Google respondeu HTTP "+response.status+"; confira escopos e autorização OAuth");
  return await response.json();
 }
+// Calendar, Gmail e Meta Ads passam pelo Claude Code CLI, usando os conectores mcp__claude_ai_* desta
+// conta (decisão do owner, 21/10/2026): essas três fontes não têm um token/coletor direto próprio do
+// servidor, e os conectores da conta já leem Google Calendar/Gmail e Meta Ads sem escopo adicional.
+// Sheets continua lendo o Drive direto (token OAuth do servidor), mais barato e sem depender do CLI.
+const CLAUDE_SOURCE_BUDGET_USD=0.5,CLAUDE_SOURCE_MAX_TURNS=8,CLAUDE_SOURCE_MODEL="haiku";
+async function collectViaClaude(source:Exclude<SourceId,"sheets">):Promise<unknown>{
+ const {prompt,tools,validate}=SOURCES[source];
+ const answer=await runClaudeSimple({prompt,systemPrompt:"Você atualiza o painel gerencial da Maia com dados de leitura. Nunca execute ações.",model:CLAUDE_SOURCE_MODEL,maxTurns:CLAUDE_SOURCE_MAX_TURNS,maxBudgetUsd:CLAUDE_SOURCE_BUDGET_USD,allowTool:(toolName)=>isReadTool(toolName)&&tools.includes(toolName)});
+ const parsed=parseJsonObject(answer.text);
+ if(typeof parsed.error==="string")throw new Error(parsed.error);
+ return validate(parsed);
+}
 export async function collectSourceHealth(db:Db,source:SourceId){
  const attempt=new Date().toISOString();let data:unknown,error:string|null=null;
  try{
   if(source==="sheets"){const r=await googleGet("drive/v3/files?q="+encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false")+"&pageSize=5&orderBy=modifiedTime%20desc&fields=files(name,modifiedTime)");data={sheets:(r.files??[]).map((v:any)=>({name:v.name,modified_at:v.modifiedTime}))};}
-  else if(source==="calendar"){const r=await googleGet("calendar/v3/users/me/calendarList?maxResults=250&fields=items(summary),nextPageToken");if(r.nextPageToken)throw new Error("Lista excede 250 calendários; cobertura incompleta");data={calendars:(r.items??[]).map((v:any)=>({name:v.summary??"Sem nome"}))};}
-  else if(source==="gmail"){
-   const count=async(q:string)=>{const r=await googleGet("gmail/v1/users/me/messages?q="+encodeURIComponent(q)+"&maxResults=100&fields=messages(id),nextPageToken");return (r.messages??[]).length;};
-   data={unread_count:await count("is:unread"),unread_last_24h:await count("is:unread newer_than:1d")};
-  }else throw new Error("Meta Ads sem coletor direto configurado. Cadastre uma fonte de campanhas em Fontes gerenciais.");
+  else data=await collectViaClaude(source);
  }catch(e){error=e instanceof Error?e.message:"Falha ao ler fonte";}
  const result=await db.from("panel_source_health").upsert({source,last_attempt_at:attempt,...(error===null?{last_success_at:new Date().toISOString()}:{}),error},{onConflict:"source"});
  if(result.error)throw new Error(result.error.message);

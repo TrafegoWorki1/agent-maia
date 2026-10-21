@@ -4,6 +4,14 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — Calendar/Gmail/Meta Ads pelo Claude + bug de isReadTool corrigido
+
+- **Causa/decisão:** owner escolheu usar os conectores `mcp__claude_ai_*` da conta para Calendar/Gmail/Meta Ads no painel, em vez de corrigir o escopo OAuth do servidor ou implementar coletor direto de Meta.
+- **Correção:** `server/panelCollection.ts` chama `runClaudeSimple` com os prompts/validadores de `server/refreshJob.ts` (agora exportado como `SOURCES`) para essas três fontes; sheets continua no Drive direto.
+- **Bug achado e corrigido (pré-existente):** `isReadTool()` (`server/approvalPolicy.ts`) só casava o verbo isolado, nunca o nome real da ferramenta do conector (`list_calendars`, `ads_get_ad_accounts`…) — sempre devolvia falso para `mcp__claude_ai_*`, afetando também `codexMaiaMcp.ts`/`maiaOwnerAgent.ts` em produção. Corrigido para tratar o verbo como prefixo; validado que `requiresApproval()` (create/update/delete/share/send) não foi afetado.
+- **Evidência:** `tests/panelCollection.test.ts` (4 testes novos) cobrindo as duas rotas (Drive direto e Claude) e os casos de erro. Typecheck limpo, 772/772 testes, build OK.
+- **Pendências:** reiniciar o coletor agendado (`Maia-Painel-Coletor`) e o worker com o código novo; confirmar status "ok" no próximo ciclo real.
+
 ## 2026-10-20 — conectores Gmail/Calendar/Meta Ads: correção da causa (sessão de investigação)
 
 - **Diagnóstico inicial (errado):** a entrada original desta seção, escrita antes de notar que o checkout local estava 9 commits atrás da `main`, concluiu que reconectar os conectores `mcp__claude_ai_Gmail`/`Google_Calendar`/`Meta_ADS` desta sessão de Claude Code resolveria o problema. Esses conectores não têm nenhuma relação com o coletor de produção.
