@@ -30,7 +30,7 @@ describe("escolha do executor do Claude", () => {
 describe("argumentos e ambiente do CLI", () => {
   const args = buildCliArgs({ model: "haiku", maxBudgetUsd: 0.5, maxTurns: 12, systemPromptFile: "s.txt", mcpConfigFile: "m.json", settingsFile: "c.json", addDirs: ["/srv/repos/a", "/srv/repos/b"] });
   it("mantém o agente operacional restrito: só leitura, sem shell, escrita nem abrir páginas (busca na web só para o dono)", () => {
-    expect(args).toContain("--restricted");
+    expect(args).not.toContain("--restricted");
     expect(args[args.indexOf("--tools") + 1]).toBe(CLI_TOOLS.join(","));
     for (const blocked of ["Bash", "PowerShell", "Edit", "Write", "WebFetch", "NotebookEdit"]) {
       expect(CLI_TOOLS).not.toContain(blocked);

@@ -1,3 +1,18 @@
+# Contatos compartilhados pelo WhatsApp
+
+A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
+
+# Changelog
+
+## 21/10/2026 — Calendar/Gmail/Meta Ads do painel passam a usar os conectores da conta (Claude)
+
+- **Decisão do owner (21/10/2026):** em vez de corrigir o escopo do `GOOGLE_OAUTH_REFRESH_TOKEN` (só tinha `drive`) e implementar um coletor direto de Meta Ads, essas três fontes do painel passam a consultar pelos conectores `mcp__claude_ai_*` da conta — os mesmos já usados pela própria Maia. Sheets continua lendo o Drive direto (mais barato, sem depender do CLI).
+- **`server/panelCollection.ts`:** `collectSourceHealth` chama `runClaudeSimple` (Claude Code CLI/SDK) para `calendar`/`gmail`/`meta`, reaproveitando os prompts e validadores de `server/refreshJob.ts` (agora exportados como `SOURCES`). Resposta fora do formato ou `{"error": ...}` vira status de erro no painel; nunca inventa dado.
+- **Achado durante o teste (bug pré-existente, não introduzido aqui):** `isReadTool()` em `server/approvalPolicy.ts` só casava o verbo sozinho (`list`, `get`, `ads_get`…), nunca o nome real da ferramenta (`list_calendars`, `ads_get_ad_accounts`…). Isso significa que **todo uso de `isReadTool` com um conector `mcp__claude_ai_*` sempre devolvia falso**, inclusive em `codexMaiaMcp.ts` e `maiaOwnerAgent.ts` (produção), e o `refreshJob.ts` original nunca teria conseguido liberar ferramenta nenhuma se tivesse sido ligado. Corrigido: o verbo agora é prefixo (`get_`, `list_`, `ads_get_`, etc.), opcionalmente seguido de mais palavras. `requiresApproval()` continua barrando create/update/delete/share/send independente disso — confirmado com os nomes reais de ferramenta antes e depois da correção.
+- **Custo/dependência aceitos conscientemente:** cada ciclo de 30 min agora abre um subprocesso Claude (modelo Haiku, teto US$ 0,50) por fonte; depende do Claude Code estar logado nesta máquina com esses conectores ativos. Isso contraria o design original ("processo independente da IA") — decisão explícita do owner, documentada aqui.
+- **Testes:** `tests/panelCollection.test.ts` (novo, 4 testes): sheets não chama o Claude; calendar/gmail/meta liberam só a ferramenta certa; `{"error"}` ou formato inesperado viram status de erro. Suíte completa: typecheck limpo, 772/772 testes (111→112 arquivos), build OK.
+- **Pendências:** aplicar em produção (reiniciar o processo `Maia-Painel-Coletor`/`scripts/panel-collector.ts` e o worker, se houver, para carregar o código novo); confirmar ao vivo que o próximo ciclo grava `status: "ok"` nas três fontes.
+
 ## 20/10/2026 — complementação do painel gerencial
 
 - Publicado pelo PR #34 (b0bc9fe), CI da main e Vercel aprovados. Produção conferida às 23:15 BRT: página/gráficos 200, APIs novas 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. Zero fontes reais cadastradas; critérios externos/visuais continuam explícitos no plano.
@@ -9,19 +24,12 @@
 - Verificação: 768 testes da aplicação, 81 de banco, tipos/build, checks de banco/regras e drift 2.064/2.064. Novas APIs 200 autenticadas/401 anônimas com banco real; mesmos 21 IDs e ações da API original. Sem nova migração ou reinício de worker. Backup anterior preservado.
 - Dependências: fontes reais ainda não indicadas/configuradas, OAuth Gmail/Agenda sem escopo e navegador indisponível para homologação visual. Contratos e critérios de aceite em docs/painel-gerencial.md e docs/plano-painel-gerencial-maia.md.
 
-# Contatos compartilhados pelo WhatsApp
-
-A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
-
-# Changelog
-
 ## 2026-10-20 - identificação das redes sociais de Herickson Maia
 
 - Corrigidos Instagram e LinkedIn na tela Conexões, comentário de ambiente/cliente Zernio e descrições de ferramentas que atribuíam o Instagram à Worki.
 - Catálogo 2026-10-20.7 corrige somente os títulos das duas regras; todos os 46 textos e seus estados/ordem são preservados. Documentos gerados regenerados; nova migração com comparação dos valores anteriores, sem mudar IDs de contas, permissões ou aprovações.
 - Leitura das contas Zernio pela credencial local retornou HTTP 401; a propriedade dos perfis foi informada pelo owner. Nenhuma publicação, mensagem ou troca de credencial executada.
 - Verificação: typecheck, build, 742 testes de aplicação, 81 de banco, validação de 67 migrações, guarda de migrações e documentos aprovados. A migração 20261021011039 foi aplicada: regras 2026-10-20.7 alinhadas e drift 2.064/2.064 sem divergência. Documento normativo reindexado sem erros. O painel segue o fluxo de publicação GitHub/Vercel; descrições de ferramentas do worker são recarregadas no próximo início do processo.
-
 
 ## 2026-10-20 - painel gerencial com backup preservado
 
@@ -36,7 +44,22 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 - **Implantação:** banco aplicado; Evolution e OAuth de leitura configurados em production. Coletor independente iniciado e programado no login Windows. Sete APIs com banco real responderam 200 autenticadas e 401 anônimas. Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa.
 - Documentação: [painel gerencial](docs/painel-gerencial.md), [plano](docs/plano-painel-gerencial-maia.md), [backup](docs/backup-painel-anterior.md).
 
+## 2026-10-20 — conectores Gmail/Calendar/Meta Ads: diagnóstico desta sessão (ver nota de correção abaixo)
 
+> **Nota de correção (mesma sessão):** a entrada abaixo foi escrita antes de descobrir que o checkout local estava 9 commits atrás da `main` e que `server/panelCollection.ts`/`panelSources.ts` (o código que realmente coleta essas fontes) nem existiam localmente. A causa real, confirmada depois: o token OAuth do Google usado pelo coletor (`GOOGLE_OAUTH_REFRESH_TOKEN`) só tem o escopo `drive` — nunca teve Gmail nem Calendar —, e Meta Ads não tem coletor direto implementado (por design, não por credencial). Isso já estava documentado acima, em "Dependências", na entrada do PR #34. Reconectar conectores `mcp__claude_ai_*` desta sessão de Claude Code não tem efeito nenhum sobre o coletor de produção.
+
+- **Causa:** `operacao_resumo` mostrou `calendar`/`gmail`/`meta` com status "erro" no WhatsApp. Investigação encontrou duas coisas: (1) os conectores `mcp__claude_ai_Gmail`, `mcp__claude_ai_Google_Calendar` e `mcp__claude_ai_Meta_ADS` estavam de fato desautenticados no nível da conta Claude.ai (confirmado por uma sessão de Claude Code reportando os mesmos MCPs como `CONNECTION_CLOSED` ao conectar); (2) o comentário em `server/refreshJob.ts` (linhas ao redor de `runSource`) afirmava que uma falha de refresh "nunca" indica conector quebrado, só falta de acesso do subprocesso — mas o código não grava status "error" no snapshot nessa falha (só loga em `agent_runs`), então um "erro" visto em `operacao_resumo` fica parado desde a última falha real até o próximo refresh ter sucesso.
+- **Correção:** comentário de `server/refreshJob.ts` reescrito para não afirmar que a falha nunca é o conector real; registra que os dois cenários produzem o mesmo erro e não dá pra diferenciar só pelo código.
+- **Verificação:** após o owner reconectar os conectores em claude.ai, os três (`mcp__claude_ai_Gmail__list_labels`, `mcp__claude_ai_Google_Calendar__list_calendars`, `mcp__claude_ai_Meta_ADS__ads_get_ad_accounts`) responderam normalmente numa sessão de Claude Code.
+- **Pendências:** confirmar que o próximo ciclo do `refreshJob` (30 min, ou reinício do worker) sobrescreveu os snapshots para `status: "ok"`; considerar gravar explicitamente um status "stale"/"desconhecido" em vez de deixar o último "error" parado indefinidamente.
+
+## 2026-10-20 — remoção do `--restricted` no executor Claude CLI (conectores da conta)
+
+- **Causa:** o conector Meta Ads (e os demais `mcp__claude_ai_*` buscados pela conta) não chegava ao agente porque `--restricted`, em `buildCliArgs` (`server/ai/providers/claudeCli.ts`), zera `mcp_servers` por completo — confirmado rodando o `claude -p` ao vivo com e sem a flag.
+- **Decisão do owner (20/10/2026):** tirar `--restricted` pra liberar os conectores. Verificado antes de aplicar que as outras proteções continuam de pé por caminhos independentes da flag: Bash/PowerShell/Edit/Write/WebFetch seguem fora por `--tools`/`--disallowedTools`; a confinação de Read/Grep/Glob ao projeto é feita em código por `decideBuiltin` (`server/access.ts`); e qualquer `mcp__` fora do inventário de `isKnownMcpTool` (`server/toolPolicy.ts`) é negado por padrão — então um servidor MCP local/global alheio deste computador (ex.: `disparom`, `playwright`, de outros projetos) pode até conectar, mas nenhuma ferramenta dele fica chamável.
+- **`server/ai/providers/claudeCli.ts`**: removida a linha `"--restricted"` de `buildCliArgs`. Afeta os dois executores que passam por essa função (`runClaudeCli` e, por extensão, `claudeSimple.ts`).
+- **Testes:** `tests/claudeCli.test.ts` e `tests/claudeSimple.test.ts` ajustados para esperar a ausência de `--restricted`. 721 testes, `typecheck` e `build` conferidos depois da mudança.
+- **Pendências:** testar na prática uma pergunta real pelo WhatsApp que dependa do Meta Ads (ex.: listar contas de anúncio) com o worker reiniciado nesta mudança; confirmar se o risco residual de conexão (não chamada) a servidores MCP alheios deste computador exige isolar `CLAUDE_CONFIG_DIR` para o processo da Maia.
 
 ## 2026-10-20 — conferência de GitHub, sites e produção
 

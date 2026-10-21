@@ -37,7 +37,13 @@ export function requiresApproval(toolName: string): boolean {
   return NEEDS_APPROVAL.some((pattern) => pattern.test(toolName));
 }
 
-const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(list|get|check)|ads_account_get)|mcp__maia__(mensagem_status|sheets_(info|ler)|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
+// O ramo mcp__claude_ai_* casava só o verbo sozinho (ex.: "list"), nunca o nome real da ferramenta
+// (ex.: "list_calendars", "ads_get_ad_accounts"): nenhum teste cobria esse ramo e todo uso real de
+// isReadTool() com um conector da conta sempre voltava falso (achado ao testar o coletor do painel,
+// 21/10/2026). O verbo agora é um prefixo (get_, list_, search_, ads_get_ etc.), opcionalmente seguido
+// de mais palavras com "_"; requiresApproval() continua barrando create/update/delete/share/send/etc.
+// independente disso, então ampliar o prefixo não libera nenhuma ação de escrita.
+const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(?:get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(?:list|get|check)|ads_account_get)(?:_[A-Za-z0-9]+)*|mcp__maia__(mensagem_status|sheets_(info|ler)|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);

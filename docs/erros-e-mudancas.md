@@ -1,3 +1,31 @@
+# Contatos compartilhados
+
+Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
+
+# Erros e mudanças — resumo do projeto
+
+## 2026-10-21 — Calendar/Gmail/Meta Ads pelo Claude + bug de isReadTool corrigido
+
+- **Causa/decisão:** owner escolheu usar os conectores `mcp__claude_ai_*` da conta para Calendar/Gmail/Meta Ads no painel, em vez de corrigir o escopo OAuth do servidor ou implementar coletor direto de Meta.
+- **Correção:** `server/panelCollection.ts` chama `runClaudeSimple` com os prompts/validadores de `server/refreshJob.ts` (agora exportado como `SOURCES`) para essas três fontes; sheets continua no Drive direto.
+- **Bug achado e corrigido (pré-existente):** `isReadTool()` (`server/approvalPolicy.ts`) só casava o verbo isolado, nunca o nome real da ferramenta do conector (`list_calendars`, `ads_get_ad_accounts`…) — sempre devolvia falso para `mcp__claude_ai_*`, afetando também `codexMaiaMcp.ts`/`maiaOwnerAgent.ts` em produção. Corrigido para tratar o verbo como prefixo; validado que `requiresApproval()` (create/update/delete/share/send) não foi afetado.
+- **Evidência:** `tests/panelCollection.test.ts` (4 testes novos) cobrindo as duas rotas (Drive direto e Claude) e os casos de erro. Typecheck limpo, 772/772 testes, build OK.
+- **Pendências:** reiniciar o coletor agendado (`Maia-Painel-Coletor`) e o worker com o código novo; confirmar status "ok" no próximo ciclo real.
+
+## 2026-10-20 — conectores Gmail/Calendar/Meta Ads: correção da causa (sessão de investigação)
+
+- **Diagnóstico inicial (errado):** a entrada original desta seção, escrita antes de notar que o checkout local estava 9 commits atrás da `main`, concluiu que reconectar os conectores `mcp__claude_ai_Gmail`/`Google_Calendar`/`Meta_ADS` desta sessão de Claude Code resolveria o problema. Esses conectores não têm nenhuma relação com o coletor de produção.
+- **Causa real:** quem escreve `calendar`/`gmail`/`meta` em `snapshots` é `server/panelCollection.ts` (só existe na `main`, não existia neste checkout). Ele usa `getAccessToken()` de `server/integrations/googleDrive.ts` — um OAuth2 **próprio do servidor** (`GOOGLE_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN` no `.env`), sem relação com conectores do Claude.ai. Testado ao vivo: o token troca normalmente, mas `tokeninfo` do Google confirma `scope: "https://www.googleapis.com/auth/drive"` — **nunca teve escopo de Gmail nem de Calendar**. Sheets funciona porque usa Drive. Meta Ads não tem coletor direto implementado (`else` lança "sem coletor direto configurado"); não é problema de credencial.
+- **Correção real necessária:** gerar um novo `GOOGLE_OAUTH_REFRESH_TOKEN` com consentimento incluindo escopos de Calendar e Gmail, e atualizar onde esse valor estiver configurado (local e produção); para Meta Ads, cadastrar uma fonte manual em "Fontes Gerenciais" (não existe coletor automático).
+- **Zernio (Instagram/LinkedIn):** sistema totalmente separado (`ZERNIO_API_KEY`, `server/integrations/zernio.ts`). Chave testada ao vivo nesta sessão: `HTTP 200`, respondendo normalmente. O erro relatado horas antes pelo agente no WhatsApp era por dois workers (`inboxWorker.ts`) rodando ao mesmo tempo — um iniciado 23h antes com `.env` desatualizado, outro com a chave corrigida; o antigo foi encerrado e confirmado único processo ativo.
+
+## 2026-10-20 — remoção do `--restricted` no executor Claude CLI
+
+- **Causa:** o conector Meta Ads não chegava ao agente porque `--restricted` zerava `mcp_servers` por completo (confirmado rodando `claude -p` ao vivo).
+- **Correção:** removida a flag `--restricted` em `buildCliArgs` (`server/ai/providers/claudeCli.ts`). As demais proteções (Bash/Edit/Write/WebFetch bloqueados, leitura de arquivo confinada ao projeto, ferramentas MCP fora do inventário negadas por padrão) continuam por caminhos independentes dessa flag.
+- **Verificações:** `pnpm typecheck`, `pnpm test` (721 testes) e `pnpm build` aprovados após ajustar `tests/claudeCli.test.ts` e `tests/claudeSimple.test.ts`.
+- **Pendências:** testar com o worker reiniciado uma pergunta real pelo WhatsApp que use o Meta Ads; avaliar isolar `CLAUDE_CONFIG_DIR` pra reduzir o risco residual de conexão a servidores MCP alheios deste computador.
+
 ## 20/10/2026 — complementação do plano gerencial
 
 Publicação confirmada: PR #34, main b0bc9fe, CI e Vercel aprovados. Às 23:15 BRT, página/gráficos responderam 200, APIs gerenciais 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. A inspeção visual e as fontes reais seguem como dependências, não como entregas presumidas.
@@ -17,12 +45,6 @@ A navegação passa a nove áreas com Gestão e Meu trabalho separados. Panorama
 Backup anterior preservado em branch/tag no GitHub e ZIP/patch local. Regras, prompts, modelos, políticas, ferramentas, estados e efeitos operacionais preservados. Novas fontes restritas ao proprietário; escopos existentes inalterados. Migrações aditivas, sem apagar dados.
 
 Verificação local: 742 testes da aplicação, 81 de banco, typecheck, build e validação de 66 migrações aprovados. Fontes reais e inspeção visual dependem de configuração/navegador; Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa. Detalhes em [painel gerencial](painel-gerencial.md) e [backup](backup-painel-anterior.md).
-
-# Contatos compartilhados
-
-Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.
-
-# Erros e mudanças — resumo do projeto
 
 ## 2026-10-20 — conferência de GitHub, sites e produção
 

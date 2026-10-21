@@ -79,8 +79,12 @@ export function buildCliArgs(input: { tools?: string[]; model?: string; maxBudge
     "--output-format", "stream-json",
     "--verbose",
     "--no-session-persistence",
-    // Sem Bash/PowerShell/REPL, sem configurações do usuário/projeto, arquivos confinados às pastas de trabalho.
-    "--restricted",
+    // Sem --restricted (decisão do owner, 20/10/2026): ele zera os conectores da conta (Meta Ads etc.), que o
+    // agente precisa acessar. Bash/PowerShell/Edit/Write/WebFetch continuam fora por --tools/--disallowedTools;
+    // a confinação de Read/Grep/Glob ao projeto é feita em código por decideBuiltin (server/access.ts), não pela
+    // flag; e qualquer mcp__ fora do inventário de isKnownMcpTool (server/toolPolicy.ts) é negado por padrão —
+    // então um servidor MCP local/global alheio (ex.: outro projeto deste computador) pode até conectar, mas
+    // nenhuma ferramenta dele é chamável.
     "--tools", (input.tools ?? CLI_TOOLS).join(","),
     "--disallowedTools", ...CLI_DISALLOWED, PERMISSION_TOOL,
     "--settings", input.settingsFile,
