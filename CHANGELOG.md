@@ -4,6 +4,13 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — lições registradas no CLAUDE.md para o erro não se repetir
+
+- **O que aconteceu:** a Maia negou 7 vezes ter o Meta Ads. Causas empilhadas: (1) sem regra de capacidade no catálogo, (2) recusas gravadas no histórico reforçando o erro, (3) `--restricted` no executor CLI zerando os conectores, (4) `isReadTool()` nunca reconhecendo ferramentas de conector, (5) credenciais corrigidas só em um dos dois `.env`, (6) workers duplicados via `Iniciar Maia.bat`, (7) `MAIA_CLAUDE_BIN` corrompido por escaping de shell. Tudo corrigido e aplicado nas entradas de 21/10/2026 acima.
+- **Prevenção (`CLAUDE.md`, seção Integrações e limites):** conector ou capacidade nova exige regra de capacidade no catálogo + migração + `rules:verify` + `knowledge:sync` + teste real pelo WhatsApp; como diagnosticar recusa (`kind = conversa` sem ferramenta = não tentou); `.env` independentes entre `agent-maia` e `maia-gerencial` e reinício obrigatório; instância única do worker; nunca gravar barras de caminho no `.env` via `node -e`; Calendar/Gmail/Meta do painel pelos conectores; regex de ferramenta testada com o nome completo. Corrigida também a linha da arquitetura que ainda citava `claude -p --restricted`.
+- **Pendência em aberto:** não foi possível provar por que o Meta Ads "funcionava na semana passada"; exigiria logs de uma conversa daquela semana.
+
+## 21/10/2026 — regra meta_ads: a Maia sabe que tem o Meta Ads
 ## 21/10/2026 — regra meta_ads: a Maia sabe que tem o Meta Ads
 
 - **Causa:** o dono pediu a conta de anúncios do Dr. Ritchie e a Maia respondeu 7 vezes "Meta Ads nunca fez parte do meu conjunto de ferramentas". O conector funciona (listagem real testada, com a conta "CA01 - Ritichie") e o código de acesso já existe (permissão `meta.ler`, aprovação de escrita em `approvalPolicy.ts`), mas o catálogo de regras só citava o Meta Ads na regra estreita `anuncios_midia_url` (upload de mídia). Sem uma regra de capacidade, o modelo concluía que não tinha a ferramenta, e as próprias respostas voltavam como contexto da conversa e reforçavam a recusa (tarefas 850 e 852 ficaram `kind: conversa`, ou seja, sem nem tentar a ferramenta).
