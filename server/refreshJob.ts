@@ -30,15 +30,20 @@ export const SOURCES: Record<SourceId, { prompt: string; tools: string[]; valida
     },
   },
   meta: {
-    prompt: `Consulte o Meta Ads desta conta: liste as contas de anúncio e o gasto total dos últimos 7 dias em cada uma. Formato: {"accounts": [{"name": string, "spend_7d": number, "currency": string}]}. ${JSON_RULE}`,
+    // Contas reais variam muito: UNSETTLED, sem meio de pagamento, "Unknown error" ao consultar.
+    // spend_7d/currency aceitam null quando a conta não for consultável — nunca inventar um número,
+    // mas também não derrubar o lote inteiro por causa de uma conta problemática isolada.
+    prompt: `Consulte o Meta Ads desta conta: liste as contas de anúncio e o gasto total dos últimos 7 dias em cada uma. Se uma conta não puder ser consultada (erro, status não ativo, sem permissão), inclua-a com spend_7d e currency como null, nunca invente o valor. Formato: {"accounts": [{"name": string, "spend_7d": number|null, "currency": string|null}]}. ${JSON_RULE}`,
     tools: ["mcp__claude_ai_Meta_ADS__ads_get_ad_accounts", "mcp__claude_ai_Meta_ADS__ads_insights_performance_trend", "mcp__claude_ai_Meta_ADS__ads_get_ad_entities"],
     validate: (v) => {
       if (!Array.isArray(v.accounts)) throw new Error("formato inesperado");
       return {
         accounts: v.accounts.map((a) => {
           const item = a as Record<string, unknown>;
-          if (typeof item.name !== "string" || typeof item.spend_7d !== "number" || typeof item.currency !== "string") throw new Error("conta fora do formato");
-          return { name: item.name, spend_7d: item.spend_7d, currency: item.currency };
+          if (typeof item.name !== "string") throw new Error("conta fora do formato: nome ausente");
+          if (item.spend_7d !== null && typeof item.spend_7d !== "number") throw new Error("conta fora do formato: spend_7d deve ser número ou null");
+          if (item.currency !== null && typeof item.currency !== "string") throw new Error("conta fora do formato: currency deve ser texto ou null");
+          return { name: item.name, spend_7d: item.spend_7d as number | null, currency: item.currency as string | null };
         }),
       };
     },

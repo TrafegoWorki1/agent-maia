@@ -127,7 +127,7 @@ export async function runProactive(db: Db, send: ProactiveSender, now = new Date
   const threshold = Number(process.env.MAIA_META_SPEND_ALERT ?? 0);
   const meta = snapshots.meta;
   if (threshold > 0 && meta?.status === "ok" && Array.isArray((meta.data as { accounts?: unknown[] })?.accounts)) {
-    const total = (meta.data as { accounts: { spend_7d: number }[] }).accounts.reduce((sum, a) => sum + a.spend_7d, 0);
+    const total = (meta.data as { accounts: { spend_7d: number | null }[] }).accounts.reduce((sum, a) => sum + (a.spend_7d ?? 0), 0);
     if (total > threshold && (await kvGet(db, "meta:spend_alert_day")) !== brtDay(now)) {
       await notify("gasto_meta", `Alerta: gasto do Meta Ads nos últimos 7 dias chegou a ${total.toFixed(2)}, acima do limite de ${threshold}.`);
       await kvSet(db, "meta:spend_alert_day", brtDay(now), now);

@@ -79,4 +79,17 @@ describe("coleta do painel: calendar/gmail/meta pelo Claude, sheets pelo Drive d
     await collectSourceHealth(db2, "meta");
     expect(up2.find((u) => u.table === "snapshots")?.row.status).toBe("error");
   });
+
+  it("conta de Meta Ads não consultável entra com spend_7d/currency null, sem derrubar o lote inteiro", async () => {
+    claudeSimple.runClaudeSimple.mockResolvedValueOnce({
+      text: '{"accounts":[{"name":"Ativa","spend_7d":50,"currency":"BRL"},{"name":"Sem acesso","spend_7d":null,"currency":null}]}',
+      costUsd: 0,
+    });
+    const { db, upserts } = fakeDb();
+    await collectSourceHealth(db, "meta");
+    expect(upserts.find((u) => u.table === "snapshots")?.row).toMatchObject({
+      status: "ok",
+      data: { accounts: [{ name: "Ativa", spend_7d: 50, currency: "BRL" }, { name: "Sem acesso", spend_7d: null, currency: null }] },
+    });
+  });
 });

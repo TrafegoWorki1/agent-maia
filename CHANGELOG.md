@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — sheets/calendar/gmail confirmados "ok" em produção; Meta Ads tolera conta sem gasto
+
+- **Causa do "Native CLI binary for linux-x64 not found":** minha primeira tentativa de configurar `MAIA_CLAUDE_BIN` corrompeu o valor por escaping de shell (virou `C:UsersSamsung.localinclaude.exe`, sem nenhuma barra) — não era um problema do pacote nem do executor, era o `.env` com valor errado. Corrigido escrevendo o arquivo direto por script, sem passar pelo shell. Confirmado ao vivo: `sheets`, `calendar` e `gmail` gravaram `status: "ok"` no ciclo seguinte.
+- **`meta` ainda falhava com `"conta fora do formato"`:** o Claude conseguiu consultar de verdade (sem timeout, sem erro de permissão), mas a conta real tem ~50 contas de anúncio, várias `UNSETTLED`/sem meio de pagamento/"Unknown error" — o validador exigia `spend_7d`/`currency` sempre presentes e recusava o lote inteiro por causa de uma conta problemática.
+- **Correção:** `SOURCES.meta` (`server/refreshJob.ts`) aceita `spend_7d`/`currency` como `null` quando a conta não for consultável (nunca inventa o valor, mas não derruba as outras contas). `src/lib/snapshotApi.ts` (`MetaData`, `formatMoney`) e `server/proactive.ts` (soma do alerta de gasto) ajustados para tratar `null` sem quebrar.
+- **Testes:** `tests/panelCollection.test.ts` (novo caso: conta não consultável entra com `null`, lote continua `ok`). Typecheck limpo, 773/773 testes, build OK.
+- **Pendência:** confirmar `status: "ok"` em `meta` no próximo ciclo real.
+
 ## 21/10/2026 — ajuste de orçamento e ferramenta do Meta Ads (confirmado em produção)
 
 - **Resultado ao vivo após o PR #36:** `sheets` e `gmail` gravaram `status: "ok"` no primeiro ciclo real (confirmado lendo `snapshots` direto no Supabase). `calendar` falhou com `"Claude CLI falhou (error_max_budget_usd)"`; `meta` falhou com `"ads_get_ad_entities recusado pela fonte (somente leitura não permitido)"` — o modelo tentou uma ferramenta fora da lista liberada e, corretamente, devolveu erro em vez de inventar o gasto.
