@@ -108,9 +108,13 @@ async function runSource(db: Db, source: SourceId): Promise<void> {
     await finishRun(db, runId, "ok", costUsd, null);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // Não marca o conector como "error": falha no refresh em background indica que os
-    // conectores do platform (mcp__claude_ai_*) não estão acessíveis no subprocesso,
-    // não que o conector está quebrado. O status anterior é preservado; agent_runs registra.
+    // Não sobrescreve o snapshot em "error": o status em `snapshots` só muda quando um
+    // refresh tem sucesso (saveSnapshot acima). Uma falha aqui pode ser o subprocesso sem
+    // acesso ao conector, ou o conector da conta (mcp__claude_ai_*) de fato desconectado/
+    // expirado — os dois produzem o mesmo erro e não dá para diferenciar por aqui. Por isso
+    // um status "error" visto em `operacao_resumo` pode estar parado desde a última falha
+    // real e só se corrige no próximo refresh bem-sucedido; não assumir que é ruído.
+    // `agent_runs` guarda cada tentativa para quem quiser investigar a causa.
     console.error(`[refresh:${source}]`, message);
     await finishRun(db, runId, "error", costUsd, message);
   }
