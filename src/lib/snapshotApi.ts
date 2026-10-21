@@ -14,7 +14,7 @@ export interface GmailData {
 }
 
 export interface MetaData {
-  accounts: { name: string; spend_7d: number; currency: string }[];
+  accounts: { name: string; spend_7d: number | null; currency: string | null }[];
 }
 
 export interface SheetsData {
@@ -138,6 +138,7 @@ export function formatWhen(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export function formatMoney(value: number, currency: string): string {
+export function formatMoney(value: number | null, currency: string | null): string {
+  if (value === null || currency === null) return "indisponível";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 }

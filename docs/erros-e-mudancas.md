@@ -4,6 +4,14 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-21 — causa do erro linux-x64 e Meta Ads tolerante a conta sem gasto
+
+- **Causa:** `MAIA_CLAUDE_BIN` tinha sido salvo com valor corrompido (barras invertidas comidas por escaping de shell), não um problema do executor. Corrigido escrevendo o `.env` direto por script. `sheets`/`calendar`/`gmail` confirmados `status: "ok"` em produção depois disso.
+- **`meta` ainda falhava** ("conta fora do formato"): consulta real funcionou, mas o validador exigia `spend_7d`/`currency` sempre presentes e a conta tem ~50 contas de anúncio, várias não consultáveis.
+- **Correção:** `SOURCES.meta` aceita `null` nesses campos para conta não consultável; `snapshotApi.ts`/`proactive.ts` ajustados.
+- **Evidência:** `tests/panelCollection.test.ts` (novo caso), typecheck, 773/773 testes, build OK.
+- **Pendência:** confirmar "ok" em meta no próximo ciclo.
+
 ## 2026-10-21 — orçamento e ferramenta do Meta Ads (visto em produção após o PR #36)
 
 - **Causa:** `sheets`/`gmail` já gravaram "ok" no primeiro ciclo real. `calendar` estourou o teto de custo (`error_max_budget_usd`) porque o CLI carrega o contexto de todos os servidores MCP configurados na máquina, não só os da fonte. `meta` tentou `ads_get_ad_entities`, fora da lista liberada, e devolveu erro em vez de inventar dado.
