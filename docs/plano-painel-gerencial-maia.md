@@ -221,7 +221,7 @@ Decisões de implementação sugeridas:
 - Fase 3: nove áreas, 34 telas, aliases, filtros, gráficos e alternativas tabulares implementados; inspeção visual desktop/celular aguarda navegador disponível.
 - Fase 5: recortes e gráficos de trabalho usam os registros existentes; indicadores que dependem de fonte/atribuição sem cadastro permanecem indisponíveis.
 - Fase 6: conector Sheets e histórico/configuração/validação/lease prontos; escolha e conferência de planilhas reais aguardam o proprietário.
-- Fase 7: 740 testes da aplicação, 81 de banco, typecheck, build, db:validate, db:guard e CI aprovados. Drift 2.064/2.064 e 46 regras com checksum preservado. APIs de produção verificadas; sem teste visual ou de negócio com fonte real.
+- Fase 7: 742 testes da aplicação, 81 de banco, typecheck, build, db:validate, db:guard e CI aprovados. Drift 2.064/2.064 e 46 regras com checksum preservado. APIs de produção verificadas; sem teste visual ou de negócio com fonte real.
 - Publicação: https://agent-maia.vercel.app, merge 8a0f1c9, sem reiniciar/alterar o worker operacional.
 
 Detalhes reproduzíveis e matriz de telas: [painel gerencial](painel-gerencial.md).

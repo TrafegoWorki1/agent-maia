@@ -33,6 +33,8 @@ A primeira linha é o cabeçalho. Limite: 5.000 registros, 52 colunas e 20 fonte
 
 A reserva no banco impede duas coletas simultâneas da mesma fonte. Finalizar a mesma coleta novamente não altera o resultado. Cada tentativa registra revisão, configuração, horários, estado, erro e lote; falha preserva o sucesso anterior. A consulta usa somente o último sucesso da revisão atual, evitando somar lotes sucessivos. Revisões antigas permanecem no histórico e não alimentam a configuração nova.
 
+A listagem retorna somente metadados. Os registros são carregados para uma fonte selecionada por vez, até 5.000 itens, com detalhamento em páginas de 100 registros, evitando baixar todas as planilhas para montar o seletor.
+
 Não há total geral entre fontes: intervalos sobrepostos e duas fontes que descrevem o mesmo fato não são somados implicitamente. A chave única impede cadastro repetido de provedor/planilha/intervalo/métrica. Não há inferência de equivalência por nome.
 
 Movimentos financeiros e resultados de campanha são somados por data no período. Saldo vencido usa a última fotografia diária disponível dentro do período; não acumula saldos de dias diferentes. Moedas e regimes permanecem separados. Margem, ROAS e custo por resultado com objetivos distintos não são inferidos. Fontes reais ainda precisam ser escolhidas/configuradas pelo proprietário.
@@ -62,7 +64,7 @@ Lista combinada da Evolution, cadastros maia_groups e atividade registrada; a fa
 
 ## Verificação
 
-TypeScript, build, 740 testes da aplicação e 81 testes de Postgres temporário passaram. A suíte cobre aliases/parâmetros, perfis/escopos, baselines, fuso, ausência de denominador, capacidade desconhecida, detalhes com os mesmos IDs, fontes duplicadas, lease/replay, falhas, revisões e RLS.
+TypeScript, build, 742 testes da aplicação e 81 testes de Postgres temporário passaram. A suíte cobre aliases/parâmetros, perfis/escopos, baselines, fuso, ausência de denominador, capacidade desconhecida, detalhes com os mesmos IDs, fontes duplicadas, lease/replay, falhas, revisões e RLS.
 
 O navegador integrado está indisponível nesta sessão (nenhuma instância vinculada). Testes de componentes em DOM simulado não substituem a inspeção visual desktop/celular. Fontes de negócio reais ainda aguardam indicação/configuração; nenhum envio, publicação ou gasto de IA foi usado para testar.
 

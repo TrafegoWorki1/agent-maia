@@ -58,14 +58,16 @@ export async function savePanelSource(db:Db,input:unknown,id:unknown,revision:un
   check((await db.from("panel_data_sources").insert(config)).error);
  }
 }
-export async function panelSourcesView(db:Db):Promise<PanelSourceView[]>{
- const configs=await db.from("panel_data_sources").select("*,maia_clients(name),work_projects(name)").order("name");check(configs.error);
+export async function panelSourcesView(db:Db,sourceId?:string):Promise<PanelSourceView[]>{
+ let query=db.from("panel_data_sources").select("*,maia_clients(name),work_projects(name)").order("name");
+ if(sourceId)query=query.eq("id",sourceId);
+ const configs=await query;check(configs.error);
  return await Promise.all((configs.data??[]).map(async c=>{
  const [latest,success,history]=await Promise.all([
  db.from("panel_source_runs").select("id,status,started_at,completed_at,error").eq("source_id",c.id).eq("config_revision",c.revision).order("started_at",{ascending:false}).limit(1).maybeSingle(),
- db.from("panel_source_runs").select("id,status,started_at,completed_at,error,observations").eq("source_id",c.id).eq("config_revision",c.revision).eq("status","ok").order("completed_at",{ascending:false}).limit(1).maybeSingle(),
+ db.from("panel_source_runs").select("id,status,started_at,completed_at,error"+(sourceId?",observations":"")).eq("source_id",c.id).eq("config_revision",c.revision).eq("status","ok").order("completed_at",{ascending:false}).limit(1).maybeSingle(),
  db.from("panel_source_runs").select("id,status,config_revision,started_at,completed_at,error").eq("source_id",c.id).order("started_at",{ascending:false}).limit(5)
- ]);check(latest.error);check(success.error);check(history.error);return {...c,clientName:c.maia_clients?.name,projectName:c.work_projects?.name,latest:latest.data,success:success.data,history:history.data} as PanelSourceView;
+ ]);check(latest.error);check(success.error);check(history.error);const good=success.data as unknown as PanelSourceView["success"];return {...c,clientName:c.maia_clients?.name,projectName:c.work_projects?.name,latest:latest.data,success:good?{...good,observations:good.observations??[]}:null,history:history.data} as PanelSourceView;
  }));
 }
 export async function collectPanelSource(db:Db,id:string){
