@@ -2,6 +2,71 @@
 
 Implementação autorizada em 20/10/2026. Nove áreas, 34 telas (32 existentes e duas novas: Panorama e Fontes gerenciais). O proprietário entra em Gestão; os demais perfis continuam entrando nas telas previamente autorizadas. As rotas antigas continuam válidas, incluindo parâmetros de tarefa e projeto.
 
+## Complementação: gráficos e análises dos setores
+
+| Visualização | Aplicação | População e detalhamento |
+|---|---|---|
+| Rosca | Estado atual do trabalho e dos recibos | Contagens e proporções da mesma população; categorias com rótulo e valor, sem depender só da cor; total vazio/negativo não gera proporção |
+| Colunas agrupadas | Compromissos/entregas, entregáveis previstos/no prazo e ganhos/perdas | As duas séries usam o mesmo período e escopo; não somar estoque com fluxo |
+| Barras horizontais | Atrasos, espera, idade e carga/disponibilidade | Registros dos grupos; estimativas ausentes são identificadas e não viram disponibilidade zero |
+| Barras empilhadas | Estados das tarefas por área | Cada segmento abre exatamente seus IDs; cores por estado permanecem estáveis nos filtros |
+| Linhas | Conclusões semanais, fontes por data, falhas e custos | Pontos observados e tabelas; custo desconhecido não vira zero; fontes sem registros diários não recebem zeros implicitamente |
+| Cronograma | Prazo previsto e conclusão dos entregáveis | Marcadores distintos e tabela com datas, estado e tarefas vinculadas; paginação de 25 itens sem alterar os totais |
+
+Filtros comuns: período, cliente, projeto, equipe, responsável e área, quando aplicáveis ao registro. Comercial/CS usam cliente, projeto, equipe e responsável; seus registros não têm um campo de área próprio. Meu trabalho/equipe/coordenação aplicam os mesmos recortes às populações de tarefas. Alterar o período aguarda a leitura correspondente, evitando calcular uma janela nova sobre histórico parcial da anterior.
+
+Contratos adicionais (America/Sao_Paulo; fonte banco da Maia; atualização na leitura, normalmente a cada 30 s; sem meta arbitrária):
+
+| Indicador/análise | Fórmula e população | Cobertura / limitação |
+|---|---|---|
+| Conclusões semanais | Tarefas concluídas com completed_at no intervalo, por semana local | Semanas parciais respeitam o intervalo. Não recupera o estado histórico de outras tarefas. |
+| Idade do trabalho | Dias de calendário entre started_at e a leitura, apenas tarefas abertas | Início ausente fica em contagem separada; updated_at não substitui início. Faixas descritivas de <7, 7–<14, 14–<30 e ≥30 dias. |
+| Devoluções | Eventos outcome=returned no intervalo, por return_reason | Uma tarefa pode ter várias devoluções. O gráfico conta eventos; o detalhe abre os IDs únicos de tarefas. |
+| Pontualidade dos entregáveis | Conclusões até due_at ÷ entregáveis com prazo no período já vencido e mensurável | Cancelados e concluídos sem data ficam fora da taxa; a população prevista os identifica. Prazo atual não recupera compromisso anterior sem histórico próprio. |
+| Ganhos/perdas por período | Transições de status para won/lost registradas em work_portfolio_history | Alterar updated_at não cria ganho/perda. Reencerramentos são eventos separados; não são conversão por etapa. |
+| Ações comerciais/CS vencidas | Registros abertos com next_action_at anterior à leitura | Estado atual; ação aberta no período é um recorte distinto. Sem prazo não entra nos vencidos. |
+| Retornos concluídos | Transições de CS para completed no período | Tempo de resposta permanece indisponível sem eventos de solicitação/resposta; não é inferido de qualquer mensagem. |
+| Falhas por dia | Execuções operacionais com estado falhou e finished_at no período | Dia do encerramento registrado, não dia de criação do pedido. |
+| Custo e custo por execução | Soma dos cost_usd conhecidos e soma ÷ execuções com custo conhecido | Amostra/cobertura explícitas; não estima o custo total das execuções sem valor. Custos são apresentados em USD, com precisão de até seis casas. |
+| Estado dos envios | Recibos criados no período pelo estado atual | Aceito, entregue, lido, reproduzido e falha são distintos; não comprovam resolução do pedido. |
+
+As novas análises consolidadas e as comparações externas continuam exclusivas do proprietário. Permissões, indicadores e fontes financeiras já existentes dos membros continuam no escopo anterior.
+
+## Comparações entre fontes externas
+
+O proprietário escolhe uma fonte diferente por componente, período e análise e confirma cobertura completa, ausência de duplicidade e compatibilidade de escopo/critérios. A confirmação vale para o cálculo atual, é desfeita ao mudar a seleção e não executa coleta, publicação, pagamento ou ação da IA. A tela busca os lotes completos das fontes selecionadas; metadados não alimentam o cálculo.
+
+Exige: fontes ativas, mesma revisão vigente com sucesso, coleta há no máximo 60 minutos, última tentativa sem erro, mesmo cliente/projeto e mesmo texto de regime/objetivo/atribuição. Moedas incompatíveis são recusadas. Para campanhas, a conta, campanha, objetivo e janela precisam ser conferidos pelo proprietário na cobertura declarada; o sistema não infere equivalência por nome.
+
+| Análise | Cálculo | Restrições |
+|---|---|---|
+| Previsto × recebido | Séries separadas de finance.expected e finance.received | Não transforma previsto em recebido. |
+| Fluxo líquido | Recebido − custos pagos − despesas pagas | Saldo vencido não entra como fluxo. Preserva estornos e dias negativos. |
+| Margem de caixa | (Recebido − custos pagos − despesas pagas) ÷ recebido × 100 | Cobertura completa declarada e recebido >0. Não equivale a lucro contábil. |
+| Custo por resultado | Investimento ÷ resultados do mesmo objetivo | Resultados >0; investimento zero conhecido pode produzir custo zero. Dinheiro e contagens têm gráficos com escalas separadas. |
+| ROAS observado | Receita atribuída ÷ investimento | Investimento >0, mesma moeda e atribuição compatível. Não calcula margem. |
+| Ganho externo | Ganhas ÷ (ganhas + perdidas) × 100 | Denominador >0, ambas as fontes completas no período. |
+
+Custos e despesas com o mesmo identificador na mesma planilha são recusados como sobreposição. Lotes sucessivos não se somam. O resultado mostra os totais componentes, IDs de lote e registros de origem paginados de 100 em 100; os cálculos usam o lote inteiro. Zeros em datas sem movimento só são aceitos nas comparações com cobertura completa explicitamente confirmada. A origem pode ser aberta na planilha correspondente.
+
+## Leitura própria do painel e histórico sob demanda
+
+`GET /api/panel-collaboration?start=AAAA-MM-DD&end=AAAA-MM-DD`: janela de até 366 dias, mesmas capacidades e escopos da colaboração, sem leitura global de work_task_history. Revisões são buscadas para o período selecionado e para a semana atual dos cartões existentes. Para as tarefas revisadas e autorizadas, recupera contexto anterior necessário para não confundir uma revisão posterior com a primeira. Histórico de carteira/comercial/CS limitado ao intervalo. A resposta informa readWindow; não é uma reconstrução do estado passado.
+
+`GET /api/panel-collaboration?task=ID&page=N`: confere trabalho.ver da tarefa e entrega 100 eventos por página, com hasMore e ordem estável. O detalhe permite carregar mais eventos. Tempos nos estados só são calculados quando todo o histórico da tarefa tiver sido carregado, sem erro ou página pendente.
+
+`GET /api/panel-operations?start=AAAA-MM-DD&end=AAAA-MM-DD`: proprietário, até 93 dias; metadados de execuções, falhas, recibos, aprovações e saúde das fontes. Não retorna texto das mensagens, destinatários ou conteúdo dos pedidos. Todas as consultas de resultado paginam o banco, sem cortar os totais em 1.000 linhas.
+
+As duas APIs são somente leitura, sem cache compartilhado, validam método/origem/período e revalidam a identidade antes de entregar a resposta. `/api/collaboration`, os comandos e as ferramentas da IA mantêm os contratos e a leitura completa anteriores. A complementação não altera tabelas, migrações, catálogo de regras, worker ou coletor.
+
+## Verificação da complementação e dependências
+
+768 testes de aplicação (111 arquivos), 81 testes de banco, tipos, build, db:validate e db:guard aprovados. 67 migrações, drift 2.064/2.064. Catálogo 2026-10-20.7 com 46 regras e checksum 7c63d7e4baa81dc5b10db96495aeb1b0781f25631f87bcfa0e2ed8e9f29a7840 preservado. Testes cobrem denominadores, moeda/escopo/cobertura, estornos, primeira revisão anterior ao período, teclado/segmentos, revogação e histórico paginado.
+
+Conferência local das APIs com o banco real em 21/10/2026 01:56 UTC: API original e leitura compacta retornaram os mesmos 21 IDs e allowedActions; a original retornou quatro eventos globais e a compacta zero, com detalhe sob demanda 200. Operações retornaram 59 execuções e 73 recibos. As duas APIs recusaram anônimos com 401, e período inválido retornou 400. Nenhum dado de negócio foi criado/alterado para testar; nenhuma mensagem, publicação ou execução paga de IA foi disparada.
+
+Ativação ainda depende de: links/IDs e critérios das fontes reais (zero cadastradas na conferência), reautorização OAuth de Gmail/Agenda se usados (Google confirmou ACCESS_TOKEN_SCOPE_INSUFFICIENT), cadastro de esforço/disponibilidade/baselines conforme o indicador e navegador conectado para homologação visual desktop/celular/perfis. A inspeção visual não foi substituída por testes DOM. O plano registra esses critérios abertos e não declara aceite integral.
+
 ## Identificação das redes sociais
 
 Instagram e LinkedIn são os perfis de Herickson Maia. Os nomes da tela Conexões, das descrições de ferramentas e dos títulos do catálogo foram corrigidos por informação do proprietário em 20/10/2026. Esta correção de identificação não altera contas por ID, permissões ou aprovações. A conferência de contas com a credencial local respondeu HTTP 401; não foi possível confirmar a conexão atual por essa leitura.
@@ -27,7 +92,7 @@ Timezone: America/Sao_Paulo. A leitura de colaboração é atualizada a cada 30 
 | cycle | Conclusão menos início das concluídas no período | Mediana, amostra explícita; P85 calculável a partir de sete registros |
 | load | Esforço informado das tarefas abertas com prazo no período versus disponibilidade semanal | Horas; estimativas e disponibilidade ausentes identificadas |
 
-Quando uma tarefa figura em mais de uma baseline semanal sobreposta, usa-se a primeira baseline por created_at. Sem baseline não é possível recuperar o prazo original de um trabalho reagendado. Não se reconstrói o estado passado usando o status atual.
+Quando uma tarefa figura em mais de uma baseline semanal sobreposta, usa-se a primeira baseline por created_at. Acréscimos são contados pelos itens dos planos semanais que intersectam o período selecionado, sem usar a marca da semana atual como histórico. Sem baseline não é possível recuperar o prazo original de um trabalho reagendado. Não se reconstrói o estado passado usando o status atual. Carga soma somente horas informadas e identifica as tarefas sem estimativa em cada pessoa.
 
 ## Fontes de vendas, campanhas e financeiro
 
@@ -78,24 +143,24 @@ Banco aplicado antes do código dependente: 66 migrações e comparação de 2.0
 
 | Área / tela | API | Fonte | Acesso |
 |---|---|---|---|
-| Gestão / Panorama da operação | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Proprietário; Pessoas preserva o acesso individual |
-| Gestão / Coordenação | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Gestão / Direção e equipes | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Gestão / Planejamento | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Gestão / Indicadores | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Meu trabalho / Meu dia | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Meu trabalho / Minha equipe | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Comercial / Oportunidades | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Comercial / Funil | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Gestão / Panorama da operação | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Proprietário; Pessoas preserva o acesso individual |
+| Gestão / Coordenação | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Gestão / Direção e equipes | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Gestão / Planejamento | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Gestão / Indicadores | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Meu trabalho / Meu dia | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Meu trabalho / Minha equipe | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Comercial / Oportunidades | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Comercial / Funil | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
 | Comercial / Resultados de vendas | panel-sources | panel_data_sources / panel_source_runs | Proprietário; Pessoas preserva o acesso individual |
-| Projetos e entregas / Projetos | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Projetos e entregas / Entregáveis e implementações | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
-| Marketing / Produção e calendário | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Projetos e entregas / Projetos | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Projetos e entregas / Entregáveis e implementações | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Marketing / Produção e calendário | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
 | Marketing / Resultados de campanhas | panel-sources | panel_data_sources / panel_source_runs | Proprietário; Pessoas preserva o acesso individual |
-| Clientes e CS / Combinados e retornos | collaboration | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
+| Clientes e CS / Combinados e retornos | panel-collaboration (leitura); collaboration (a??es) | work_tasks/carteira/planos/capacidade e registros no escopo | Tela e escopo atuais da colaboração |
 | Clientes e CS / Grupos do WhatsApp | snapshot; organization | consultas existentes do módulo | Proprietário; Pessoas preserva o acesso individual |
-| Financeiro / Receitas e previsões | collaboration; panel-sources | work_tasks/carteira/planos/capacidade e registros no escopo | Financeiro existente no escopo; fontes novas só owner |
-| Financeiro / Custos e despesas | collaboration; panel-sources | work_tasks/carteira/planos/capacidade e registros no escopo | Financeiro existente no escopo; fontes novas só owner |
+| Financeiro / Receitas e previsões | panel-collaboration; panel-sources | work_tasks/carteira/planos/capacidade e registros no escopo | Financeiro existente no escopo; fontes novas só owner |
+| Financeiro / Custos e despesas | panel-collaboration; panel-sources | work_tasks/carteira/planos/capacidade e registros no escopo | Financeiro existente no escopo; fontes novas só owner |
 | Operação da Maia / Saúde da operação | snapshot | consultas existentes do módulo | Proprietário; Pessoas preserva o acesso individual |
 | Operação da Maia / Qualidade da IA | snapshot | consultas existentes do módulo | Proprietário; Pessoas preserva o acesso individual |
 | Operação da Maia / Filas e entregas | snapshot | consultas existentes do módulo | Proprietário; Pessoas preserva o acesso individual |

@@ -1,7 +1,7 @@
 # Plano de evolução do painel gerencial da Maia
 
 Data: 20/10/2026.
-Estado: primeira entrega implementada e publicada pelo PR #31 (8a0f1c9). Banco aplicado e sem drift. Fontes de negócio reais, escopos OAuth ausentes e inspeção visual seguem pendentes, conforme o registro de execução ao final. Contratos e matriz final em [painel gerencial](painel-gerencial.md). Backup da referência anterior preservado antes da implementação.
+Estado: primeira entrega publicada pelo PR #31 e complementação de gráficos, análises setoriais, comparações e leitura gerencial implementada. Os critérios de ativação com fontes reais e de homologação visual ainda dependem das entradas descritas ao final. Banco sem alteração estrutural nesta complementação e sem drift. Contratos e matriz final em [painel gerencial](painel-gerencial.md). Backup anterior preservado.
 Base: [auditoria do painel e do banco](auditoria-painel-banco-2026-10-20.md).
 Objetivo: permitir ao gerente entender compromissos, capacidade, riscos e resultados por setor, cliente e projeto, preservando o comportamento operacional da Maia.
 
@@ -225,3 +225,20 @@ Decisões de implementação sugeridas:
 - Publicação: https://agent-maia.vercel.app, merge 8a0f1c9, sem reiniciar/alterar o worker operacional.
 
 Detalhes reproduzíveis e matriz de telas: [painel gerencial](painel-gerencial.md).
+
+## Complementação do plano autorizada em 20/10/2026
+
+As lacunas de implementação da primeira entrega foram tratadas: gráficos de rosca, colunas, linhas e barras empilhadas; evolução semanal, idade dos itens e motivos de devolução; cronograma com prazo/conclusão dos entregáveis; encerramentos comerciais e retornos de CS por eventos; filtros comuns; análises de falhas, custos e recibos; fórmulas comparativas de fontes; leitura própria do painel com histórico de tarefa paginado sob demanda.
+
+| Fase | Situação da implementação | Dependência restante para o aceite integral |
+|---|---|---|
+| 0 — Referência | Backup, matriz e isolamento preservados | Nenhuma nova dependência |
+| 1 — Confiabilidade | Leitura, fallback, coletor e diagnósticos implementados | Proprietário precisa reautorizar Gmail/Agenda se usados; respostas Google confirmaram ACCESS_TOKEN_SCOPE_INSUFFICIENT. Campanhas usam Sheets explícito; Meta direto não foi integrado. |
+| 2 — Modelo gerencial | Leitura por janela e histórico de tarefa sob demanda; contexto da primeira revisão anterior ao período mantido | Métricas que exigem eventos inexistentes continuam indisponíveis |
+| 3 — Navegação e componentes | Nove áreas e formatos de gráfico com tabelas/teclado implementados | Inspeção visual desktop/celular depende de navegador conectado |
+| 4 — Gestão e trabalho | Seis KPIs, filtros, exceções, evolução e detalhamento implementados | Disponibilidade, esforço e baselines precisam ser preenchidos para os respectivos cálculos |
+| 5 — Setores | Análises setoriais, carteira/cronograma, funil/retornos, produção e operação implementados | Cadastrar estrutura real; tempo de resposta de CS exige par solicitação/resposta e não é inferido de mensagens |
+| 6 — Resultados externos | Conector, cadastro, lotes, comparações e fórmulas implementados | Zero fontes de negócio cadastradas na conferência; proprietário deve indicar links/IDs, escopo e critérios e reconciliar amostra real |
+| 7 — Homologação | 768 testes de aplicação, 81 de banco, build/tipos e controles de banco/regras aprovados; novas APIs testadas com banco real | Homologação visual e por perfis no navegador, mais reconciliação das fontes reais |
+
+O aceite integral do plano não será declarado enquanto essas dependências permanecerem abertas. Não é necessário alterar regras da IA, reiniciar o worker ou criar migração para esta complementação. O catálogo permanece 2026-10-20.7, 46 regras, checksum 7c63d7e4baa81dc5b10db96495aeb1b0781f25631f87bcfa0e2ed8e9f29a7840. Migrações: 67; drift: 2.064/2.064, sem divergência. O backup remoto anterior continua no commit 2af93da.

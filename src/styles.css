@@ -827,7 +827,7 @@ tr:last-child td { border-bottom: 0; }
 .management-reading { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center; color:var(--muted); font-size:12px; margin:12px 0 18px; }
 .management-reading a { display:inline-flex; align-items:center; gap:6px; color:var(--gold-dark); }
 .management-chart-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:24px 0; }
-.management-chart { min-width:0; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:22px; }
+.management-chart { --chart-green:#5a8575; --chart-red:#a56660; --chart-purple:#7c7295; --chart-cyan:#608998; --chart-neutral:#8a8172; min-width:0; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:22px; }
 .management-chart-heading h2 { font-size:17px; margin:0 0 7px; font-weight:600; }
 .management-chart-heading p { color:var(--muted); font-size:13px; line-height:1.55; min-height:40px; margin-bottom:18px; max-width:70ch; }
 .management-legend { display:flex; flex-wrap:wrap; gap:10px 18px; font-size:12px; color:var(--ink); margin-bottom:18px; }
@@ -845,6 +845,29 @@ tr:last-child td { border-bottom: 0; }
 .management-track { display:flex; flex-direction:column; gap:4px; min-height:7px; background:var(--paper-soft); border-radius:3px; }
 .management-track span { display:block; height:7px; min-width:0; background:var(--blue); border-radius:3px; }
 .management-track span.management-secondary { background:var(--gold); }
+.management-signed-track { position:relative; height:7px; }
+.management-signed-track span { position:absolute; }
+.management-zero { position:absolute; top:-2px; bottom:-2px; width:1px; background:var(--line-strong); }
+.management-svg-scroll { overflow-x:auto; max-width:100%; padding:4px; }
+.management-svg { display:block; width:100%; height:auto; max-height:360px; overflow:visible; }
+.management-svg text,.management-donut text { font:12px Inter,sans-serif; fill:var(--muted); }
+.management-timeline { display:block; width:100%; min-width:740px; }
+.management-timeline text { font:12px Inter,sans-serif; fill:var(--ink); }
+.management-gridline { stroke:var(--line); stroke-width:1; stroke-dasharray:3 4; }
+.management-svg [role=button],.management-donut [role=button] { cursor:pointer; }
+.management-svg [role=button]:focus-visible,.management-donut [role=button]:focus-visible { outline:3px solid var(--gold-dark); outline-offset:4px; }
+.management-donut-layout { display:grid; grid-template-columns:minmax(140px,220px) minmax(0,1fr); align-items:center; gap:18px; }
+.management-donut { width:100%; max-width:220px; }
+.management-donut .management-donut-total { font-size:30px; font-weight:600; fill:var(--ink); }
+.management-donut-labels { display:grid; gap:4px; min-width:0; }
+.management-donut-labels button { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; border:0; background:transparent; color:var(--ink); text-align:left; padding:8px 0; font-size:12px; min-height:44px; }
+.management-donut-labels button:disabled { opacity:1; cursor:default; }
+.management-donut-labels i { width:10px; height:10px; border-radius:50%; flex:none; }
+.management-donut-labels strong { margin-left:auto; font-variant-numeric:tabular-nums; }
+.management-coverage { grid-column:1/-1; flex-direction:row!important; align-items:flex-start; font-weight:400!important; line-height:1.6; }
+.management-coverage input { width:20px; min-height:20px; flex:none; margin-top:2px; }
+.management-more { margin:20px 0; }
+.management-more>summary { cursor:pointer; padding:14px 0; color:var(--gold-dark); min-height:44px; }
 .management-chart-table { margin-top:20px; border-top:1px solid var(--line); padding-top:12px; font-size:12px; }
 .management-chart-table summary { cursor:pointer; color:var(--gold-dark); padding:5px 0; }
 .management-chart-table table { width:100%; }
@@ -859,6 +882,8 @@ tr:last-child td { border-bottom: 0; }
 .management-source-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
 @media(max-width:1000px) { .management-filters {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media(max-width:700px) {
+ .management-donut-layout {grid-template-columns:1fr;justify-items:center;}
+ .management-donut-labels {width:100%;}
  .management-chart-grid {grid-template-columns:1fr;gap:14px;}
  .management-chart {padding:18px;}
  .management-filters {grid-template-columns:repeat(2,minmax(0,1fr));padding:14px;gap:12px;}

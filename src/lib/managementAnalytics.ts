@@ -1,8 +1,8 @@
-import {validDay} from "./panelSourceModel";
-import type {CollaborationData,CollaborationTask} from "./collaborationApi";
+import {validDay} from "./panelSourceModel.ts";
+import type {CollaborationData,CollaborationTask} from "./collaborationApi.ts";
 export interface AnalyticsFilters{start:string;end:string;client:string;project:string;team:string;person:string;area:string}
 export interface AnalyticalMetric{code:string;label:string;value:number|null;unit:string;ids:number[];description:string;coverage:string}
-export interface ChartRow{key:string;label:string;primary:number;secondary?:number;ids:number[]}
+export interface ChartRow{key:string;label:string;primary:number;secondary?:number;ids:number[];note?:string;segments?:Array<{label:string;value:number;ids:number[]}>}
 const terminal=(t:CollaborationTask)=>["completed","cancelled"].includes(t.workflow_status);
 const timestamp=(s:unknown)=>typeof s==="string"&&Number.isFinite(Date.parse(s))?Date.parse(s):null;
 export const brtDate=(date:Date)=>new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -61,7 +61,8 @@ export function buildManagementAnalytics(data:CollaborationData,f:AnalyticsFilte
  for(const c of capacities){const person=String(c.person_id);if(!weeks.has(person))weeks.set(person,{planned:0,done:0,known:0,capacityKnown:false});weeks.get(person)!.capacityKnown=true;weeks.get(person)!.known+=Math.max(0,Number(c.available_hours)-Number(c.absence_hours));}
  const work=tasks.filter(t=>!terminal(t)&&inPeriod(t.committed_due_at));
  for(const t of work){const person=t.responsible_person_id??"";if(!weeks.has(person))weeks.set(person,{planned:0,done:0,known:0,capacityKnown:false});const row=weeks.get(person)!;if(typeof t.estimated_effort_hours==="number"&&Number.isFinite(t.estimated_effort_hours))row.planned+=t.estimated_effort_hours;else row.done++;}
- const loadChart=capacityAllowed?[...weeks].map(([person,v])=>({key:person,label:data.people.find(p=>p.id===person)?.name??"Sem pessoa vinculada",primary:v.planned,secondary:v.capacityKnown?v.known:undefined,ids:ids(work.filter(t=>(t.responsible_person_id??"")===person)),missingEstimates:v.done})): [];
+ const loadChart=capacityAllowed?[...weeks].map(([person,v])=>({key:person,label:data.people.find(p=>p.id===person)?.name??"Sem pessoa vinculada",primary:v.planned,secondary:v.capacityKnown?v.known:undefined,ids:ids(work.filter(t=>(t.responsible_person_id??"")===person)),missingEstimates:v.done,note:v.done?`${v.done} tarefas sem estimativa; a barra soma somente as horas informadas.`:undefined})): [];
  const exceptionRows=[...new Set([...overdue,...blocked,...decisions].map(t=>t.id))].map(id=>tasks.find(t=>t.id===id)!).sort((a,b)=>a.priority-b.priority);
- return {valid,tasks,metrics,planChart,projectChart,stateChart,waitingChart,loadChart,exceptions:exceptionRows,completed:completed.length,cycleMedianDays:quantile(cycle,.5),cycleP85Days:cycle.length>=7?quantile(cycle,.85):null,cycleSample:cycle.length,cancelled:commitments.filter(t=>t.workflow_status==="cancelled").length,addedAfterBaseline:tasks.filter(t=>t.added_after_baseline).length};
+ const added=tasks.filter(t=>data.planItems?data.planItems.some(item=>plans.has(String(item.plan_id))&&Number(item.work_task_id)===t.id&&item.added_after_baseline):t.added_after_baseline&&inPeriod(t.committed_due_at));
+ return {valid,tasks,metrics,planChart,projectChart,stateChart,waitingChart,loadChart,exceptions:exceptionRows,completed:completed.length,cycleMedianDays:quantile(cycle,.5),cycleP85Days:cycle.length>=7?quantile(cycle,.85):null,cycleSample:cycle.length,cancelled:commitments.filter(t=>t.workflow_status==="cancelled").length,addedAfterBaseline:added.length};
 }

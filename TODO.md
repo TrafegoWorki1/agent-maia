@@ -7,6 +7,14 @@
 
 ## Painel gerencial - 20/10/2026
 
+- [x] Complementar gráficos com rosca, colunas, linhas, barras empilhadas e cronograma de entregáveis, mantendo alternativa tabular e acesso por teclado.
+- [x] Evolução semanal, idade dos itens, composição por área, motivos de devolução e pontualidade dos entregáveis.
+- [x] Encerramentos comerciais por período, próximas ações vencidas e evolução dos retornos de CS com eventos reais.
+- [x] Filtros compartilhados de período, cliente, projeto, equipe, pessoa e área; períodos históricos não reconstroem o estado passado.
+- [x] Leitura própria do painel com histórico sob demanda, sem alterar a leitura completa das ferramentas da IA; contexto anterior da primeira revisão preservado.
+- [x] Comparações explícitas de previsto/recebido, fluxo/margem de caixa, custo por resultado, ROAS e ganho externo, condicionadas a fonte/cobertura/compatibilidade/denominador.
+- [x] Séries de falhas e custos, custo por execução com valor informado, recibos e saúde das fontes; dados técnicos sem texto de mensagens.
+- [x] Conferência com banco real: novas APIs 200 autenticadas e 401 anônimas, mesmos 21 IDs e ações da API original, histórico global omitido; 768 testes da aplicação e 81 do banco aprovados.
 - [x] Backup do painel anterior no GitHub e ZIP/patch local.
 - [x] Nove áreas, aliases de 32 telas antigas e duas telas novas.
 - [x] Panorama, gráficos, filtros e detalhamento; regras e permissões preservadas.

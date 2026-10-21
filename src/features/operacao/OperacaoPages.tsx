@@ -5,6 +5,7 @@ import { MANUAL_SECTIONS } from "../../data/manual";
 import { formatMoney, formatWhen, type Snapshot } from "../../lib/snapshotApi";
 import { useSnapshot } from "../../lib/useSnapshot";
 import { JevPanel } from "./JevPanel";
+import {OperationsAnalytics} from "../management/OperationsAnalytics";
 
 // Páginas com dados reais da operação. Todas leem o mesmo snapshot do servidor local.
 // Sem amostra ou sem fonte, o valor é "sem dado": nunca um número de demonstração.
@@ -149,6 +150,7 @@ export function IndicadoresPage() {
   return (
     <>
       <PageHeader eyebrow="Desempenho" title="Indicadores" subtitle="Entrega e qualidade da operação da Maia, com período e denominador identificados." />
+      <OperationsAnalytics/>
       <Loading snapshot={snapshot} error={error}>
         {(s) => {
           const q = s.quality.current;

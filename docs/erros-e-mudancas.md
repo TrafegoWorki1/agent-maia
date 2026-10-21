@@ -1,3 +1,9 @@
+## 20/10/2026 — complementação do plano gerencial
+
+Causa: a primeira entrega organizou o painel, mas manteve gráficos em barras e deixou análises setoriais/comparações sem implementação completa. Correção: rosca, colunas, linhas, empilhados, cronograma, evolução semanal, idade, devoluções, encerramentos/retornos por eventos, filtros comuns e análises operacionais. Comparações externas agora têm fórmulas e validações explícitas; não presumem moeda, cobertura ou atribuição equivalentes.
+
+A leitura própria do painel omite o histórico global e busca o histórico da tarefa por páginas, preservando a primeira revisão quando anterior ao período. API original, comandos da Maia, catálogo de regras e permissões permanecem iguais. Validação: 768 testes de aplicação, 81 de banco, tipos/build e checks de banco/regras; drift 2.064/2.064 sem divergência. APIs novas conferidas com banco real: 200 autenticadas, 401 anônimas, mesmos 21 IDs e ações do contrato original. Sem migração ou reinício de worker. Fontes reais, OAuth Gmail/Agenda e inspeção visual continuam como dependências explícitas; aceite integral do plano ainda condicionado a elas.
+
 ## 20/10/2026 - redes sociais de Herickson Maia
 
 Causa: rótulos e descrições legadas atribuíam as redes sociais à Worki. Correção informada pelo owner: Instagram e LinkedIn são de Herickson Maia. Tela, descrições, catálogo e documentação corrigidos; migração altera somente os títulos com proteção contra edição concorrente. Os textos das 46 regras, permissões, aprovações e seleção de contas por ID permanecem iguais. Typecheck, build, 742 testes da aplicação e 81 de banco aprovados. Migração 20261021011039 aplicada, catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 e base normativa sincronizada sem erro. Publicação do painel pelo fluxo GitHub/Vercel; descrições do worker são recarregadas no próximo início. A consulta Zernio com a credencial local retornou HTTP 401; conexão não confirmada nessa leitura.

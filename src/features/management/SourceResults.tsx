@@ -7,6 +7,7 @@ import {defaultAnalyticsFilters} from "../../lib/managementAnalytics";
 import {PANEL_METRICS,summarizePanelSource,type PanelSourceView,type PanelObservation} from "../../lib/panelSourceModel";
 import {useSnapshot} from "../../lib/useSnapshot";
 import {formatMoney,formatWhen} from "../../lib/snapshotApi";
+import {SourceComparisons} from "./SourceComparisons";
 
 export function SourceResults({kind,codes}:{kind:"sales"|"finance"|"campaign";codes?:string[]}){
  const [revision,setRevision]=useState(0);
@@ -49,15 +50,15 @@ export function SourceResults({kind,codes}:{kind:"sales"|"finance"|"campaign";co
   for(const r of summary.rows)groups.set(r.date,(groups.get(r.date)??0)+r.value);
   const age=s.success?Date.now()-Date.parse(s.success.completed_at!):NaN,stale=!Number.isFinite(age)||age>3600000;
   return <Panel key={s.id} title={s.name+" · "+meta.label} caption={s.basis+" · "+s.coverage}>
-   <IndicatorCard label={meta.label} value={summary.value} unit={s.unit==="count"?"registros":s.unit} category={summary.mode==="stock"?"Saldo na última data disponível":"Movimentos no período"} helper={s.success?summary.rows.length+" registros; "+(summary.asOf??filters.start+" a "+filters.end):"Sem lote válido nesta revisão"} tone={stale||s.latest?.status==="error"?"attention":"neutral"}/>
+   <IndicatorCard label={meta.label} value={summary.value===null?null:summary.value.toLocaleString("pt-BR",{maximumFractionDigits:s.unit==="count"?0:2})} unit={s.unit==="count"?"registros":s.unit} category={summary.mode==="stock"?"Saldo na última data disponível":"Movimentos no período"} helper={s.success?summary.rows.length+" registros; "+(summary.asOf??filters.start+" a "+filters.end):"Sem lote válido nesta revisão"} tone={stale||s.latest?.status==="error"?"attention":"neutral"}/>
    <p role="status">Última tentativa: {s.latest?new Date(s.latest.started_at).toLocaleString("pt-BR"):"nenhuma"}. Último sucesso: {s.success?new Date(s.success.completed_at!).toLocaleString("pt-BR"):"nenhum"}. {s.latest?.error??(stale?"Dados desatualizados.":"Coleta atualizada.")}</p>
-   <ManagementChart title={summary.mode==="stock"?"Saldo observado":"Evolução por dia"} caption={summary.mode==="stock"?"A última fotografia do período; não soma o mesmo saldo em datas diferentes.":"Soma dos registros do lote atual dentro do período em Brasília."} rows={[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([date,value])=>({key:date,label:date,primary:value,ids:[]}))} primaryLabel={meta.label} unit={" "+s.unit}/>
+   <ManagementChart kind={summary.mode==="stock"?"bar":"line"} title={summary.mode==="stock"?"Saldo observado":"Evolução por dia"} caption={summary.mode==="stock"?"A última fotografia do período; não soma o mesmo saldo em datas diferentes.":"Soma dos registros do lote atual dentro do período em Brasília. Datas sem registro não são preenchidas como zero."} rows={[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([date,value])=>({key:date,label:date,primary:value,ids:[]}))} primaryLabel={meta.label} unit={" "+s.unit}/>
    <details><summary>Registros que compõem o indicador ({summary.rows.length})</summary><ObservationRecords key={s.id+filters.start+filters.end} rows={summary.rows} unit={s.unit}/></details>
   </Panel>;
  })}</>;
 }
 export function SourceResultsPage({kind}:{kind:"sales"|"campaign"}){
- return <><PageHeader eyebrow={kind==="sales"?"Comercial":"Marketing"} title={kind==="sales"?"Resultados de vendas":"Resultados de campanhas"} subtitle="Indicadores por fonte, período e escopo. Vendas internas e receita atribuída de clientes mantêm fontes separadas."/><SourceResults kind={kind}/>{kind==="campaign"&&<ExistingMetaSnapshot/>}</>;
+ return <><PageHeader eyebrow={kind==="sales"?"Comercial":"Marketing"} title={kind==="sales"?"Resultados de vendas":"Resultados de campanhas"} subtitle="Indicadores por fonte, período e escopo. Vendas internas e receita atribuída de clientes mantêm fontes separadas."/><SourceResults kind={kind}/><SourceComparisons key={kind} kind={kind}/>{kind==="campaign"&&<ExistingMetaSnapshot/>}</>;
 }
 function ExistingMetaSnapshot(){
  const {snapshot,error}=useSnapshot(),source=snapshot?.sources.meta;

@@ -33,6 +33,10 @@ Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Code
 
 ## Painel gerencial
 
+A gestão oferece cartões de KPI, rosca para composição, colunas para comparações, barras empilhadas por área, linhas de evolução e cronograma de entregáveis. Os setores compartilham filtros e os registros autorizados. Há análises de entregas semanais, idade do trabalho, devoluções, encerramentos comerciais, retornos de CS e operação técnica. Financeiro e campanhas permitem comparações explícitas entre fontes compatíveis, incluindo fluxo/margem de caixa, custo por resultado e ROAS; a ausência de fonte ou denominador mantém o resultado indisponível.
+
+O painel lê `/api/panel-collaboration` com histórico por período e busca paginada do histórico de uma tarefa ao abrir seu detalhe. `/api/collaboration` continua atendendo as ações e a leitura completa das ferramentas da Maia. `/api/panel-operations` fornece as séries técnicas exclusivas do proprietário. Esta complementação não exige migração nem reinício do worker.
+
 A implementação e os contratos de indicadores/fontes estão em [painel gerencial](docs/painel-gerencial.md). A versão anterior está preservada em [backup do painel](docs/backup-painel-anterior.md). Fontes reais de vendas, campanhas e financeiro precisam ser configuradas em Administração → Fontes gerenciais. O coletor independente inicia com pnpm panel:collect; não altera o worker da Maia.
 
 ## Organização do painel

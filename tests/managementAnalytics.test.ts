@@ -21,6 +21,9 @@ describe("Indicadores gerenciais reproduzíveis",()=>{
  a=buildManagementAnalytics(d,filters,now);expect(metric(a,"capacity").value).toBe(32);expect(a.loadChart.find(r=>r.key==="p")).toMatchObject({primary:3,secondary:32});
  });
  it("identifica capacidade desconhecida e estimativas ausentes",()=>{const a=buildManagementAnalytics(data([task(1,{responsible_person_id:"p"})]),filters,now);expect(a.loadChart[0]).toMatchObject({primary:0,missingEstimates:1});expect(a.loadChart[0].secondary).toBeUndefined();});
+ it("conta acréscimos pela semana selecionada em vez da marca da semana atual",()=>{
+ const d=data([task(1,{added_after_baseline:true}),task(2,{added_after_baseline:false})]);d.plans=[{id:"selected",period_kind:"weekly",period_start:"2026-10-19",period_end:"2026-10-25"},{id:"old",period_kind:"weekly",period_start:"2026-10-05",period_end:"2026-10-11"}];d.planItems=[{plan_id:"old",work_task_id:1,added_after_baseline:true},{plan_id:"selected",work_task_id:2,added_after_baseline:true}];expect(buildManagementAnalytics(d,filters,now).addedAfterBaseline).toBe(1);
+ });
  it("mantém estado atual separado do período e oferece os mesmos IDs",()=>{const a=buildManagementAnalytics(data([task(1,{workflow_status:"blocked",committed_due_at:"2026-09-01T15:00:00Z"}),task(2,{workflow_status:"review"})]),filters,now);expect(metric(a,"commitments").ids).toEqual([2]);expect(metric(a,"blocked").ids).toEqual([1]);expect(metric(a,"overdue").ids).toEqual([1,2]);expect(new Set(a.exceptions.map(t=>t.id))).toEqual(new Set([1,2]));});
  it("rejeita datas inexistentes e informa mediana com amostra",()=>{
  const d=data([task(1,{workflow_status:"completed",started_at:"2026-10-18T15:00:00Z",completed_at:"2026-10-20T15:00:00Z"}),task(2,{workflow_status:"completed",started_at:"2026-10-16T15:00:00Z",completed_at:"2026-10-20T15:00:00Z"})]);

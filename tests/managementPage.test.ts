@@ -18,7 +18,7 @@ describe("Panorama e detalhamento",()=>{
  const button=[...node.querySelectorAll("button")].find(b=>b.textContent?.includes("Entregas atrasadas"))!;
  await act(async()=>button.click());
  const selection=node.querySelector('[data-testid="records"]')!;expect(selection.textContent).toContain("Trabalho atrasado");expect(selection.textContent).not.toContain("Trabalho concluído");
- expect(node.querySelectorAll(".management-chart details table")).toHaveLength(4);
+ expect(node.querySelectorAll(".management-chart-grid:first-of-type > .management-chart details table")).toHaveLength(4);
  });
  it("bloqueia o panorama consolidado a membros",async()=>{
  state.data={identity:{owner:false},tasks:[],plans:[],baselines:[],capacity:[],people:[],clients:[],teams:[],projects:[]} as unknown as CollaborationData;

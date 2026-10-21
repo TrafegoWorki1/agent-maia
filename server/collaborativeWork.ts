@@ -46,10 +46,13 @@ export function canAccessTask(identity: PanelIdentity, task: CollaborativeTask, 
   return false;
 }
 
-async function allRows(db: Db, table: string, select: string, orderColumn = "id"): Promise<Record<string, any>[]> {
+async function allRows(db: Db, table: string, select: string, orderColumn = "id",filter?:(query:any)=>any): Promise<Record<string, any>[]> {
   const rows: Record<string, any>[] = [];
   for (let from = 0; ; from += 1000) {
-    const result = await db.from(table).select(select).order(orderColumn, { ascending: true }).range(from, from + 999);
+    const query=db.from(table).select(select);
+    let ordered=(filter?filter(query):query).order(orderColumn, { ascending: true });
+    if(filter&&orderColumn!=="id"&&select.split(",").includes("id"))ordered=ordered.order("id",{ascending:true});
+    const result = await ordered.range(from, from + 999);
     check(result.error);
     rows.push(...(result.data ?? []));
     if ((result.data ?? []).length < 1000) return rows;
@@ -113,9 +116,9 @@ export function serializeIdentity(identity: PanelIdentity) {
       .filter((code) => identity.permissionModes.get(code) !== "bloqueado") };
 }
 
-export async function collaborationView(db: Db, identity: PanelIdentity, now = new Date(),purpose:"panel"|"maia"="panel") {
+export async function collaborationView(db: Db, identity: PanelIdentity, now = new Date(),purpose:"panel"|"maia"="panel",readWindow?:{start:string;end:string}) {
   if (purpose==="panel"&&!identity.owner && !hasPermission(identity, "painel.ver")) throw new Error("panel_access_denied");
-  const [taskRows, people, teams, teamMembers, clients, contracts, projects, scopeRoles, deliverables, dependencies, artifacts, histories, reviews, plans, planItems, planChanges, capacities, metricCatalog, observations, baselines, portfolioHistory, departmentRows] = await Promise.all([
+  const [taskRows, people, teams, teamMembers, clients, contracts, projects, scopeRoles, deliverables, dependencies, artifacts, histories, reviewRows, plans, planItems, planChanges, capacities, metricCatalog, observations, baselines, portfolioHistory, departmentRows] = await Promise.all([
     allRows(db,"work_tasks",TASK_SELECT),
     allRows(db,"people","id,name,role,active","name"),
     allRows(db,"work_teams","id,name,active,revision,access_group_id","name"),
@@ -127,8 +130,8 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
     allRows(db,"work_deliverables","id,project_id,title,objective,acceptance_criteria,status,due_at,completed_at,revision,updated_at","title"),
     allRows(db,"work_task_dependencies","task_id,depends_on_task_id,created_at","task_id"),
     allRows(db,"work_task_artifacts","id,work_task_id,added_by,label,uri,evidence_kind,created_at","created_at"),
-    allRows(db,"work_task_history","id,work_task_id,at,actor_person_id,actor_origin,event_type,from_value,to_value,reason,evidence,revision","id"),
-    allRows(db,"work_task_reviews","id,work_task_id,reviewer_person_id,outcome,return_reason,comment,created_at","created_at"),
+    readWindow?Promise.resolve([]):allRows(db,"work_task_history","id,work_task_id,at,actor_person_id,actor_origin,event_type,from_value,to_value,reason,evidence,revision","id"),
+    allRows(db,"work_task_reviews","id,work_task_id,reviewer_person_id,outcome,return_reason,comment,created_at","created_at",readWindow?q=>q.or(`and(created_at.gte.${readWindow.start}T00:00:00-03:00,created_at.lte.${readWindow.end}T23:59:59.999-03:00),and(created_at.gte.${businessWeek(now).start},created_at.lte.${businessWeek(now).end})`):undefined),
     allRows(db,"work_plans","id,period_kind,period_start,period_end,team_id,client_id,project_id,objective,status,baseline_at,baseline_by,revision,updated_at","period_start"),
     allRows(db,"work_plan_items","plan_id,work_task_id,planned_priority,committed_effort_hours,baseline_snapshot,added_after_baseline,created_at","created_at"),
     allRows(db,"work_plan_changes","id,plan_id,changed_by,changed_at,change_kind,reason,affected_task_ids,prior_value,new_value","id"),
@@ -136,9 +139,21 @@ export async function collaborationView(db: Db, identity: PanelIdentity, now = n
     allRows(db,"metric_catalog","code,label,level,formula,population,period,source,unit,target,coverage_rule,financial,active","code"),
     allRows(db,"external_metric_observations","id,metric_code,client_id,project_id,period_start,period_end,value,unit,source_name,source_ref,last_attempt_at,last_success_at,unavailable_reason,created_at","created_at"),
     allRows(db,"work_plan_baselines","plan_id,task_snapshots,created_by,created_at","plan_id"),
-    allRows(db,"work_portfolio_history","id,entity_kind,entity_id,actor_person_id,at,reason,prior_value,new_value","id"),
+    allRows(db,"work_portfolio_history","id,entity_kind,entity_id,actor_person_id,at,reason,prior_value,new_value","id",readWindow?q=>q.gte("at",readWindow.start+"T00:00:00-03:00").lte("at",readWindow.end+"T23:59:59.999-03:00"):undefined),
     allRows(db,"work_department_records","*"),
   ]);
+  // A primeira revisão pode anteceder o período. Carrega contexto somente das tarefas revisadas,
+  // sem consultar o histórico global ou alterar a leitura completa usada pelas ferramentas da Maia.
+  const reviews=[...reviewRows];
+  if(readWindow){
+    const visibleTaskIds=new Set((taskRows as CollaborativeTask[]).filter(task=>canAccessTask(identity,task,"trabalho.ver")).map(task=>task.id));
+    const reviewIds=[...new Set(reviewRows.filter(row=>visibleTaskIds.has(Number(row.work_task_id))).map(row=>Number(row.work_task_id)))];
+    const seen=new Set(reviews.map(row=>String(row.id)));
+    for(let i=0;i<reviewIds.length;i+=200){
+      const context=await allRows(db,"work_task_reviews","id,work_task_id,reviewer_person_id,outcome,return_reason,comment,created_at","created_at",q=>q.in("work_task_id",reviewIds.slice(i,i+200)));
+      for(const row of context)if(!seen.has(String(row.id))){seen.add(String(row.id));reviews.push(row);}
+    }
+  }
   const departmentRecords=scopedDepartmentRecords(identity,departmentRows as DepartmentRecord[]);
   const departmentIds=new Set(departmentRecords.map(row=>row.id));
   const tasks = (taskRows as CollaborativeTask[]).filter((task) => canAccessTask(identity,task,"trabalho.ver")).map((task) => ({ ...task,

@@ -1,3 +1,7 @@
+## Complementação gerencial — 20/10/2026
+
+Gráficos, análises e APIs de leitura utilizam somente as estruturas já versionadas. Nenhuma migração nova, DDL ou alteração de dados de negócio foi necessária. Conferência: 67 migrações aplicam do zero, 81 testes do banco aprovados e drift 2.064 objetos locais/remotos sem divergência. Catálogo de 46 regras 2026-10-20.7 alinhado. Backup anterior e compatibilidade com o schema preservados.
+
 ## Identificação das redes sociais - 20/10/2026
 
 A migração 20261021011039 corrige somente os títulos das regras Instagram e LinkedIn para Herickson Maia, conforme informação do owner. Foi aplicada após dry-run exclusivo desta versão e testes locais; compara os registros anteriores completos, preserva alterações concorrentes e não muda os 46 textos/estados ou IDs de contas. Catálogo 2026-10-20.7 alinhado, drift 2.064/2.064 sem divergência e documento normativo reindexado sem erros.

@@ -21,6 +21,8 @@ export function ConnectionsPage() {
   const refreshing = collecting || (snapshot?.refreshing ?? false);
 
   async function refreshNow() {
+    if(refreshing)return;
+    setCollecting(true);setNotice(null);
     try {
       const started = await requestRefresh();
       setNotice(started ? "Atualização das fontes solicitada. Acompanhe o resultado abaixo." : "Já existe uma atualização em andamento.");
