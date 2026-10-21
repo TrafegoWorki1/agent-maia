@@ -913,3 +913,37 @@ describe("estruturas usadas pelos módulos (integração)", () => {
     finally { await local.db.exec("reset role"); }
   });
 });
+
+describe("fontes gerenciais isoladas da operação",()=>{
+ let source:string;
+ const rows=JSON.stringify([{key:"pagamento-1",date:"2026-10-20",value:100}]);
+ before(async()=>{source=String((await q("insert into panel_data_sources(name,metric_code,source_ref,range_ref,mapping,unit,basis,coverage,active) values('Recebimentos teste','finance.received','sheet_12345678','Dados!A1:C10',$1::jsonb,'BRL','Caixa','Agência',true) returning id",[JSON.stringify({key:"id",date:"data",value:"valor"})]))[0].id);});
+ it("reserva uma vez e conclusão repetida não altera o lote",async()=>{
+ const first=String((await q("select claim_panel_source($1,1) as id",[source]))[0].id);
+ assert.ok(first);assert.equal((await q("select claim_panel_source($1,1) as id",[source]))[0].id,null);
+ await q("select finish_panel_source($1,$2::jsonb,null)",[first,rows]);
+ await q("select finish_panel_source($1,'[]'::jsonb,null)",[first]);
+ assert.deepEqual((await q("select observations from panel_source_runs where id=$1",[first]))[0].observations,JSON.parse(rows));
+ });
+ it("erro preserva sucesso, duplicidade não publica lote e revisão mudou não promove dado antigo",async()=>{
+ let run=String((await q("select claim_panel_source($1,1) as id",[source]))[0].id);
+ await rejects(q("select finish_panel_source($1,$2::jsonb,null)",[run,JSON.stringify([{key:"dup",date:"2026-10-20",value:1},{key:"dup",date:"2026-10-20",value:2}])]),/duplicado/);
+ await q("select finish_panel_source($1,null,'Falha de teste')",[run]);
+ assert.equal((await q("select count(*)::int as n from panel_source_runs where source_id=$1 and status='ok'",[source]))[0].n,1);
+ run=String((await q("select claim_panel_source($1,1) as id",[source]))[0].id);
+ await q("update panel_data_sources set revision=2 where id=$1",[source]);await q("select finish_panel_source($1,$2::jsonb,null)",[run,rows]);
+ assert.equal((await q("select status from panel_source_runs where id=$1",[run]))[0].status,'error');
+ await q("update panel_data_sources set active=false where id=$1",[source]);assert.equal((await q("select claim_panel_source($1,2) as id",[source]))[0].id,null);
+ });
+ it("fonte duplicada e datas inválidas são recusadas",async()=>{
+ await rejects(q("insert into panel_data_sources(name,metric_code,source_ref,range_ref,mapping,unit,basis,coverage) select name,metric_code,source_ref,range_ref,mapping,unit,basis,coverage from panel_data_sources where id=$1",[source]),/unique constraint/);
+ await q("update panel_data_sources set active=true where id=$1",[source]);const run=String((await q("select claim_panel_source($1,2) as id",[source]))[0].id);
+ await rejects(q("select finish_panel_source($1,$2::jsonb,null)",[run,JSON.stringify([{key:"bad",date:"2026-02-30",value:1}])]),/date|range/i);await q("select finish_panel_source($1,null,'Data inválida')",[run]);
+ });
+ it("roles públicas não leem dados nem executam coleta",async()=>{
+ for(const role of ["anon","authenticated"]){await local.db.exec("set role "+role);try{
+ for(const table of ["panel_data_sources","panel_source_runs","panel_source_health"])await rejects(q("select * from "+table),/permission denied/);
+ await rejects(q("select claim_panel_source($1,2)",[source]),/permission denied/);await rejects(q("select finish_panel_source(gen_random_uuid(),'[]',null)"),/permission denied/);
+ }finally{await local.db.exec("reset role");}}
+ });
+});

@@ -1,4 +1,5 @@
-import { isRefreshing } from "./refreshJob.ts";
+import { isPanelRefreshing as isRefreshing } from "./panelCollection.ts";
+import { mergePanelGroups } from "./panelGroups.ts";
 import { brtDayStart } from "./proactive.ts";
 import { fetchLiveGroups } from "./groups.ts";
 import { jevView } from "./jev.ts";
@@ -136,6 +137,7 @@ export async function buildSnapshot(db: Db, now = new Date()): Promise<Record<st
     chat: chatRun,
     approvals: await pendingApprovals(db),
     sources,
+    sourceHealth: await panelSourceHealth(db),
     tasks: {
       today: { total: operationalToday.length, byStatus },
       recent: await recentTasks(db, 20),
@@ -159,16 +161,13 @@ export function routingSummary() {
 
 // Grupos: lista ao vivo da Evolution (com cache) e atividade dos últimos 7 dias. Sem o texto das mensagens.
 async function groupsView(db: Db, now: Date) {
-  const live = await fetchLiveGroups(now.getTime());
-  const activity = new Map((await groupActivitySince(db, new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())).map((a) => [a.jid, a]));
-  const groups = live.groups
-    .map((g) => ({
-      jid: g.jid,
-      subject: g.subject,
-      size: g.size,
-      messages7d: activity.get(g.jid)?.messages ?? 0,
-      lastActivity: activity.get(g.jid)?.last_at ?? null,
-    }))
-    .sort((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? "") || a.subject.localeCompare(b.subject));
-  return { groups, error: live.error, total: groups.length };
+ const [live,registered,activity]=await Promise.all([fetchLiveGroups(now.getTime()),db.from("maia_groups").select("jid,name"),groupActivitySince(db,new Date(now.getTime()-7*86400000).toISOString())]);
+ if(registered.error)throw new Error(registered.error.message);
+ const groups=mergePanelGroups(live.groups,registered.data??[],activity);
+ return {groups,error:live.error,total:groups.length};
+}
+async function panelSourceHealth(db:Db){
+ const result=await db.from("panel_source_health").select("source,last_attempt_at,last_success_at,error");
+ if(result.error)throw new Error(result.error.message);
+ return Object.fromEntries((result.data??[]).map(r=>[r.source,r]));
 }

@@ -3,6 +3,7 @@ import type { DepartmentMetric } from "./departmentMetrics";
 
 export type WorkflowStatus = "pending"|"in_progress"|"review"|"awaiting_approval"|"blocked"|"completed"|"cancelled";
 export interface CollaborationTask {
+  started_at?:string|null;completed_at?:string|null;blocked_at?:string|null;updated_at?:string;
   area?:string|null;
   objective:string|null;briefing:string|null;acceptance_criteria:string|null;deliverable_id:string|null;origin_kind:string;source_task_id:number|null;
   id:number; title:string; responsible:string; responsible_person_id:string|null; responsible_team_id:string|null;
@@ -14,7 +15,7 @@ export interface CollaborationTask {
 export interface CollaborationData {
   departmentRecords?:DepartmentRecord[];departmentHistory?:Array<Record<string,unknown>>;departmentMetrics?:DepartmentMetric[];
   planningTeamIds:string[];portfolioClientIds:string[];
-  baselines:Array<{plan_id:string;task_snapshots:Array<{id:number;priority:number;committed_due_at:string|null}>}>;
+  baselines:Array<{plan_id:string;created_at?:string;task_snapshots:Array<{id:number;priority:number;committed_due_at:string|null}>}>;
   portfolioHistory:Array<Record<string,unknown>>;
   generatedAt:string; staleAfterMs:number;
   identity:{accessVersion:string;personId:string;name:string;owner:boolean;screens:string[];permissions:string[];teams:Array<{id:string;name:string;membershipRole:string}>;roles:Array<{role:string;teamId:string|null;clientId:string|null;projectId:string|null}>};

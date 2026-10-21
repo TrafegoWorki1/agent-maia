@@ -46,7 +46,7 @@ export function connectionSummary(snapshot: Snapshot | null): { tone: "green" | 
   const checks = [
     whatsappConnected,
     Boolean(snapshot.webhook.host),
-    ...Object.values(snapshot.sources).map((s) => s?.status === "ok"),
+    ...Object.values(snapshot.sources).map((s) => s?.status === "ok" && Date.parse(snapshot.generatedAt)-Date.parse(s.fetched_at)<=60*60_000),
   ];
   const errors = [
     snapshot.whatsapp.error !== null,
