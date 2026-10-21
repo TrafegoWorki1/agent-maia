@@ -33,6 +33,8 @@ A primeira linha é o cabeçalho. Limite: 5.000 registros, 52 colunas e 20 fonte
 
 A reserva no banco impede duas coletas simultâneas da mesma fonte. Finalizar a mesma coleta novamente não altera o resultado. Cada tentativa registra revisão, configuração, horários, estado, erro e lote; falha preserva o sucesso anterior. A consulta usa somente o último sucesso da revisão atual, evitando somar lotes sucessivos. Revisões antigas permanecem no histórico e não alimentam a configuração nova.
 
+A listagem retorna somente metadados. Os registros são carregados para uma fonte selecionada por vez, até 5.000 itens, com detalhamento em páginas de 100 registros, evitando baixar todas as planilhas para montar o seletor.
+
 Não há total geral entre fontes: intervalos sobrepostos e duas fontes que descrevem o mesmo fato não são somados implicitamente. A chave única impede cadastro repetido de provedor/planilha/intervalo/métrica. Não há inferência de equivalência por nome.
 
 Movimentos financeiros e resultados de campanha são somados por data no período. Saldo vencido usa a última fotografia diária disponível dentro do período; não acumula saldos de dias diferentes. Moedas e regimes permanecem separados. Margem, ROAS e custo por resultado com objetivos distintos não são inferidos. Fontes reais ainda precisam ser escolhidas/configuradas pelo proprietário.
@@ -62,11 +64,11 @@ Lista combinada da Evolution, cadastros maia_groups e atividade registrada; a fa
 
 ## Verificação
 
-TypeScript, build, 740 testes da aplicação e 81 testes de Postgres temporário passaram. A suíte cobre aliases/parâmetros, perfis/escopos, baselines, fuso, ausência de denominador, capacidade desconhecida, detalhes com os mesmos IDs, fontes duplicadas, lease/replay, falhas, revisões e RLS.
+TypeScript, build, 742 testes da aplicação e 81 testes de Postgres temporário passaram. A suíte cobre aliases/parâmetros, perfis/escopos, baselines, fuso, ausência de denominador, capacidade desconhecida, detalhes com os mesmos IDs, fontes duplicadas, lease/replay, falhas, revisões e RLS.
 
 O navegador integrado está indisponível nesta sessão (nenhuma instância vinculada). Testes de componentes em DOM simulado não substituem a inspeção visual desktop/celular. Fontes de negócio reais ainda aguardam indicação/configuração; nenhum envio, publicação ou gasto de IA foi usado para testar.
 
-Banco aplicado antes do código dependente: 66 migrações e comparação de 2.064 objetos locais/remotos sem divergência. Regras 2026-10-20.6, 46 entradas e checksum 1bcf561b784a0f53211f7af748c9a0a83787e66f8361de94cfebe8e6f36fa0ba preservados. Seis APIs existentes e a API panel-sources responderam 200 autenticadas e 401 anônimas usando o banco real. Publicação final será registrada no CHANGELOG.
+Banco aplicado antes do código dependente: 66 migrações e comparação de 2.064 objetos locais/remotos sem divergência. Regras 2026-10-20.6, 46 entradas e checksum 1bcf561b784a0f53211f7af748c9a0a83787e66f8361de94cfebe8e6f36fa0ba preservados. Seis APIs existentes e a API panel-sources responderam 200 autenticadas e 401 anônimas usando o banco real. Publicado em https://agent-maia.vercel.app pelo PR #31, merge 8a0f1c98dd67a4f6f6da2bda0eebc97da5a7a750, deployment dpl_FFN4sBRDr4sBsmPwMNiNkUMnXnUq. Página/assets 200 com nova navegação; seis APIs de dados 200 autenticadas e 401 anônimas; comandos inválidos em colaboração/fontes retornam 400. WhatsApp confirmou open sem erro. A lista externa de grupos atingiu timeout na conferência; 12 grupos permaneceram visíveis pelo fallback de cadastros/atividade, sem confirmar uma lista externa completa.
 
 ## Matriz de telas, APIs, fonte e acesso
 

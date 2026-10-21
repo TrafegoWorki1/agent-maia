@@ -18,3 +18,11 @@ describe("Acesso às fontes gerenciais",()=>{
  it("revalida proprietário antes de entregar dados",async()=>{mocks.auth.mockResolvedValueOnce({owner:true}).mockResolvedValueOnce({owner:false});expect((await request()).status).toBe(403);});
  it("salva configuração com revisão e retorna a leitura atual",async()=>{const config={name:"Fonte"};expect((await request("POST",{action:"save",config,id:"source",revision:3})).status).toBe(200);expect(mocks.save).toHaveBeenCalledWith({},config,"source",3);});
 });
+
+it("carrega somente a fonte pedida e recusa identificador inválido",async()=>{
+ const id="12345678-1234-1234-1234-123456789abc";
+ const req=Readable.from([]) as IncomingMessage;req.method="GET";req.url="/api/panel-sources?source="+id;req.headers={host:"panel.test"};
+ let status=0;const res={setHeader:vi.fn(),set statusCode(v:number){status=v;},end:vi.fn()} as unknown as ServerResponse;
+ await handler(req,res);expect(status).toBe(200);expect(mocks.view).toHaveBeenCalledWith({},id);
+ mocks.view.mockClear();req.url="/api/panel-sources?source=invalid";await handler(req,res);expect(status).toBe(400);expect(mocks.view).not.toHaveBeenCalled();
+});

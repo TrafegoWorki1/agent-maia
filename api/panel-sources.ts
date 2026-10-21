@@ -19,7 +19,9 @@ export default async function handler(req:IncomingMessage,res:ServerResponse){
   const result=await collectPanelSource(db,body.id);if(!(await authenticatePanelRequest(req,db)).owner)return json(res,403,{error:"Acesso revogado"});return json(res,200,{result});
  }else return json(res,400,{error:"Ação inválida"});
  }
- const sources=await panelSourcesView(db);
+ const sourceId=new URL(req.url??"/api/panel-sources","http://localhost").searchParams.get("source")??undefined;
+ if(sourceId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sourceId))return json(res,400,{error:"Fonte inválida"});
+ const sources=await panelSourcesView(db,sourceId);
  if(!(await authenticatePanelRequest(req,db)).owner)return json(res,403,{error:"Acesso revogado"});
  return json(res,200,{sources,generatedAt:new Date().toISOString()});
  }catch(error){const message=error instanceof Error?error.message:"Falha na consulta";return json(res,message==="login_required"?401:/exclusiv|revogado|sem vínculo/i.test(message)?403:400,{error:message.slice(0,500)});}
