@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — regra meta_ads: a Maia sabe que tem o Meta Ads
+
+- **Causa:** o dono pediu a conta de anúncios do Dr. Ritchie e a Maia respondeu 7 vezes "Meta Ads nunca fez parte do meu conjunto de ferramentas". O conector funciona (listagem real testada, com a conta "CA01 - Ritichie") e o código de acesso já existe (permissão `meta.ler`, aprovação de escrita em `approvalPolicy.ts`), mas o catálogo de regras só citava o Meta Ads na regra estreita `anuncios_midia_url` (upload de mídia). Sem uma regra de capacidade, o modelo concluía que não tinha a ferramenta, e as próprias respostas voltavam como contexto da conversa e reforçavam a recusa (tarefas 850 e 852 ficaram `kind: conversa`, ou seja, sem nem tentar a ferramenta).
+- **Correção:** nova regra `meta_ads` (catálogo 2026-10-21.1, 47 regras, ordem 47, categoria Conexões): owner consulta contas, campanhas, gasto e métricas livremente; membro com `meta.ler` consulta e sem ela pede aprovação pontual do owner (comportamento real de `decideAccess`); ao reportar, sempre conta, período, moeda e fonte; criar/ativar/impulsionar/alterar/apagar exige OK do owner para qualquer pessoa. Proíbe dizer que o Meta Ads "não faz parte das ferramentas": se falhar, informar o erro concreto.
+- **Migração:** `20261021120000_meta_ads_rule.sql` (insere a regra; não cria nem altera tabelas). Documentos gerados com `pnpm rules:generate`.
+- **Verificação:** `rules:check`, `db:validate` (68 migrações aplicam do zero) e testes.
+- **Pendências:** aplicar a migração em produção e sincronizar a base normativa (`knowledge:sync`); fechar os 4 incidentes antigos do Zernio em `maia_incidents`; reiniciar o worker para recarregar as regras (cache de 60 s por cliente de banco, mas o prompt do CLI é montado por pedido) e mandar uma mensagem nova ao dono para a conversa deixar de repetir a recusa antiga.
+
 ## 21/10/2026 — confirmação final: sheets/calendar/gmail/meta em "ok" na produção
 
 Depois do merge do PR #39 e reinício do coletor, o ciclo completo gravou `status: "ok"` nas 4 fontes em `snapshots`: `sheets` (03:13:30), `calendar` (03:13:46), `gmail` (03:14:17) e `meta` (03:16:29), todas em UTC. Investigação encerrada; resumo das 8 causas encontradas no caminho (worker duplicado com `.env` velho, checkout 9 commits atrás da `main`, coletor rodando de outra pasta nunca tocada, escopo do OAuth do Google, bug em `isReadTool()`, orçamento insuficiente do CLI, `MAIA_CLAUDE_BIN` corrompido por escaping de shell, validador do Meta Ads rígido demais) está nas entradas anteriores deste arquivo e em `docs/erros-e-mudancas.md`, todas já commitadas e mergeadas (`main`, commit `f8c7755`).
