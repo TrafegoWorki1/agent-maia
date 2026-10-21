@@ -1,6 +1,6 @@
 ## Regra meta_ads — 21/10/2026
 
-A migração 20261021120000 insere a regra `meta_ads` (catálogo 2026-10-21.1, 47 regras) com `ON CONFLICT DO UPDATE`. Não cria nem altera tabelas, permissões ou aprovações; `meta.ler` já existe desde a primeira migração de permissões. Reversão: migração compensatória (`ativa = false`).
+A migração 20261021120000 insere a regra `meta_ads` (catálogo 2026-10-21.1, 47 regras) com `ON CONFLICT DO UPDATE`. Não cria nem altera tabelas, permissões ou aprovações; `meta.ler` já existe desde a primeira migração de permissões. Aplicada em 21/10/2026 por `supabase db push --linked --yes` após dry-run que listou somente esta versão; `rules:verify` alinhado (2026-10-21.1, 47 regras). Reversão: migração compensatória (`ativa = false`).
 
 ## Complementação gerencial — 20/10/2026
 

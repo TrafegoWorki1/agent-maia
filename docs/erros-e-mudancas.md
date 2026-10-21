@@ -8,7 +8,8 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 - **Causa:** o catálogo de regras só citava o Meta Ads no upload de mídia. Sem regra de capacidade, a Maia respondeu 7 vezes que "Meta Ads nunca fez parte das ferramentas" sem sequer tentar a ferramenta (tarefas 850/852 como `conversa`), e o histórico com essas respostas reforçou a recusa. O conector e a permissão `meta.ler` já funcionavam.
 - **Correção:** regra `meta_ads` (catálogo 2026-10-21.1, 47 regras) e migração `20261021120000_meta_ads_rule.sql`. Dono consulta livre; membro com `meta.ler` consulta, sem ela pede aprovação pontual; escrita sempre com OK do dono.
-- **Pendências:** aplicar a migração em produção, `knowledge:sync`, fechar incidentes antigos do Zernio e reiniciar o worker.
+- **Aplicado em produção (21/10/2026):** dry-run listou só a migração nova, `db push` ok, `rules:verify` alinhado (47 regras), `knowledge:sync` sem erro. Os 4 incidentes do Zernio foram fechados como resolvidos.
+- **Pendência:** o dono pedir o Meta Ads de novo no WhatsApp para confirmar (o histórico tem 7 recusas antigas no contexto). Não aprovar o padrão `zernio_auth_sem_retry_cego`.
 
 ## 2026-10-21 — confirmação final: 4/4 fontes em "ok"
 
