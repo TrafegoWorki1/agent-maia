@@ -33,6 +33,8 @@ Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Code
 
 ## Painel gerencial
 
+Complementação publicada pelo [PR #34](https://github.com/TrafegoWorki1/agent-maia/pull/34), merge b0bc9fe. Conferência em produção de 20/10/2026 às 23:15 (Brasília): página/gráficos e APIs novas disponíveis, acesso anônimo recusado. Fontes reais e homologação visual continuam com os critérios abertos no plano.
+
 A gestão oferece cartões de KPI, rosca para composição, colunas para comparações, barras empilhadas por área, linhas de evolução e cronograma de entregáveis. Os setores compartilham filtros e os registros autorizados. Há análises de entregas semanais, idade do trabalho, devoluções, encerramentos comerciais, retornos de CS e operação técnica. Financeiro e campanhas permitem comparações explícitas entre fontes compatíveis, incluindo fluxo/margem de caixa, custo por resultado e ROAS; a ausência de fonte ou denominador mantém o resultado indisponível.
 
 O painel lê `/api/panel-collaboration` com histórico por período e busca paginada do histórico de uma tarefa ao abrir seu detalhe. `/api/collaboration` continua atendendo as ações e a leitura completa das ferramentas da Maia. `/api/panel-operations` fornece as séries técnicas exclusivas do proprietário. Esta complementação não exige migração nem reinício do worker.

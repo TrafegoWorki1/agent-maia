@@ -7,6 +7,7 @@
 
 ## Painel gerencial - 20/10/2026
 
+- [x] Complementação integrada pelo PR #34 (b0bc9fe), CI e Vercel aprovados; novas APIs verificadas em produção com autenticação/recusa anônima e gráficos publicados.
 - [x] Complementar gráficos com rosca, colunas, linhas, barras empilhadas e cronograma de entregáveis, mantendo alternativa tabular e acesso por teclado.
 - [x] Evolução semanal, idade dos itens, composição por área, motivos de devolução e pontualidade dos entregáveis.
 - [x] Encerramentos comerciais por período, próximas ações vencidas e evolução dos retornos de CS com eventos reais.
@@ -53,7 +54,7 @@ Atualizado em 16/10/2026. Comportamento aprovado: [regras vigentes](docs/regras-
 - [x] Baseline semanal por equipe/período, capacidade em horas e avanço de entregáveis com denominador explícito.
 - [x] Funil comercial em colunas; quadro de produção nas áreas; taxa de ganho independente do filtro de etapa.
 - [x] Regras/tipos, 571 testes Vitest + 75 de banco temporário e build aprovados; capturas isoladas desktop/celular conferidas.
-- [ ] Publicar a evolução visual após validação; sem nova migration e sem alteração de worker.
+- [x] Evolução visual incluída na publicação gerencial; complementação do PR #34 em produção, sem nova migration e sem alteração de worker. Inspeção visual integrada permanece na seção de homologação acima.
 
 ## Integração das áreas — PR #23 integrado
 
