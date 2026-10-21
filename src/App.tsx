@@ -4,7 +4,8 @@ import { Avatar, DotStatus } from "./components/ui";
 import { connectionSummary, SnapshotProvider, useSnapshot } from "./lib/useSnapshot";
 import { supabase } from "./lib/supabaseBrowser";
 import { fetchPanelIdentity } from "./lib/collaborationApi";
-import { parseRoute, routeHash, sections, type PanelRoute, type ScreenId } from "./lib/navigation";
+const SourceResultsPage = lazy(() => import("./features/management/SourceResults").then(m=>({default:m.SourceResultsPage})));
+import { canonicalRouteHash, parseRoute, routeHash, sections, type PanelRoute, type ScreenId } from "./lib/navigation";
 const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.PeoplePage })));
 const GruposPage = lazy(() => import("./features/operacao/GruposPage").then((m) => ({ default: m.GruposPage })));
 const ClientsPage = lazy(() => import("./features/organization/ClientsPage").then((m) => ({ default: m.ClientsPage })));
@@ -17,8 +18,6 @@ const ConnectionsPage = lazy(() => import("./features/connections/ConnectionsPag
 const TarefasPage = lazy(() => import("./features/operacao/TarefasPage").then((m) => ({ default: m.TarefasPage })));
 const ResumoPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.ResumoPage })));
 const IndicadoresPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.IndicadoresPage })));
-const CampanhasPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.CampanhasPage })));
-const VendasPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.VendasPage })));
 const InsightsPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.InsightsPage })));
 const TomPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.TomPage })));
 const OcorrenciasPage = lazy(() => import("./features/operacao/OperacaoPages").then((m) => ({ default: m.OcorrenciasPage })));
@@ -31,6 +30,8 @@ const ReceitasPage = lazy(() => import("./features/departments/DepartmentPages")
 const CustosPage = lazy(() => import("./features/departments/DepartmentPages").then((m) => ({ default: m.CustosPage })));
 const CollaborationPage = lazy(() => import("./features/collaboration/CollaborationPage").then((m) => ({ default: m.CollaborationPage })));
 const DepartmentWorkspace = lazy(() => import("./features/departments/DepartmentWorkspace").then((m) => ({ default: m.DepartmentWorkspace })));
+const ManagementPage = lazy(() => import("./features/management/ManagementPage").then(m => ({ default:m.ManagementPage })));
+const PanelSourcesPage = lazy(() => import("./features/management/PanelSourcesPage").then(m => ({ default:m.PanelSourcesPage })));
 const HOSTED = import.meta.env.VITE_MAIA_HOSTED === "1";
 const icons = { work: BriefcaseBusiness, home: Home, marketing: Megaphone, execution: ShieldCheck, groups: Users, access: KeyRound, agent: Bot, system: Plug, comercial: TrendingUp, projetos: Layers, financeiro: Landmark };
 type AppIdentity = { owner:boolean;name:string;screens:string[];accessVersion:string };
@@ -68,7 +69,8 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
     const change = () => {
       const next = parseRoute(window.location.hash, routeAccess);
       setRoute(next); setMobileOpen(false);
-      if (window.location.hash.split("?")[0] !== routeHash(next)) window.history.replaceState(null, "", routeHash(next));
+      const canonical = canonicalRouteHash(window.location.hash, routeAccess);
+      if (window.location.hash !== canonical) window.history.replaceState(null, "", canonical);
     };
     change(); window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
@@ -103,6 +105,8 @@ function PanelShell({ identity }: { identity: AppIdentity }) {
 }
 function Screen({ id }: { id: ScreenId }) {
   switch (id) {
+    case "panorama": return <ManagementPage />;
+    case "dados": return <PanelSourcesPage />;
     case "meu-dia": return <CollaborationPage mode="meu-dia" />;
     case "minha-equipe": return <CollaborationPage mode="minha-equipe" />;
     case "coordenacao": return <CollaborationPage mode="coordenacao" />;
@@ -111,10 +115,10 @@ function Screen({ id }: { id: ScreenId }) {
     case "metricas": return <CollaborationPage mode="metricas" />;
     case "resumo": return <ResumoPage />;
     case "indicadores": return <IndicadoresPage />;
-    case "campanhas": return <CampanhasPage />;
+    case "campanhas": return <SourceResultsPage kind="campaign" />;
     case "trabalho-marketing": return <DepartmentWorkspace mode="marketing" />;
     case "acompanhamento": return <DepartmentWorkspace mode="cs" />;
-    case "vendas": return <VendasPage />;
+    case "vendas": return <SourceResultsPage kind="sales" />;
     case "insights": return <InsightsPage />;
     case "tom": return <TomPage />;
     case "tarefas": return <TarefasPage />;

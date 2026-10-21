@@ -29,3 +29,8 @@ alter default privileges in schema public grant execute on functions to anon, au
 
 -- Função criada pela plataforma (gatilho de RLS automático); a migração maia_revoke_rls_auto_enable_public a referencia
 create or replace function public.rls_auto_enable() returns void language plpgsql as $$ begin null; end $$;
+
+-- auth.role() já existe no Supabase; reproduz a implementação da plataforma para os testes.
+create or replace function auth.role() returns text language sql stable as $$
+ select coalesce(nullif(current_setting('request.jwt.claim.role',true),''),(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'))::text
+$$;

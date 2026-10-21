@@ -17,3 +17,6 @@ logs/
 db-drift-report.md
 supabase/.temp/
 .vercel/
+
+# Artefatos locais de auditoria e verificação
+/scratch/

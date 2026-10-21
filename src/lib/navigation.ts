@@ -1,41 +1,54 @@
 export const sections = [
-  { id: "trabalho", label: "Central de trabalho", icon: "work", pages: [{ id: "meu-dia", label: "Meu dia" }, { id: "minha-equipe", label: "Minha equipe" }, { id: "coordenacao", label: "Coordenação" }, { id: "direcao", label: "Direção" }, { id: "planejamento", label: "Planejamento" }, { id: "metricas", label: "Métricas" }] },
-  { id: "visao-geral", label: "Saúde da Maia", icon: "home", pages: [{ id: "resumo", label: "Resumo técnico" }, { id: "indicadores", label: "Indicadores da IA" }] },
-  { id: "marketing", label: "Marketing", icon: "marketing", pages: [{ id: "trabalho-marketing", label: "Trabalho e calendário" }, { id: "campanhas", label: "Fonte Meta (owner)" }, { id: "vendas", label: "Vendas e comunidade" }, { id: "insights", label: "Conversas e insights" }, { id: "tom", label: "Tom de voz" }] },
-  { id: "execucao", label: "Operação da Maia", icon: "execution", pages: [{ id: "tarefas", label: "Filas, entregas e eficácia" }, { id: "ocorrencias", label: "Ocorrências" }] },
-  { id: "comercial", label: "Comercial", icon: "comercial", pages: [{ id: "oportunidades", label: "Oportunidades" }, { id: "funil", label: "Funil" }] },
-  { id: "projetos", label: "Projetos", icon: "projetos", pages: [{ id: "projetos-lista", label: "Projetos" }, { id: "implementacoes", label: "Implementações" }] },
-  { id: "clientes-cs", label: "Clientes e CS", icon: "groups", pages: [{ id: "acompanhamento", label: "Acompanhamento" }, { id: "clientes", label: "Cadastro (owner)" }, { id: "grupos", label: "Grupos do WhatsApp" }] },
-  { id: "financeiro", label: "Financeiro", icon: "financeiro", pages: [{ id: "receitas", label: "Receitas" }, { id: "custos", label: "Custos e despesas" }] },
-  { id: "acessos", label: "Equipe e acessos", icon: "access", pages: [{ id: "pessoas", label: "Acessos" }, { id: "grupos-acesso", label: "Grupos de acesso" }] },
-  { id: "agente-maia", label: "Agente Maia", icon: "agent", pages: [{ id: "regras", label: "Regras ativas" }, { id: "memoria", label: "Memória e combinados" }, { id: "nucleo", label: "Núcleo e automações" }, { id: "manual", label: "Continuidade" }] },
-  { id: "sistema", label: "Sistema e integrações", icon: "system", pages: [{ id: "conexoes", label: "Conexões e fontes" }, { id: "modelos", label: "Executor e roteamento" }] },
+ {id:"gestao",label:"Gestão",icon:"home",pages:[{id:"panorama",label:"Panorama da operação"},{id:"coordenacao",label:"Coordenação"},{id:"direcao",label:"Direção e equipes"},{id:"planejamento",label:"Planejamento"},{id:"metricas",label:"Indicadores"}]},
+ {id:"trabalho",label:"Meu trabalho",icon:"work",pages:[{id:"meu-dia",label:"Meu dia"},{id:"minha-equipe",label:"Minha equipe"}]},
+ {id:"comercial",label:"Comercial",icon:"comercial",pages:[{id:"oportunidades",label:"Oportunidades"},{id:"funil",label:"Funil"},{id:"vendas",label:"Resultados de vendas"}]},
+ {id:"projetos",label:"Projetos e entregas",icon:"projetos",pages:[{id:"projetos-lista",label:"Projetos"},{id:"implementacoes",label:"Entregáveis e implementações"}]},
+ {id:"marketing",label:"Marketing",icon:"marketing",pages:[{id:"trabalho-marketing",label:"Produção e calendário"},{id:"campanhas",label:"Resultados de campanhas"}]},
+ {id:"clientes-cs",label:"Clientes e CS",icon:"groups",pages:[{id:"acompanhamento",label:"Combinados e retornos"},{id:"grupos",label:"Grupos do WhatsApp"}]},
+ {id:"financeiro",label:"Financeiro",icon:"financeiro",pages:[{id:"receitas",label:"Receitas e previsões"},{id:"custos",label:"Custos e despesas"}]},
+ {id:"execucao",label:"Operação da Maia",icon:"execution",pages:[{id:"resumo",label:"Saúde da operação"},{id:"indicadores",label:"Qualidade da IA"},{id:"tarefas",label:"Filas e entregas"},{id:"ocorrencias",label:"Ocorrências"},{id:"modelos",label:"Execução e custos"},{id:"insights",label:"Estatísticas de conversa"},{id:"tom",label:"Estilo das mensagens"}]},
+ {id:"administracao",label:"Administração",icon:"access",pages:[{id:"pessoas",label:"Pessoas e acessos"},{id:"grupos-acesso",label:"Grupos de acesso"},{id:"clientes",label:"Cadastro de clientes"},{id:"conexoes",label:"Conexões e fontes"},{id:"dados",label:"Fontes gerenciais"},{id:"regras",label:"Regras da Maia"},{id:"memoria",label:"Memória e combinados"},{id:"nucleo",label:"Núcleo e automações"},{id:"manual",label:"Continuidade e backup"}]}
 ] as const;
-
-export type SectionId = typeof sections[number]["id"];
-export type ScreenId = typeof sections[number]["pages"][number]["id"];
-export interface PanelRoute { section: SectionId; screen: ScreenId }
-export function routeHash(route: PanelRoute): string { return `#${route.section}/${route.screen}`; }
-
-export function parseRoute(hash: string, access: boolean | readonly string[] = true): PanelRoute {
-  const owner = typeof access === "boolean" ? access : false;
-  const screens = new Set(typeof access === "boolean" ? [] : access);
-  const raw = hash.replace(/^#/, "").split("?")[0];
-  const value = raw === "operacao" ? "manual"
-    : raw === "agente" || raw === "agente-maia/agente" ? "regras"
-    : raw === "grupos-clientes/grupos" ? "clientes-cs/grupos"
-    : raw === "grupos-clientes/clientes" ? "clientes-cs/clientes"
-    : raw === "grupos-clientes" ? "clientes-cs/clientes"
-    : raw;
-  const allowed = sections.filter((section) => owner || section.pages.some((page) => screens.has(page.id)) || (typeof access === "boolean" && !access && section.id === "acessos"));
-  for (const section of allowed) {
-    if (value === section.id) {const first=section.pages.find(page=>owner||screens.has(page.id)||(typeof access==="boolean"&&page.id==="pessoas"));if(first)return {section:section.id,screen:first.id};}
-    for (const page of section.pages) {
-      if (!owner && !screens.has(page.id) && !(typeof access === "boolean" && page.id === "pessoas")) continue;
-      if (value === page.id || value === `${section.id}/${page.id}`) return { section: section.id, screen: page.id };
-    }
+export type SectionId=typeof sections[number]["id"];
+export type ScreenId=typeof sections[number]["pages"][number]["id"];
+export interface PanelRoute{section:SectionId;screen:ScreenId}
+export function routeHash(route:PanelRoute){return `#${route.section}/${route.screen}`;}
+const legacySections:Record<string,string[]> = {
+ trabalho:["meu-dia","minha-equipe","coordenacao","direcao","planejamento","metricas"],
+ "visao-geral":["resumo","indicadores"],marketing:["trabalho-marketing","campanhas","vendas","insights","tom"],
+ execucao:["tarefas","ocorrencias"],comercial:["oportunidades","funil"],projetos:["projetos-lista","implementacoes"],
+ "clientes-cs":["acompanhamento","clientes","grupos"],financeiro:["receitas","custos"],acessos:["pessoas","grupos-acesso"],
+ "agente-maia":["regras","memoria","nucleo","manual"],sistema:["conexoes","modelos"],"grupos-clientes":["grupos","clientes"]
+};
+function target(hash:string){
+ const raw=hash.replace(/^#/,"").split("?")[0];
+ if(raw==="operacao")return "manual";
+ if(raw==="agente"||raw==="agente-maia/agente")return "regras";
+ if(raw==="grupos-clientes")return "clientes";
+ const [section,screen]=raw.split("/");
+ if(screen&&legacySections[section]?.includes(screen))return screen;
+ return raw;
+}
+export function parseRoute(hash:string,access:boolean|readonly string[]=true):PanelRoute{
+ const owner=access===true,screens=new Set(Array.isArray(access)?access:[]);
+ const allowed=(id:string)=>owner||screens.has(id)||(typeof access==="boolean"&&!access&&id==="pessoas");
+ const value=target(hash);
+ for(const section of sections){
+  for(const page of section.pages){
+   if(allowed(page.id)&&(value===page.id||value===`${section.id}/${page.id}`))return {section:section.id,screen:page.id};
   }
-  if (owner) return { section: "trabalho", screen: "meu-dia" };
-  const first = sections[0].pages.find((page) => screens.has(page.id));
-  return first ? { section:"trabalho",screen:first.id } : { section: "acessos", screen: "pessoas" };
+  if(value===section.id){const first=section.pages.find(page=>allowed(page.id));if(first)return{section:section.id,screen:first.id};}
+ }
+ // Entradas antigas de seção continuam apontando à primeira tela autorizada daquela área.
+ const old=legacySections[value];
+ if(old)for(const id of old)if(allowed(id))for(const section of sections)for(const page of section.pages)if(page.id===id)return {section:section.id,screen:page.id};
+ if(owner)return{section:"gestao",screen:"panorama"};
+ for(const section of sections)for(const page of section.pages)if(page.id==="meu-dia"&&allowed(page.id))return{section:section.id,screen:page.id};
+ for(const section of sections)for(const page of section.pages)if(allowed(page.id))return{section:section.id,screen:page.id};
+ return{section:"administracao",screen:"pessoas"};
+}
+export function canonicalRouteHash(hash:string,access:boolean|readonly string[]=true){
+ const route=parseRoute(hash,access),query=hash.split("?")[1];
+ const requested=target(hash),same=requested===route.screen||requested===`${route.section}/${route.screen}`;
+ return routeHash(route)+(same&&query?"?"+query:"");
 }

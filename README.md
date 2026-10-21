@@ -27,9 +27,13 @@ O registro de recibos distingue aceite pela Evolution de entrega/leitura; o pain
 
 Claude é o executor principal, rodando pelo Claude Code CLI (`claude -p`); Codex pode assumir pela contingência configurada. Os dois recebem o mesmo construtor de prompt e passam pelos controles do servidor. Disponibilidade de um conector depende do executor e da conexão atual.
 
+## Painel gerencial
+
+A implementação e os contratos de indicadores/fontes estão em [painel gerencial](docs/painel-gerencial.md). A versão anterior está preservada em [backup do painel](docs/backup-painel-anterior.md). Fontes reais de vendas, campanhas e financeiro precisam ser configuradas em Administração → Fontes gerenciais. O coletor independente inicia com pnpm panel:collect; não altera o worker da Maia.
+
 ## Organização do painel
 
-O menu usa a Central de Trabalho como entrada. Projetos, Marketing, Comercial e Clientes/CS oferecem visões dos mesmos registros autorizados. Saúde da Maia e Operação da Maia mantêm diagnósticos técnicos exclusivos do proprietário; Financeiro depende da competência e do escopo financeiro. Cadastros globais, acessos, regras e integrações continuam administrativos. Links antigos são preservados; membros não recebem acesso às páginas administrativas por terem acesso à área operacional.
+O menu tem nove áreas. O proprietário entra em Gestão, com Panorama, indicadores e detalhamento; Meu trabalho concentra a execução pessoal. Projetos, Marketing, Comercial e Clientes/CS oferecem visões dos mesmos registros autorizados. Saúde da Maia e Operação da Maia mantêm diagnósticos técnicos exclusivos do proprietário; Financeiro depende da competência e do escopo financeiro. Cadastros globais, acessos, regras e integrações continuam administrativos. Links antigos são preservados; membros não recebem acesso às páginas administrativas por terem acesso à área operacional.
 
 Projetos/Implementações consultam a carteira da Central; Marketing filtra tarefas e calendário; Comercial e CS usam registros internos persistidos com próxima ação, revisão e histórico. As ferramentas `area_registro_salvar` e `oportunidade_converter` são compartilhadas por Claude/Codex, revalidam acesso no banco e não ativam CRM externo. Criação permanece pelo WhatsApp; o painel altera registros existentes. Migração `20261016180722_maia_department_workspace.sql` aplicada ao Supabase e código integrado pelo PR #23 (`5c504d4`); o reinício do worker é separado. Detalhes, matriz e limites em [integração do painel](docs/integracao-painel-maia.md).
 

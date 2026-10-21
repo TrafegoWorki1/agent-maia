@@ -24,7 +24,8 @@
     "db:validate": "node scripts/db/validate.ts",
     "db:drift": "node scripts/db/drift.ts",
     "db:guard": "node --experimental-strip-types scripts/db/guard.ts",
-    "db:new": "node scripts/db/new.ts"
+    "db:new": "node scripts/db/new.ts",
+    "panel:collect": "node --experimental-strip-types scripts/panel-collector.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.281",

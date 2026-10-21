@@ -4,6 +4,20 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 2026-10-20 - painel gerencial com backup preservado
+
+- **Problema:** navegação fragmentada, visão gerencial distribuída e fontes sem configuração/auditoria confiável. Contador acumulado de grupos aparecia como sete dias.
+- **Entrega:** nove áreas e 34 telas, Panorama com seis indicadores, filtros, gráficos e abertura dos registros; gráficos nos recortes de setor do proprietário; Meu trabalho e todas as ações existentes preservados. Aliases mantêm tarefa/projeto.
+- **Fontes:** cadastro de planilhas, escopo por IDs, unidade/regime/cobertura, validação do lote, unicidade, reserva de coleta, revisões, histórico e último sucesso separado de tentativa. Novos dados são exclusivos do proprietário; membros mantêm seus acessos anteriores.
+- **Coleta:** processo gerencial independente do worker e da IA; metadados Google diretos e fontes Sheets explicitamente configuradas. Meta direto e escopos Google ausentes aparecem como indisponíveis. Nenhum dado de negócio foi inventado.
+- **Banco:** migração idempotente de reconciliação da estrutura criativa existente e migração aditiva das fontes preparadas e reconstruídas do zero. Sem alteração do catálogo de regras ou das consultas compartilhadas da Maia.
+- **Backup:** branch backup/painel-antes-gestao-20261020 e tag painel-antes-gestao-20261020 no GitHub, commit 2af93da; ZIP/patch/documentos preservados localmente.
+- **Verificação local:** typecheck, build, 740 testes de aplicação e 81 de banco aprovados. Validação de 66 migrações aprovada. Conferência visual e fontes reais pendentes, conforme documentação.
+- **Implantação:** em preparação; estado final será registrado após a aplicação/checagem.
+- Documentação: [painel gerencial](docs/painel-gerencial.md), [plano](docs/plano-painel-gerencial-maia.md), [backup](docs/backup-painel-anterior.md).
+
+
+
 ## 2026-10-20 — conferência de GitHub, sites e produção
 
 - Migração `20261020180000` confirmada no histórico remoto do Supabase; as migrações de Sheets (`20261020160445` e `20261020160446`) e de caminhos de site (`20261020170000`) também constam aplicadas.

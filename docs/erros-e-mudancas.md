@@ -1,3 +1,11 @@
+## 20/10/2026 - painel gerencial
+
+A navegação passa a nove áreas com Gestão e Meu trabalho separados. Panorama e gráficos abrem os registros reais do cálculo; a camada de fontes exige configuração explícita e preserva histórico, revisões e o último lote válido. A coleta usa APIs de leitura e processo próprio, sem chamar a IA. A contagem acumulada dos grupos deixa de ser apresentada como sete dias; cadastro/atividade sobrevivem à falha da lista externa.
+
+Backup anterior preservado em branch/tag no GitHub e ZIP/patch local. Regras, prompts, modelos, políticas, ferramentas, estados e efeitos operacionais preservados. Novas fontes restritas ao proprietário; escopos existentes inalterados. Migrações aditivas, sem apagar dados.
+
+Verificação local: 740 testes da aplicação, 81 de banco, typecheck, build e validação de 66 migrações aprovados. Fontes reais e inspeção visual dependem de configuração/navegador; implantação em andamento. Detalhes em [painel gerencial](painel-gerencial.md) e [backup](backup-painel-anterior.md).
+
 # Contatos compartilhados
 
 Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.

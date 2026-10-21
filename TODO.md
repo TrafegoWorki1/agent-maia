@@ -1,3 +1,14 @@
+## Painel gerencial - 20/10/2026
+
+- [x] Backup do painel anterior no GitHub e ZIP/patch local.
+- [x] Nove áreas, aliases de 32 telas antigas e duas telas novas.
+- [x] Panorama, gráficos, filtros e detalhamento; regras e permissões preservadas.
+- [x] Fontes configuráveis, coleta de leitura, histórico, RLS e testes locais.
+- [ ] Aplicar migrações e conferir drift remoto antes do deploy.
+- [ ] Publicar e validar as APIs autenticadas de produção.
+- [ ] Conectar planilhas reais e conferir resultados com o proprietário.
+- [ ] Inspecionar layout no navegador desktop/celular quando o navegador estiver disponível.
+
 # Pendências atuais da Maia
 
 ## GitHub e sites — acompanhamento de 20/10/2026
