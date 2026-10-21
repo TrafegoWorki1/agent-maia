@@ -16,7 +16,7 @@ describe("consulta simples (atualização do painel e demonstração) pelo Claud
     const [call] = spawned.calls;
     expect(call.stdin).toBe("Consulte");
     expect(call.args[call.args.indexOf("--tools") + 1]).toBe("");
-    expect(call.args).toContain("--restricted");
+    expect(call.args).not.toContain("--restricted");
     expect(call.args).toContain("--permission-prompt-tool");
     expect(call.args).not.toContain("--dangerously-skip-permissions");
   });
