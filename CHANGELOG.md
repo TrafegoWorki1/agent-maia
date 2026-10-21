@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 2026-10-20 - identificação das redes sociais de Herickson Maia
+
+- Corrigidos Instagram e LinkedIn na tela Conexões, comentário de ambiente/cliente Zernio e descrições de ferramentas que atribuíam o Instagram à Worki.
+- Catálogo 2026-10-20.7 corrige somente os títulos das duas regras; todos os 46 textos e seus estados/ordem são preservados. Documentos gerados regenerados; nova migração com comparação dos valores anteriores, sem mudar IDs de contas, permissões ou aprovações.
+- Leitura das contas Zernio pela credencial local retornou HTTP 401; a propriedade dos perfis foi informada pelo owner. Nenhuma publicação, mensagem ou troca de credencial executada.
+- Verificação e implantação em andamento.
+
+
 ## 2026-10-20 - painel gerencial com backup preservado
 
 - **Problema:** navegação fragmentada, visão gerencial distribuída e fontes sem configuração/auditoria confiável. Contador acumulado de grupos aparecia como sete dias.

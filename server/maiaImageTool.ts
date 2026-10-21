@@ -275,7 +275,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_desempenho",
-        "Mostra o desempenho dos posts mais recentes do Instagram da Worki (alcance, visualizações, curtidas, comentários, compartilhamentos e salvamentos). Só leitura.",
+        "Mostra o desempenho dos posts mais recentes do Instagram de Herickson Maia (alcance, visualizações, curtidas, comentários, compartilhamentos e salvamentos). Só leitura.",
         { limite: z.number().int().min(1).max(20).optional().describe("Quantos posts mostrar. Padrão 5.") },
         async (args) => {
           try {
@@ -973,7 +973,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_publicar",
-        "Publica (ou agenda) um post no Instagram da Worki: foto única, carrossel (2-10 imagens), Reels (vídeo .mp4) ou Story. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador. Nunca publique sem a legenda final aprovada pelo dono.",
+        "Publica (ou agenda) um post no Instagram de Herickson Maia: foto única, carrossel (2-10 imagens), Reels (vídeo .mp4) ou Story. Ação que altera algo externo: só roda depois da aprovação do dono ou do aprovador. Nunca publique sem a legenda final aprovada pelo dono.",
         {
           tipo: z.enum(["foto", "carrossel", "reels", "story"]).default("foto").describe("foto = 1 imagem; carrossel = 2 a 10 imagens; reels = 1 vídeo .mp4; story = 1 imagem como Story."),
           legenda: z.string().min(1).max(2200).describe("Legenda final do post."),
@@ -1048,7 +1048,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_stories",
-        "Lista os Stories ativos do Instagram da Worki agora. Só leitura.",
+        "Lista os Stories ativos do Instagram de Herickson Maia agora. Só leitura.",
         {},
         async () => {
           try {
@@ -1128,7 +1128,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_conversas_listar",
-        "Lista as conversas recentes do Direct do Instagram da Worki (quem escreveu, não o conteúdo). Só leitura.",
+        "Lista as conversas recentes do Direct do Instagram de Herickson Maia (quem escreveu, não o conteúdo). Só leitura.",
         {},
         async () => {
           try {
@@ -1213,7 +1213,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "instagram_automacao_criar",
-        "Cria uma automação de comentário → DM no Instagram da Worki (ex.: quem comentar uma palavra recebe uma mensagem no Direct). Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Nasce sempre PAUSADA — ativar é uma ferramenta separada (instagram_automacao_ativar), com aprovação própria.",
+        "Cria uma automação de comentário → DM no Instagram de Herickson Maia (ex.: quem comentar uma palavra recebe uma mensagem no Direct). Ação que sai para fora: só roda depois do OK do owner ou do aprovador. Nasce sempre PAUSADA — ativar é uma ferramenta separada (instagram_automacao_ativar), com aprovação própria.",
         {
           nome: z.string().min(1).max(100),
           mensagem_direct: z.string().min(1).max(1000).describe("Texto que a pessoa recebe no Direct."),

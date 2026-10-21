@@ -2,6 +2,10 @@
 
 Implementação autorizada em 20/10/2026. Nove áreas, 34 telas (32 existentes e duas novas: Panorama e Fontes gerenciais). O proprietário entra em Gestão; os demais perfis continuam entrando nas telas previamente autorizadas. As rotas antigas continuam válidas, incluindo parâmetros de tarefa e projeto.
 
+## Identificação das redes sociais
+
+Instagram e LinkedIn são os perfis de Herickson Maia. Os nomes da tela Conexões, das descrições de ferramentas e dos títulos do catálogo foram corrigidos por informação do proprietário em 20/10/2026. Esta correção de identificação não altera contas por ID, permissões ou aprovações. A conferência de contas com a credencial local respondeu HTTP 401; não foi possível confirmar a conexão atual por essa leitura.
+
 ## Referência e preservação
 
 Código anterior: `2af93da47a52cf2e642d0379ff2c9676cc274d5f`, branch `backup/painel-antes-gestao-20261020` e tag `painel-antes-gestao-20261020`, enviadas ao GitHub antes das alterações. Consulte [backup e restauração](backup-painel-anterior.md).
