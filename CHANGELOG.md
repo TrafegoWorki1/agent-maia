@@ -4,6 +4,10 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — confirmação final: sheets/calendar/gmail/meta em "ok" na produção
+
+Depois do merge do PR #39 e reinício do coletor, o ciclo completo gravou `status: "ok"` nas 4 fontes em `snapshots`: `sheets` (03:13:30), `calendar` (03:13:46), `gmail` (03:14:17) e `meta` (03:16:29), todas em UTC. Investigação encerrada; resumo das 8 causas encontradas no caminho (worker duplicado com `.env` velho, checkout 9 commits atrás da `main`, coletor rodando de outra pasta nunca tocada, escopo do OAuth do Google, bug em `isReadTool()`, orçamento insuficiente do CLI, `MAIA_CLAUDE_BIN` corrompido por escaping de shell, validador do Meta Ads rígido demais) está nas entradas anteriores deste arquivo e em `docs/erros-e-mudancas.md`, todas já commitadas e mergeadas (`main`, commit `f8c7755`).
+
 ## 21/10/2026 — sheets/calendar/gmail confirmados "ok" em produção; Meta Ads tolera conta sem gasto
 
 - **Causa do "Native CLI binary for linux-x64 not found":** minha primeira tentativa de configurar `MAIA_CLAUDE_BIN` corrompeu o valor por escaping de shell (virou `C:UsersSamsung.localinclaude.exe`, sem nenhuma barra) — não era um problema do pacote nem do executor, era o `.env` com valor errado. Corrigido escrevendo o arquivo direto por script, sem passar pelo shell. Confirmado ao vivo: `sheets`, `calendar` e `gmail` gravaram `status: "ok"` no ciclo seguinte.
