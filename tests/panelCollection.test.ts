@@ -60,6 +60,7 @@ describe("coleta do painel: calendar/gmail/meta pelo Claude, sheets pelo Drive d
 
     claudeSimple.runClaudeSimple.mockImplementationOnce(async ({ allowTool }) => {
       expect(allowTool("mcp__claude_ai_Meta_ADS__ads_get_ad_accounts")).toBe(true);
+      expect(allowTool("mcp__claude_ai_Meta_ADS__ads_get_ad_entities")).toBe(true);
       return { text: '{"accounts":[{"name":"Conta","spend_7d":100,"currency":"BRL"}]}', costUsd: 0.01 };
     });
     const { db: dbMeta, upserts: upMeta } = fakeDb();

@@ -15,7 +15,11 @@ async function googleGet(path:string):Promise<any>{
 // conta (decisão do owner, 21/10/2026): essas três fontes não têm um token/coletor direto próprio do
 // servidor, e os conectores da conta já leem Google Calendar/Gmail e Meta Ads sem escopo adicional.
 // Sheets continua lendo o Drive direto (token OAuth do servidor), mais barato e sem depender do CLI.
-const CLAUDE_SOURCE_BUDGET_USD=0.5,CLAUDE_SOURCE_MAX_TURNS=8,CLAUDE_SOURCE_MODEL="haiku";
+// US$0,50/8 turnos estourou em produção (calendar falhou com error_max_budget_usd) mesmo numa
+// consulta de uma ferramenta só: o CLI carrega o contexto de todos os servidores MCP configurados
+// na conta/máquina (não só os liberados aqui), então o custo por chamada varia com o que mais estiver
+// conectado. Teto maior dá folga sem abrir mão do valor baixo por fonte.
+const CLAUDE_SOURCE_BUDGET_USD=1.5,CLAUDE_SOURCE_MAX_TURNS=12,CLAUDE_SOURCE_MODEL="haiku";
 async function collectViaClaude(source:Exclude<SourceId,"sheets">):Promise<unknown>{
  const {prompt,tools,validate}=SOURCES[source];
  const answer=await runClaudeSimple({prompt,systemPrompt:"Você atualiza o painel gerencial da Maia com dados de leitura. Nunca execute ações.",model:CLAUDE_SOURCE_MODEL,maxTurns:CLAUDE_SOURCE_MAX_TURNS,maxBudgetUsd:CLAUDE_SOURCE_BUDGET_USD,allowTool:(toolName)=>isReadTool(toolName)&&tools.includes(toolName)});

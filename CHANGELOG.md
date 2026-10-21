@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 21/10/2026 — ajuste de orçamento e ferramenta do Meta Ads (confirmado em produção)
+
+- **Resultado ao vivo após o PR #36:** `sheets` e `gmail` gravaram `status: "ok"` no primeiro ciclo real (confirmado lendo `snapshots` direto no Supabase). `calendar` falhou com `"Claude CLI falhou (error_max_budget_usd)"`; `meta` falhou com `"ads_get_ad_entities recusado pela fonte (somente leitura não permitido)"` — o modelo tentou uma ferramenta fora da lista liberada e, corretamente, devolveu erro em vez de inventar o gasto.
+- **Causa do estouro de orçamento:** o CLI carrega o contexto de todos os servidores MCP configurados na conta/máquina (Vercel, Notion, Miro, disparom, etc.), não só os liberados para a fonte — o custo por chamada varia com o que mais estiver conectado, então US$0,50/8 turnos não é folga suficiente mesmo para uma consulta de uma ferramenta só.
+- **Correção:** `server/panelCollection.ts` e `server/refreshJob.ts` sobem o teto para US$1,50 e 12 turnos. `SOURCES.meta` (`refreshJob.ts`) passa a liberar também `mcp__claude_ai_Meta_ADS__ads_get_ad_entities`, que é a ferramenta que o modelo já tentava usar para o gasto por conta.
+- **Testes:** `tests/panelCollection.test.ts` ajustado para cobrir a nova ferramenta liberada. Typecheck limpo, 772/772 testes, build OK.
+- **Pendência:** confirmar `status: "ok"` em `calendar` e `meta` no próximo ciclo real.
+
 ## 21/10/2026 — implantação do PR #36 e acerto de ambientes (Zernio, workers duplicados)
 
 - **Causa raiz dos erros de conexão (achada nesta sessão):** o worker do WhatsApp roda em `agent-maia` e o coletor do painel gerencial roda num **worktree separado**, `maia-gerencial` (tarefa agendada do Windows `Maia-Painel-Coletor`, script `scripts/start-panel-collector.ps1`). Cada pasta tem seu próprio `.env`; a chave `ZERNIO_API_KEY` só tinha sido corrigida em `agent-maia`, nunca em `maia-gerencial` — por isso o coletor do painel continuava vendo `HTTP 401` mesmo depois da Maia do WhatsApp já responder certo.
