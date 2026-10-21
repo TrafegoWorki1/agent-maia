@@ -1,5 +1,6 @@
 ## 20/10/2026 — complementação do painel gerencial
 
+- Publicado pelo PR #34 (b0bc9fe), CI da main e Vercel aprovados. Produção conferida às 23:15 BRT: página/gráficos 200, APIs novas 200 com login e 401 anônimas, período inválido 400 e histórico sob demanda 200. Zero fontes reais cadastradas; critérios externos/visuais continuam explícitos no plano.
 - Gráficos de rosca, colunas agrupadas, linhas e barras empilhadas, com cores estáveis, teclado e tabelas. Cronograma mostra prazo e conclusão dos entregáveis.
 - Análises de entregas semanais, idade dos itens, devoluções, pontualidade dos entregáveis, encerramentos comerciais e retornos de CS; filtros compartilhados e mesmas populações do detalhamento.
 - Comparações explícitas de fontes: previsto/recebido, fluxo/margem de caixa, custo por resultado, ROAS e taxa de ganho; validações de cobertura, escopo, moeda, atualização e denominador, preservando estornos e recusando sobreposição de custos/despesas.

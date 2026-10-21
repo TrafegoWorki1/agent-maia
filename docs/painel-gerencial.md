@@ -61,6 +61,8 @@ As duas APIs são somente leitura, sem cache compartilhado, validam método/orig
 
 ## Verificação da complementação e dependências
 
+Publicação pelo [PR #34](https://github.com/TrafegoWorki1/agent-maia/pull/34), merge b0bc9fe22bc87edbdb4356bdbaceb60280f15eb3, CI da main aprovado e Vercel concluída. Em 21/10/2026 02:15 UTC (20/10 às 23:15 em Brasília), https://agent-maia.vercel.app respondeu 200; bundle dos gráficos confirmou bar/donut/stacked/column/line. APIs panel-collaboration e panel-operations responderam 200 com login e 401 sem login. Período inválido retornou 400; histórico de tarefa sob demanda retornou 200. População observada: 21 tarefas, 61 execuções e 75 recibos; histórico global omitido. Fontes gerenciais: API 200, zero cadastradas. Esses checks HTTP não constituem inspeção visual.
+
 768 testes de aplicação (111 arquivos), 81 testes de banco, tipos, build, db:validate e db:guard aprovados. 67 migrações, drift 2.064/2.064. Catálogo 2026-10-20.7 com 46 regras e checksum 7c63d7e4baa81dc5b10db96495aeb1b0781f25631f87bcfa0e2ed8e9f29a7840 preservado. Testes cobrem denominadores, moeda/escopo/cobertura, estornos, primeira revisão anterior ao período, teclado/segmentos, revogação e histórico paginado.
 
 Conferência local das APIs com o banco real em 21/10/2026 01:56 UTC: API original e leitura compacta retornaram os mesmos 21 IDs e allowedActions; a original retornou quatro eventos globais e a compacta zero, com detalhe sob demanda 200. Operações retornaram 59 execuções e 73 recibos. As duas APIs recusaram anônimos com 401, e período inválido retornou 400. Nenhum dado de negócio foi criado/alterado para testar; nenhuma mensagem, publicação ou execução paga de IA foi disparada.

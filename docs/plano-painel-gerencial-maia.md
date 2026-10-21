@@ -228,6 +228,8 @@ Detalhes reproduzíveis e matriz de telas: [painel gerencial](painel-gerencial.m
 
 ## Complementação do plano autorizada em 20/10/2026
 
+Implementação e documentação integradas na main pelo PR #34 (b0bc9fe), com CI e publicação Vercel aprovados. Conferência em produção às 23:15 de Brasília: página/gráficos 200, APIs novas 200 autenticadas/401 anônimas e validação de período 400. O backup original permanece no GitHub. Os critérios externos e visuais da tabela continuam abertos.
+
 As lacunas de implementação da primeira entrega foram tratadas: gráficos de rosca, colunas, linhas e barras empilhadas; evolução semanal, idade dos itens e motivos de devolução; cronograma com prazo/conclusão dos entregáveis; encerramentos comerciais e retornos de CS por eventos; filtros comuns; análises de falhas, custos e recibos; fórmulas comparativas de fontes; leitura própria do painel com histórico de tarefa paginado sob demanda.
 
 | Fase | Situação da implementação | Dependência restante para o aceite integral |
