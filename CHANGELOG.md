@@ -1,4 +1,34 @@
+# Contatos compartilhados pelo WhatsApp
+
+A triagem passa a extrair nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra contatos automaticamente. A implantação requer atualizar o webhook e o worker; nenhuma migração de banco é necessária.
+
 # Changelog
+
+## 2026-10-20 — conectores Gmail/Calendar/Meta Ads desconectados na conta (não no código)
+
+- **Causa:** `operacao_resumo` mostrou `calendar`/`gmail`/`meta` com status "erro" no WhatsApp. Investigação encontrou duas coisas: (1) os conectores `mcp__claude_ai_Gmail`, `mcp__claude_ai_Google_Calendar` e `mcp__claude_ai_Meta_ADS` estavam de fato desautenticados no nível da conta Claude.ai (confirmado por uma sessão de Claude Code reportando os mesmos MCPs como `CONNECTION_CLOSED` ao conectar); (2) o comentário em `server/refreshJob.ts` (linhas ao redor de `runSource`) afirmava que uma falha de refresh "nunca" indica conector quebrado, só falta de acesso do subprocesso — mas o código não grava status "error" no snapshot nessa falha (só loga em `agent_runs`), então um "erro" visto em `operacao_resumo` fica parado desde a última falha real até o próximo refresh ter sucesso.
+- **Correção:** comentário de `server/refreshJob.ts` reescrito para não afirmar que a falha nunca é o conector real; registra que os dois cenários produzem o mesmo erro e não dá pra diferenciar só pelo código.
+- **Verificação:** após o owner reconectar os conectores em claude.ai, os três (`mcp__claude_ai_Gmail__list_labels`, `mcp__claude_ai_Google_Calendar__list_calendars`, `mcp__claude_ai_Meta_ADS__ads_get_ad_accounts`) responderam normalmente numa sessão de Claude Code.
+- **Pendências:** confirmar que o próximo ciclo do `refreshJob` (30 min, ou reinício do worker) sobrescreveu os snapshots para `status: "ok"`; considerar gravar explicitamente um status "stale"/"desconhecido" em vez de deixar o último "error" parado indefinidamente.
+
+## 2026-10-20 — remoção do `--restricted` no executor Claude CLI (conectores da conta)
+
+- **Causa:** o conector Meta Ads (e os demais `mcp__claude_ai_*` buscados pela conta) não chegava ao agente porque `--restricted`, em `buildCliArgs` (`server/ai/providers/claudeCli.ts`), zera `mcp_servers` por completo — confirmado rodando o `claude -p` ao vivo com e sem a flag.
+- **Decisão do owner (20/10/2026):** tirar `--restricted` pra liberar os conectores. Verificado antes de aplicar que as outras proteções continuam de pé por caminhos independentes da flag: Bash/PowerShell/Edit/Write/WebFetch seguem fora por `--tools`/`--disallowedTools`; a confinação de Read/Grep/Glob ao projeto é feita em código por `decideBuiltin` (`server/access.ts`); e qualquer `mcp__` fora do inventário de `isKnownMcpTool` (`server/toolPolicy.ts`) é negado por padrão — então um servidor MCP local/global alheio deste computador (ex.: `disparom`, `playwright`, de outros projetos) pode até conectar, mas nenhuma ferramenta dele fica chamável.
+- **`server/ai/providers/claudeCli.ts`**: removida a linha `"--restricted"` de `buildCliArgs`. Afeta os dois executores que passam por essa função (`runClaudeCli` e, por extensão, `claudeSimple.ts`).
+- **Testes:** `tests/claudeCli.test.ts` e `tests/claudeSimple.test.ts` ajustados para esperar a ausência de `--restricted`. 721 testes, `typecheck` e `build` conferidos depois da mudança.
+- **Pendências:** testar na prática uma pergunta real pelo WhatsApp que dependa do Meta Ads (ex.: listar contas de anúncio) com o worker reiniciado nesta mudança; confirmar se o risco residual de conexão (não chamada) a servidores MCP alheios deste computador exige isolar `CLAUDE_CONFIG_DIR` para o processo da Maia.
+
+## 2026-10-20 — conferência de GitHub, sites e produção
+
+- Migração `20261020180000` confirmada no histórico remoto do Supabase; as migrações de Sheets (`20261020160445` e `20261020160446`) e de caminhos de site (`20261020170000`) também constam aplicadas.
+- Implementação `073610d` e documentação `4d89f15` integradas na `main` pelo merge `7767b3d`. O status Vercel desse merge informa publicação concluída.
+- `github_repo_criar` cria privado por padrão; `privado=false` exige OK do owner. Membros continuam sem acesso a `github_*`; não há ferramenta para mudar a visibilidade de um repositório existente.
+- `site_subir_github` aceita repositório público ou privado e exige OK para o commit. `site_publicar_vercel` envia o HTML pela API; se o HTML não vier no pedido, lê o arquivo do repositório informado. O fluxo não configura deploy a cada git push. Regras do plano gratuito da Vercel não foram verificadas nesta conferência.
+- Verificação local anterior: 720 testes de aplicação e build aprovados; CI do PR #29 também passou. Isso não comprova publicação real de um site pelas ferramentas da Maia.
+- Pendências confirmadas: atualizar os workers (processos observados iniciados às 00h25 e 15h08, antes do commit das 16h11), manter uma única instância operacional após verificar trabalhos em andamento e testar o fluxo real de GitHub/Vercel.
+- A regra aplicada `site_publicar` ainda contém a expressão antiga “repositório fixo de sites”, embora o restante descreva repositório por pedido. Corrigir futuramente no catálogo, documento gerado e nova migração; preservar a migração aplicada.
+
 
 ## 2026-10-20 — Google Sheets: ler, editar, criar e apagar colunas (`sheets_*`)
 
@@ -10,26 +40,26 @@
 - **Autorização por planilha:** `resourceAccess.ts` trata planilha como arquivo do Drive e reaproveita `decideResourceAccess` (membro precisa de grant vigente para a planilha). `codexMaiaMcp.ts` passa a chamar essa checagem, o que também fecha a lacuna do Codex para o Drive.
 - **Regras e migrações:** regra `google_sheets` (catálogo `2026-10-20.4`), migração da regra e migração da permissão `sheets.editar` (sem conceder a ninguém).
 - **Testes:** `tests/sheets.test.ts` (21 novos): política por papel, bloqueio, grupo de cliente negado, grupo interno Operacional (owner e membro com permissão), checagem por recurso, ID/link, letras de coluna, escape de aba, limite de células, cliente com `fetch` simulado (leitura, deleteDimension, 404 sem token).
-- **Pendências:** aplicar as duas migrações em produção e reiniciar o worker; não testado contra a planilha real do owner; criar planilha não dá acesso automático ao membro que criou; a autorização por planilha depende de grant cadastrado no painel.
+- **Pendências:** reiniciar o worker (as duas migrações já constam aplicadas em produção); não testado contra a planilha real do owner; criar planilha não dá acesso automático ao membro que criou; a autorização por planilha depende de grant cadastrado no painel.
 - **Verificação:** `pnpm typecheck` limpo, `pnpm test` 711/711 e 77/77, `pnpm build` OK, `pnpm db:validate` OK, `pnpm rules:check` OK.
 
 ## 2026-10-20 — GitHub e site: owner escolhe repositório público ou privado
 
-- **Causa:** o repositório era sempre privado. O owner quer escolher a visibilidade a cada criação (no plano gratuito da Vercel, a integração Git não publica automaticamente de repositório privado). O caminho de publicação da Maia usa o upload pela API da Vercel e não depende da visibilidade, mas a escolha fica com o owner.
+- **Causa:** o repositório era sempre privado. O owner quer escolher a visibilidade a cada criação. As restrições do plano gratuito da Vercel não foram verificadas nesta conferência. O caminho de publicação da Maia usa o upload pela API da Vercel e não depende da visibilidade, mas a escolha fica com o owner.
 - **Correção:** `github_repo_criar` aceita `privado` (padrão: sim). Com `privado=false`, cria público e pede OK pontual do owner (`access.ts`). `createRepo` confere a visibilidade devolvida pelo GitHub. `site_subir_github` e `site_publicar_vercel` aceitam repositório público ou privado; só conferem que ele existe (`assertRepoExists`).
 - **Não mudou:** não existe ferramenta para tornar público um repositório já existente, e membros continuam sem `github_*`.
-- **Regra e migração:** regra `site_publicar` (`2026-10-20.6`) na migração `20261020180000`, ainda não aplicada em produção. Aplicar depende de autorização.
+- **Regra e migração:** regra `site_publicar` (`2026-10-20.6`), migração `20261020180000` aplicada em produção e confirmada no histórico remoto em 20/10/2026.
 - **Testes:** `tests/github.test.ts` (criação privada por padrão, pública quando pedida, aprovação) e `tests/site.test.ts` (repositório público aceito).
 - **Pendências:** testar com repositório e Vercel reais.
 
 ## 2026-10-20 — site: repositório informado em cada pedido (sem MAIA_SITES_REPO)
 
 - **Causa:** MAIA_SITES_REPO fixo obrigava a editar o .env a cada repositório novo criado. O owner pediu que o repositório viesse no próprio pedido.
-- **Correção:** site_subir_github e site_publicar_vercel recebem repo (dono/nome). Antes de gravar, ou de ler o arquivo salvo, a ferramenta confere no GitHub que o repositório existe e é privado (assertPrivateRepo em server/integrations/github.ts). Público é recusado.
+- **Correção:** site_subir_github e site_publicar_vercel recebem repo (dono/nome). Antes de gravar, ou de ler o arquivo salvo, a ferramenta confere no GitHub que o repositório existe (assertRepoExists em server/integrations/github.ts). Público ou privado conforme escolha do owner.
 - **Política:** sem mudança de permissão. Membro segue com site.publicar; o owner decide o repositório pelo pedido.
 - **Regra e migração:** regra site_publicar no catálogo (2026-10-20.6) e migração 20261020180000_site_repo_por_pedido_rule.sql (só atualiza texto; não cria tabelas). Aplicada em produção em 2026-10-20 (`rules:verify` alinhado, 2026-10-20.6, 46 regras).
 - **Testes:** tests/site.test.ts (15 testes), com repositório simulado (privado, público e arquivo ausente).
-- **Pendências:** remover MAIA_SITES_REPO do .env do servidor (não é mais lido); aplicar a migração 20261020180000; testar com repositório e Vercel reais.
+- **Pendências:** remover MAIA_SITES_REPO do .env do servidor (não é mais lido); testar com repositório e Vercel reais.
 
 ## 2026-10-20 — site em dois caminhos: `site_subir_github` e `site_publicar_vercel`
 
@@ -38,9 +68,9 @@
 - **`server/integrations/github.ts`:** nova `readFile` (leitura do arquivo do repositório, sem OK).
 - **`server/siteTools.ts`:** `site_publicar` removida; `site_subir_github` e `site_publicar_vercel` (nos dois executores).
 - **Política:** `approvalPolicy.ts` exige OK só em `site_subir_github`; `access.ts` nega os dois em grupo e exige `site.publicar` para membro; `neededPermission` mapeia os dois para `site.publicar` (bloqueio individual vale); `toolPolicy.ts` e `actionDescriptions.ts` atualizados.
-- **Regras e migrações:** regra `site_publicar` reescrita no catálogo (`2026-10-20.5`) e migração `20261020170000_site_caminhos_rule.sql` (atualiza o texto da regra já aplicada; não cria tabelas). Ela depende da migração do Sheets (`.4`), que ainda não foi aplicada.
+- **Regras e migrações:** regra `site_publicar` reescrita no catálogo (`2026-10-20.5`) e migração `20261020170000_site_caminhos_rule.sql` (atualiza o texto da regra já aplicada; não cria tabelas). Ela depende da migração do Sheets (`.4`), que também consta aplicada em produção.
 - **Testes:** `tests/site.test.ts` reescrito (15 testes): política dos dois caminhos, leitura do repositório, recusas e erros sem token.
-- **Pendências:** aplicar as migrações do Sheets e a nova em produção, reiniciar o worker, testar com o repositório real (`MAIA_SITES_REPO`) e com a Vercel real.
+- **Pendências:** reiniciar o worker e testar com o repositório informado no pedido e com a Vercel real; as migrações de Sheets e de caminhos já constam aplicadas.
 
 ## 2026-10-20 — criar e publicar site (HTML, GitHub e Vercel): `site_publicar`
 
