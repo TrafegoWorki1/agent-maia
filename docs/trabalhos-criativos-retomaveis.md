@@ -48,4 +48,6 @@ O limite do Codex CLI é 240 s. No trabalho #5, a geração salvou um PNG comple
 
 A correção em `server/imagegen.ts` confere a pasta de saída ao atingir o limite e só recupera PNG/JPEG com assinatura e marcador final completos. Se encontrar imagem completa, retorna o caminho e permite que a fila continue para o envio da prévia. Sem arquivo completo, mantém `uncertain` e não repete a geração. `tests/imagegen.test.ts` cobre os dois resultados.
 
-**Verificação:** teste específico de `imagegen` (8 testes), suíte completa (812 testes de aplicação e 81 de banco), `pnpm typecheck` e `pnpm build` passaram. A correção requer atualizar e reiniciar o worker. O item histórico #5 foi recuperado de forma controlada, sem gerar outra imagem: a Evolution aceitou a prévia com ID `3EB0ADD15C4750C99C6E31`, o item passou a `ready_for_review` e o trabalho a `review`. O recibo registra `accepted`, sem afirmar entrega ou leitura.
+**Verificação e implantação:** teste específico de `imagegen` (8 testes), suíte completa (812 testes de aplicação e 81 de banco), `pnpm typecheck`, `pnpm build`, CI (`validate`) e deploy da Vercel passaram. PR #49 integrado à `main` no commit `9b4c48b`. O launcher foi reiniciado em 22/10/2026 às 14:27 UTC e ficou uma única instância ativa.
+
+**Recuperação do #5:** o PNG local foi validado e enviado sem nova geração. A Evolution aceitou a prévia com ID `3EB0ADD15C4750C99C6E31`; o item passou a `ready_for_review` e o trabalho a `review`. O recibo registra `accepted`; a Evolution ainda não confirmou entrega ou leitura.
