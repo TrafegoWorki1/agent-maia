@@ -11,6 +11,7 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 - **Limite:** convite enviado não prova aceite; sem compartilhamento, a disponibilidade do convidado permanece desconhecida. A criação continua sujeita ao OK do owner. Migration `20261022150000_agenda_smart_scheduling_rule.sql`; catálogo `2026-10-22.6`.
 - **Verificação:** migration aplicada ao Supabase vinculado após dry run. `rules:verify` alinhou as 49 regras e `knowledge:sync` atualizou um documento; typecheck, 815 testes de aplicação, 81 de banco, build e verificações de migração passaram.
 - **Pendência real:** a chamada de leitura à Google Agenda com o OAuth atual foi recusada (401/403). O owner precisa reautorizar o refresh token com escopo `calendar`; até lá não é possível validar agendamento real pela integração nativa do Codex. `db:drift` confirmou que os 2.154 objetos do banco remoto correspondem às migrações.
+- **Ativação do código:** PR #51 integrado à `main` (`165aaea`), CI e preview aprovados. O launcher reiniciou o único worker local às 15:17 UTC; ele voltou a aguardar a fila. Não houve teste de criação real por causa do escopo OAuth pendente.
 
 ## 2026-10-22 — Meta Ads conectado pela API Zernio
 

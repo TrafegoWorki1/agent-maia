@@ -11,6 +11,7 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 - Catálogo de regras `2026-10-22.6`, migration `20261022150000_agenda_smart_scheduling_rule.sql` e testes da preferência, seleção de horários e envio de convites.
 - Migration aplicada ao Supabase vinculado; `rules:verify` confirmou as 49 regras alinhadas e `knowledge:sync` atualizou um documento. Typecheck, 815 testes de aplicação, 81 testes de banco, build, `db:validate`, `db:guard` e `rules:check` passaram.
 - `db:drift` confirmou 2.154 objetos iguais entre migrações e banco real. A leitura ao vivo da Google Agenda retornou recusa de autenticação (401/403); o refresh token existente ainda precisa do escopo `calendar` antes do teste real de agendamento.
+- PR #51 integrado à `main` em `165aaea` após CI e preview da Vercel aprovados. O único worker local foi reiniciado pelo launcher às 15:17 UTC e voltou a aguardar a fila com o código novo; nenhuma reunião real foi criada no teste.
 
 ## 22/10/2026 — arte pronta descartada por timeout
 
