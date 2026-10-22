@@ -1144,3 +1144,7 @@ O fluxo anterior carregava permissões uma vez por conversa privada e não disti
 
 A tarefa com prazo já criava aviso automático, mas outro aviso manual podia ser agendado no mesmo instante. A migration de proteção impede a colisão sob bloqueio e a ferramenta retorna o aviso existente; horários diferentes continuam disponíveis. Typecheck, validação do banco, 692 testes de aplicação, 77 de banco e build passaram. O guard não encontrou origin/main. A simulação remota retornou 401 para o token; aplicação em produção e atualização do worker permanecem pendentes.
 
+
+## 22/10/2026 — timeout na geração de imagem criativa
+
+O trabalho criativo #5 levou o processo Codex ao limite de 240 segundos. O PNG foi salvo poucos segundos antes do timeout, mas o handler marcou o item como `uncertain` sem verificar o artefato local. Assim, não persistiu `artifact_path` e não chamou o envio da prévia. A correção em `server/imagegen.ts` valida assinatura e marcador final do arquivo após timeout; imagem completa segue para envio, imagem incompleta continua incerta e não é regenerada automaticamente. `server/creativeJobs.ts` também registra o recibo de aceite das próximas prévias. Passaram 812 testes de aplicação, 81 de banco, typecheck e build. O #5 foi recuperado sem nova geração: a Evolution aceitou a prévia com ID `3EB0ADD15C4750C99C6E31`, o item ficou `ready_for_review` e o recibo em `accepted` (entrega/leitura ainda não confirmadas). É necessário atualizar/reiniciar o worker para prevenir a falha nos próximos trabalhos.

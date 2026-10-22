@@ -2,6 +2,7 @@ import type { Db } from "./store.ts";
 import { addTaskEvent } from "./store.ts";
 import { createImage, existingImageForOutputKey, type ImageFormat } from "./imagegen.ts";
 import { sendOwnerImage } from "./evolutionSend.ts";
+import { recordAcceptedOutbound } from "./outboundReceipts.ts";
 
 export type CreativeJobStatus = "queued" | "running" | "review" | "partial" | "uncertain";
 export type CreativeItemStatus = "queued" | "generating" | "artifact_ready" | "preview_sending" | "ready_for_review" | "failed" | "uncertain";
@@ -109,6 +110,9 @@ async function deliverPreview(db: Db, item: CreativeJobItem & { title: string; i
     }
     const { error } = await db.from("creative_job_items").update({ status: "ready_for_review", message_id: messageId, error: null, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", item.id);
     if (error) throw new Error(error.message);
+    await recordAcceptedOutbound(db, messageId, owner).catch((receiptError) => {
+      console.error("[trabalho criativo] não consegui registrar recibo aceito:", safeError(receiptError));
+    });
     await addTaskEvent(db, item.source_task_id, "creative_item_ready", "preview", `trabalho=${item.job_id}; item=${item.seq}; mensagem=${messageId}`).catch(() => {});
   } catch (error) {
     const saved = await db.from("creative_job_items").update({ status: "uncertain", error: `Resultado do envio do rascunho incerto: ${safeError(error)}; não reenviado automaticamente`, updated_at: new Date().toISOString() }).eq("id", item.id);

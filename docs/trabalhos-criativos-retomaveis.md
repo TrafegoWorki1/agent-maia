@@ -41,3 +41,11 @@ Pedidos de imagem deixam de manter a conversa do WhatsApp presa à execução do
 ## Rollback
 
 Reverter o código e manter tabelas/linhas para preservar histórico e não apagar rascunhos. Não remover as tabelas em produção como parte do rollback. O worker antigo ignora `creative_jobs`; qualquer fila pendente deverá ser concluída pela versão nova ou tratada manualmente antes de abandonar o fluxo.
+
+## Timeout com arte já concluída (22/10/2026)
+
+O limite do Codex CLI é 240 s. No trabalho #5, a geração salvou um PNG completo em `data/arte/pedidos/retomaveis/job-5-item-1/arte.png` às 10:27:23, mas o processo não encerrou antes do limite. O timeout marcou o item como `uncertain` sem conferir o arquivo; por isso `artifact_path` e `message_id` ficaram vazios e a etapa de envio da prévia não foi executada.
+
+A correção em `server/imagegen.ts` confere a pasta de saída ao atingir o limite e só recupera PNG/JPEG com assinatura e marcador final completos. Se encontrar imagem completa, retorna o caminho e permite que a fila continue para o envio da prévia. Sem arquivo completo, mantém `uncertain` e não repete a geração. `tests/imagegen.test.ts` cobre os dois resultados.
+
+**Verificação:** teste específico de `imagegen` (8 testes), suíte completa (812 testes de aplicação e 81 de banco), `pnpm typecheck` e `pnpm build` passaram. A correção requer atualizar e reiniciar o worker. O item histórico #5 foi recuperado de forma controlada, sem gerar outra imagem: a Evolution aceitou a prévia com ID `3EB0ADD15C4750C99C6E31`, o item passou a `ready_for_review` e o trabalho a `review`. O recibo registra `accepted`, sem afirmar entrega ou leitura.
