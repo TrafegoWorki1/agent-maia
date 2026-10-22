@@ -20,6 +20,8 @@ Inventário operacional do código. A decisão efetiva fica em `server/access.ts
 | `mcp__maia__sheets_info`, `sheets_ler` | read | high | `sheets.ler` + resource grant (membro) | no | no | planilha (ID ou link) | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
 | `mcp__maia__sheets_escrever`, `sheets_criar`, `sheets_adicionar_aba`, `sheets_inserir_coluna` | write | high | `sheets.editar` + resource grant (membro) | no | no | planilha | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
 | `mcp__maia__sheets_apagar_coluna`, `sheets_apagar_aba` | write | high | `sheets.editar` + resource grant (membro) | no | yes, inclusive owner | planilha | Claude/Codex |
+| `mcp__maia__agenda_calendarios`, `agenda_disponibilidade` | read | medium | `agenda.ler` | no | if capability is absent | calendário da conta | Claude/Codex |
+| `mcp__maia__agenda_criar_evento` | write | high | `escrita.pedir` | no | yes, inclusive owner | calendário informado | Claude/Codex |
 | `mcp__maia__site_subir_github` | write | high | `site.publicar` (membro) | no | yes, inclusive owner | repositório informado (privado ou público) | privado; negado em grupo |
 | `mcp__maia__site_publicar_vercel` | write | high | `site.publicar` (membro) | no | no (deploy automático) | repositório informado, só se o HTML não vier no pedido | privado; negado em grupo |
 | `mcp__maia__buscar_conhecimento`, `contato_buscar`, `artes_recentes` | read | low | explicit internal read | no | no | requester context | Claude/Codex |
