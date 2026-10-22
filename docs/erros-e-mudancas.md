@@ -4,6 +4,14 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-22 — agendamento perguntava informações disponíveis na Agenda
+
+- **Causa:** a ferramenta de disponibilidade só devolvia horários ocupados numa janela que a Maia precisava montar, enquanto a de criação exigia início, fim e fuso explícitos e deixava o Meet optativo. A regra não orientava consultar a duração padrão nem escolher um horário livre antes de perguntar.
+- **Correção:** `agenda_sugerir_horarios` lê as preferências do Google Calendar, encontra horários úteis livres nos próximos dias e, quando possível, compara com a disponibilidade compartilhada do convidado. `agenda_criar_evento` pede Meet por padrão e envia os convites. A regra manda localizar o e-mail primeiro e perguntar só se ele não estiver disponível com segurança.
+- **Limite:** convite enviado não prova aceite; sem compartilhamento, a disponibilidade do convidado permanece desconhecida. A criação continua sujeita ao OK do owner. Migration `20261022150000_agenda_smart_scheduling_rule.sql`; catálogo `2026-10-22.6`.
+- **Verificação:** migration aplicada ao Supabase vinculado após dry run. `rules:verify` alinhou as 49 regras e `knowledge:sync` atualizou um documento; typecheck, 815 testes de aplicação, 81 de banco, build e verificações de migração passaram.
+- **Pendência real:** a chamada de leitura à Google Agenda com o OAuth atual foi recusada (401/403). O owner precisa reautorizar o refresh token com escopo `calendar`; até lá não é possível validar agendamento real pela integração nativa do Codex. `db:drift` confirmou que os 2.154 objetos do banco remoto correspondem às migrações.
+
 ## 2026-10-22 — Meta Ads conectado pela API Zernio
 
 - **Decisão:** usar a conexão Meta Ads já autorizada pelo owner no Zernio, sem criar app Meta nem copiar token de acesso da Meta.

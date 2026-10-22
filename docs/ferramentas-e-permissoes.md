@@ -20,7 +20,7 @@ Inventário operacional do código. A decisão efetiva fica em `server/access.ts
 | `mcp__maia__sheets_info`, `sheets_ler` | read | high | `sheets.ler` + resource grant (membro) | no | no | planilha (ID ou link) | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
 | `mcp__maia__sheets_escrever`, `sheets_criar`, `sheets_adicionar_aba`, `sheets_inserir_coluna` | write | high | `sheets.editar` + resource grant (membro) | no | no | planilha | Claude/Codex; privado e grupo interno; negado em grupo de cliente |
 | `mcp__maia__sheets_apagar_coluna`, `sheets_apagar_aba` | write | high | `sheets.editar` + resource grant (membro) | no | yes, inclusive owner | planilha | Claude/Codex |
-| `mcp__maia__agenda_calendarios`, `agenda_disponibilidade` | read | medium | `agenda.ler` | no | if capability is absent | calendário da conta | Claude/Codex |
+| `mcp__maia__agenda_calendarios`, `agenda_disponibilidade`, `agenda_sugerir_horarios` | read | medium | `agenda.ler` | no | if capability is absent | calendário da conta | Claude/Codex |
 | `mcp__maia__agenda_criar_evento` | write | high | `escrita.pedir` | no | yes, inclusive owner | calendário informado | Claude/Codex |
 | `mcp__maia__email_nao_lidos`, `email_buscar` | read | high | `gmail.ler` | no | if capability is absent | mailbox do owner | Claude/Codex |
 | `mcp__maia__email_enviar`, `email_responder` | write | high | `mensagem.enviar` | no | yes, inclusive owner | destinatários/thread informados | Claude/Codex |

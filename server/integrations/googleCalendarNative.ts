@@ -93,6 +93,60 @@ export async function checkFreeBusy(calendarId: string, startIso: string, endIso
   return ((entry.busy ?? []) as Record<string, unknown>[]).map((b) => ({ start: String(b.start ?? ""), end: String(b.end ?? "") })).filter((b) => b.start && b.end);
 }
 
+export interface CalendarPreferences {
+  timezone: string;
+  defaultEventMinutes: number;
+}
+
+export async function getCalendarPreferences(): Promise<CalendarPreferences> {
+  const { status, json } = await request("GET", "/users/me/settings");
+  if (!ok(status)) throw new CalendarError(describeFailure(status, json), status);
+  const items = (json as { items?: { id?: string; value?: string }[] })?.items ?? [];
+  const settings = Object.fromEntries(items.map((item) => [item.id, item.value]));
+  const minutes = Number(settings.defaultEventLength ?? 60); // Google omits settings left at their defaults.
+  const timezone = settings.timezone ?? "Etc/GMT";
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) throw new CalendarError("duração padrão inválida na Google Agenda", 0);
+  try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); }
+  catch { throw new CalendarError("fuso horário inválido nas preferências da Google Agenda", 0); }
+  return { timezone, defaultEventMinutes: minutes };
+}
+
+export interface MeetingSlot { start: string; end: string; guestAvailability: "free" | "unknown"; }
+
+// Sugere horários em dias úteis, 9h–18h do fuso da conta, a partir da próxima meia hora.
+export function findMeetingSlots(busy: BusyWindow[], preferences: CalendarPreferences, now = Date.now(), days = 7, guestBusy?: BusyWindow[]): MeetingSlot[] {
+  const formatter = new Intl.DateTimeFormat("en-US", { timeZone: preferences.timezone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const duration = preferences.defaultEventMinutes * 60_000;
+  const interval = 30 * 60_000;
+  const end = now + days * 86_400_000;
+  const slots: MeetingSlot[] = [];
+  const overlaps = (windows: BusyWindow[], start: number) => windows.some((window) => Date.parse(window.start) < start + duration && Date.parse(window.end) > start);
+  for (let start = Math.ceil((now + 5 * 60_000) / interval) * interval; start + duration <= end && slots.length < 3; start += interval) {
+    const parts = Object.fromEntries(formatter.formatToParts(start).map((part) => [part.type, part.value]));
+    const minuteOfDay = Number(parts.hour) * 60 + Number(parts.minute);
+    if (parts.weekday === "Sat" || parts.weekday === "Sun" || minuteOfDay < 9 * 60 || minuteOfDay + preferences.defaultEventMinutes > 18 * 60) continue;
+    if (overlaps(busy, start) || (guestBusy && overlaps(guestBusy, start))) continue;
+    slots.push({ start: new Date(start).toISOString(), end: new Date(start + duration).toISOString(), guestAvailability: guestBusy ? "free" : "unknown" });
+    start += Math.max(duration, interval) - interval; // opções distintas, sem sobreposição
+  }
+  return slots;
+}
+
+export async function suggestMeetingSlots(calendarId = "primary", guestEmail?: string, days = 7): Promise<{ calendar: string; preferences: CalendarPreferences; slots: MeetingSlot[]; guestAvailability: "checked" | "unknown" }> {
+  if (!Number.isInteger(days) || days < 1 || days > 14) throw new CalendarError("consulte entre 1 e 14 dias", 0);
+  const preferences = await getCalendarPreferences();
+  const now = Date.now();
+  const end = new Date(now + days * 86_400_000).toISOString();
+  const start = new Date(now).toISOString();
+  const busy = await checkFreeBusy(calendarId, start, end);
+  let guestBusy: BusyWindow[] | undefined;
+  if (guestEmail) {
+    try { guestBusy = await checkFreeBusy(guestEmail, start, end); }
+    catch (error) { if (!(error instanceof CalendarError) || (error.status !== 403 && error.status !== 404)) throw error; }
+  }
+  return { calendar: calendarId, preferences, slots: findMeetingSlots(busy, preferences, now, days, guestBusy), guestAvailability: guestBusy ? "checked" : "unknown" };
+}
+
 export interface CreateEventInput {
   calendarId: string;
   summary: string;
@@ -163,14 +217,18 @@ export function parseEvent(raw: unknown): CalendarEvent {
   const link = typeof e.htmlLink === "string" ? e.htmlLink : null;
   if (link && !/^https:\/\/(calendar|meet)\.google\.com\//.test(link)) throw new CalendarError("link do evento fora do domínio do Google; não confirme a criação", 0);
   const conference = e.conferenceData as { entryPoints?: { entryPointType?: string; uri?: string }[] } | undefined;
-  const meetLink = conference?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ?? null;
+  const meetLink = conference?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ?? (typeof e.hangoutLink === "string" ? e.hangoutLink : null);
+  if (meetLink && !/^https:\/\/meet\.google\.com\//.test(meetLink)) throw new CalendarError("link do Meet fora do domínio do Google; não confirme a criação", 0);
   return { id, start, end, link, meetLink, location: typeof e.location === "string" ? e.location : null };
 }
 
 export async function createEvent(input: CreateEventInput): Promise<CalendarEvent> {
   const built = buildEventPayload(input);
   if (!built.ok) throw new CalendarError(built.error, 0);
-  const path = `/calendars/${encodeURIComponent(input.calendarId)}/events${input.requestMeet ? "?conferenceDataVersion=1" : ""}`;
+  const params = new URLSearchParams();
+  if (input.requestMeet) params.set("conferenceDataVersion", "1");
+  if (input.attendeeEmails?.length) params.set("sendUpdates", "all");
+  const path = `/calendars/${encodeURIComponent(input.calendarId)}/events${params.size ? `?${params}` : ""}`;
   const { status, json } = await request("POST", path, built.body);
   if (!ok(status)) throw new CalendarError(describeFailure(status, json), status);
   return parseEvent(json);
