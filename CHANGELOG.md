@@ -8,8 +8,9 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 - **Causa:** o trabalho criativo #5 salvou um PNG completo perto do limite de 240 segundos, mas o processo Codex não encerrou a tempo. O handler registrou `uncertain` sem procurar o arquivo; o envio da prévia não começou.
 - **Correção:** `server/imagegen.ts` agora procura uma imagem completa após o timeout. PNG/JPEG sem marcador final continuam incertos; com arquivo completo, a fila registra o artefato e prossegue para a prévia sem repetir a geração.
-- **Verificação:** 812 testes da aplicação, 81 de banco, `pnpm typecheck` e `pnpm build` passaram. A correção depende de reiniciar o worker com este código.
-- **Trabalho #5:** o artefato local foi recuperado sem nova geração; a Evolution aceitou a prévia e devolveu o ID `3EB0ADD15C4750C99C6E31`. O item passou a `ready_for_review` e o trabalho a `review`. O recibo registrado está em `accepted`; entrega e leitura dependem de atualização posterior da Evolution.
+- **Verificação:** 812 testes da aplicação, 81 de banco, `pnpm typecheck` e `pnpm build` passaram; CI (`validate`) e deploy da Vercel passaram. PR #49 integrado à `main` no commit `9b4c48b`.
+- **Worker:** launcher reiniciado em 22/10/2026 às 14:27 UTC; conferida uma única instância ativa com o código da correção.
+- **Trabalho #5:** o artefato local foi recuperado sem nova geração; a Evolution aceitou a prévia e devolveu o ID `3EB0ADD15C4750C99C6E31`. O item passou a `ready_for_review` e o trabalho a `review`. O recibo está em `accepted`; entrega e leitura não foram confirmadas.
 
 ## 22/10/2026 — Meta Ads pela API Zernio
 
