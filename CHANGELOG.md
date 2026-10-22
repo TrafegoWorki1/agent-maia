@@ -12,6 +12,7 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 - **Custo:** quando conectado, a coleta Meta tenta o MCP diretamente, sem executar modelo. Enquanto o teste ao vivo não for concluído, o conector Meta da conta Claude permanece como contingência.
 - **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.
 - **Banco/regras:** catálogo 2026-10-22.4, migration da regra Meta atualizada e nova migration 20261022100534_oauth_connection_states.sql para o estado efêmero do login.
+- **Ledger corrigido:** restaurada a migration 20261021211144 que ja estava no Supabase e criada a compensatoria 20261022104612 para remover somente a regra orfa autonomia_delegada; as tabelas e o historico sao preservados.
 - **Pendente para teste real:** publicar a migration, abrir o painel em uma URL HTTPS e concluir o login do Facebook; depois clicar em **Testar MCP**. O Google ainda exige reautorizar o refresh token existente com calendar, gmail.readonly e gmail.send.
 
 ## 22/10/2026 — agenda nativa: Google Calendar também funciona sob o Codex
