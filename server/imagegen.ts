@@ -82,8 +82,16 @@ export function buildPrompt(briefing: string, format: ImageFormat): string {
 export function isRealImage(bytes: Buffer): boolean {
   if (bytes.length < MIN_BYTES) return false;
   const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  const jpeg = bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]));
-  return png || jpeg;
+  const pngEnd = bytes.subarray(-8).equals(Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]));
+  const jpeg = bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) && bytes.subarray(-2).equals(Buffer.from([0xff, 0xd9]));
+  return (png && pngEnd) || jpeg;
+}
+
+export function resultAfterImageTimeout(folder: string): ImageResult {
+  const path = findResult(folder);
+  return path
+    ? { ok: true, path }
+    : { ok: false, error: "tempo esgotado (240 s). O pedido não foi repetido.", uncertain: true };
 }
 
 // Ambiente mínimo para o Codex: nada das credenciais do projeto.
@@ -158,7 +166,7 @@ export async function createImage(input: { briefing: string; format: ImageFormat
     const timer = setTimeout(() => {
       child.kill();
       // Estourou o tempo: pode ter gerado o arquivo pela metade. Não repete às cegas.
-      resolvePromise(done({ ok: false, error: "tempo esgotado (240 s). O pedido não foi repetido.", uncertain: true }));
+      resolvePromise(done(resultAfterImageTimeout(folder)));
     }, TIMEOUT_MS);
     child.on("error", (error) => {
       clearTimeout(timer);

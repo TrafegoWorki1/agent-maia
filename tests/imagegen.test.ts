@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildPrompt, existingImageForOutputKey, isRealImage, resolveRefs } from "../server/imagegen.ts";
+import { buildPrompt, existingImageForOutputKey, isRealImage, resolveRefs, resultAfterImageTimeout } from "../server/imagegen.ts";
 
 describe("pedido de arte", () => {
   it("recusa nomes com caminho ou caracteres estranhos", async () => {
@@ -30,11 +33,34 @@ describe("pedido de arte", () => {
   });
 
   it("aceita só PNG ou JPEG de tamanho real", () => {
-    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20 * 1024)]);
-    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20 * 1024)]);
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20 * 1024), Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82])]);
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20 * 1024), Buffer.from([0xff, 0xd9])]);
     expect(isRealImage(png)).toBe(true);
     expect(isRealImage(jpeg)).toBe(true);
     expect(isRealImage(Buffer.alloc(20 * 1024))).toBe(false);
     expect(isRealImage(Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100)]))).toBe(false);
+    expect(isRealImage(Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20 * 1024)]))).toBe(false);
+  });
+
+  it("recupera imagem completa salva antes do timeout", () => {
+    const folder = mkdtempSync(join(tmpdir(), "maia-image-timeout-"));
+    try {
+      const image = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20 * 1024), Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82])]);
+      const path = join(folder, "arte.png");
+      writeFileSync(path, image);
+      expect(resultAfterImageTimeout(folder)).toEqual({ ok: true, path });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("mantém incerto o timeout sem arquivo completo", () => {
+    const folder = mkdtempSync(join(tmpdir(), "maia-image-timeout-"));
+    try {
+      writeFileSync(join(folder, "arte.png"), Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20 * 1024)]));
+      expect(resultAfterImageTimeout(folder)).toMatchObject({ ok: false, uncertain: true });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
