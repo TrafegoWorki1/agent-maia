@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 22/10/2026 — agendamento com menos perguntas
+
+- A Maia agora pode sugerir até três horários úteis usando a duração e o fuso configurados na Google Agenda, sem pedir esses dados de novo. A consulta tenta verificar também a agenda compartilhada do convidado quando há e-mail; se não houver acesso, informa que a disponibilidade dele é desconhecida.
+- Reuniões criadas pela ferramenta nativa usam Google Meet por padrão e enviam o convite aos participantes. A regra orienta buscar o e-mail nos contatos e fazer uma única pergunta objetiva apenas se ele não puder ser identificado. O OK do owner para criar o evento continua obrigatório.
+- Catálogo de regras `2026-10-22.6`, migration `20261022150000_agenda_smart_scheduling_rule.sql` e testes da preferência, seleção de horários e envio de convites.
+- Migration aplicada ao Supabase vinculado; `rules:verify` confirmou as 49 regras alinhadas e `knowledge:sync` atualizou um documento. Typecheck, 815 testes de aplicação, 81 testes de banco, build, `db:validate`, `db:guard` e `rules:check` passaram.
+- `db:drift` confirmou 2.154 objetos iguais entre migrações e banco real. A leitura ao vivo da Google Agenda retornou recusa de autenticação (401/403); o refresh token existente ainda precisa do escopo `calendar` antes do teste real de agendamento.
+
 ## 22/10/2026 — arte pronta descartada por timeout
 
 - **Causa:** o trabalho criativo #5 salvou um PNG completo perto do limite de 240 segundos, mas o processo Codex não encerrou a tempo. O handler registrou `uncertain` sem procurar o arquivo; o envio da prévia não começou.

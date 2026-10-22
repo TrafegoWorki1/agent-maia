@@ -4,7 +4,7 @@ import { requiresApproval, isReadTool } from "../server/approvalPolicy.ts";
 import { isKnownMcpTool } from "../server/toolPolicy.ts";
 import { describeAction } from "../server/actionDescriptions.ts";
 import { calendarTools } from "../server/calendarTools.ts";
-import { buildEventPayload, buildFreeBusyWindow, CalendarError, checkFreeBusy, createEvent, listCalendars, parseEvent, type CreateEventInput } from "../server/integrations/googleCalendarNative.ts";
+import { buildEventPayload, buildFreeBusyWindow, CalendarError, checkFreeBusy, createEvent, findMeetingSlots, getCalendarPreferences, listCalendars, parseEvent, type CreateEventInput } from "../server/integrations/googleCalendarNative.ts";
 
 const owner: Requester = { role: "owner", name: "Herickson", number: "5511988886666", permissions: new Set() };
 const member = (...perms: string[]): Requester => ({ role: "member", personId: "p1", name: "Jéssica", number: "5585911112222", permissions: new Set(perms) });
@@ -19,6 +19,7 @@ describe("política das ferramentas de agenda nativa", () => {
   it("leitura é consulta; criar evento não é", () => {
     expect(isReadTool("mcp__maia__agenda_calendarios")).toBe(true);
     expect(isReadTool("mcp__maia__agenda_disponibilidade")).toBe(true);
+    expect(isReadTool("mcp__maia__agenda_sugerir_horarios")).toBe(true);
     expect(isReadTool("mcp__maia__agenda_criar_evento")).toBe(false);
   });
   it("criar evento pede OK, inclusive do owner", () => {
@@ -26,7 +27,7 @@ describe("política das ferramentas de agenda nativa", () => {
     expect(decideAccess("mcp__maia__agenda_criar_evento", owner, {}, false).decision).toBe("approve");
   });
   it("listar/consultar ficam livres para o owner", () => {
-    for (const name of ["agenda_calendarios", "agenda_disponibilidade"]) {
+    for (const name of ["agenda_calendarios", "agenda_disponibilidade", "agenda_sugerir_horarios"]) {
       expect(decideAccess(`mcp__maia__${name}`, owner, {}, true).decision, name).toBe("allow");
     }
   });
@@ -74,6 +75,16 @@ describe("validação pura (sem rede)", () => {
     expect(built.ok && (built.body as Record<string, unknown>).conferenceData).toBeDefined();
   });
 
+  it("propõe horário útil sem conflito, com duração da conta e disponibilidade compartilhada", () => {
+    const now = Date.parse("2026-10-22T11:00:00Z"); // quinta-feira, 08h em São Paulo
+    const preferences = { timezone: "America/Sao_Paulo", defaultEventMinutes: 60 };
+    const busy = [{ start: "2026-10-22T12:00:00Z", end: "2026-10-22T13:00:00Z" }];
+    const guestBusy = [{ start: "2026-10-22T13:00:00Z", end: "2026-10-22T14:00:00Z" }];
+    const slots = findMeetingSlots(busy, preferences, now, 7, guestBusy);
+    expect(slots[0]).toEqual({ start: "2026-10-22T14:00:00.000Z", end: "2026-10-22T15:00:00.000Z", guestAvailability: "free" });
+    expect(findMeetingSlots(busy, preferences, now, 7)[0].guestAvailability).toBe("unknown");
+  });
+
   it("nunca aceita o relato do modelo como prova: exige ID, início/fim válidos e link do Google", () => {
     expect(() => parseEvent({})).toThrow(/ID/);
     expect(() => parseEvent({ id: "e1", start: { dateTime: "2026-10-23T09:00:00Z" }, end: { dateTime: "2026-10-23T08:00:00Z" } })).toThrow(CalendarError);
@@ -81,6 +92,7 @@ describe("validação pura (sem rede)", () => {
     expect(() => parseEvent({ id: "e1", start: { dateTime: "2026-10-23T09:00:00Z" }, end: { dateTime: "2026-10-23T10:00:00Z" }, htmlLink: "https://evil.example/e1" })).toThrow(/domínio/);
     const ok = parseEvent({ id: "e1", start: { dateTime: "2026-10-23T09:00:00Z" }, end: { dateTime: "2026-10-23T10:00:00Z" }, htmlLink: "https://calendar.google.com/calendar/event?eid=e1" });
     expect(ok).toEqual({ id: "e1", start: "2026-10-23T09:00:00Z", end: "2026-10-23T10:00:00Z", link: "https://calendar.google.com/calendar/event?eid=e1", meetLink: null, location: null });
+    expect(parseEvent({ id: "e2", start: { dateTime: "2026-10-23T09:00:00Z" }, end: { dateTime: "2026-10-23T10:00:00Z" }, hangoutLink: "https://meet.google.com/abc-defg-hij" }).meetLink).toBe("https://meet.google.com/abc-defg-hij");
   });
 });
 
@@ -112,6 +124,13 @@ describe("cliente da Google Calendar API (rede mockada)", () => {
     await expect(listCalendars()).resolves.toEqual([{ id: "primary", name: "Herickson", primary: true }, { id: "c2@group.calendar.google.com", name: "Equipe", primary: false }]);
   });
 
+  it("lê duração e fuso das preferências do Google; valores omitidos usam defaults da API", async () => {
+    responder = () => ({ body: { items: [{ id: "defaultEventLength", value: "45" }, { id: "timezone", value: "America/Sao_Paulo" }] } });
+    await expect(getCalendarPreferences()).resolves.toEqual({ timezone: "America/Sao_Paulo", defaultEventMinutes: 45 });
+    responder = () => ({ body: { items: [] } });
+    await expect(getCalendarPreferences()).resolves.toEqual({ timezone: "Etc/GMT", defaultEventMinutes: 60 });
+  });
+
   it("disponibilidade devolve os horários ocupados do calendário pedido", async () => {
     responder = () => ({ body: { calendars: { primary: { busy: [{ start: "2026-10-23T09:00:00Z", end: "2026-10-23T10:00:00Z" }] } } } });
     await expect(checkFreeBusy("primary", "2026-10-23T08:00:00Z", "2026-10-23T18:00:00Z")).resolves.toEqual([{ start: "2026-10-23T09:00:00Z", end: "2026-10-23T10:00:00Z" }]);
@@ -141,11 +160,18 @@ describe("cliente da Google Calendar API (rede mockada)", () => {
     expect(calls[0].url).toContain("conferenceDataVersion=1");
   });
 
+  it("envia os convites aos convidados quando cria evento", async () => {
+    responder = () => ({ body: { id: "evt3", start: { dateTime: "2026-10-23T12:00:00Z" }, end: { dateTime: "2026-10-23T13:00:00Z" } } });
+    await createEvent({ calendarId: "primary", summary: "Reunião", startIso: "2026-10-23T09:00:00-03:00", endIso: "2026-10-23T10:00:00-03:00", timezone: "America/Sao_Paulo", attendeeEmails: ["ana@exemplo.com"] });
+    expect(calls[0].url).toContain("sendUpdates=all");
+  });
+
   it("ferramenta agenda_criar_evento chama a API real através do wrapper", async () => {
     responder = () => ({ body: { id: "evt2", start: { dateTime: "2026-10-23T12:00:00Z" }, end: { dateTime: "2026-10-23T13:00:00Z" } } });
     const tool = calendarTools.find((t) => t.name === "agenda_criar_evento")!;
     const db = {} as never;
     const result = await tool.run(db, { calendario: "primary", titulo: "Reunião", inicio: "2026-10-23T09:00:00-03:00", fim: "2026-10-23T10:00:00-03:00", fuso: "America/Sao_Paulo" });
     expect(result).toMatchObject({ id: "evt2" });
+    expect(calls[0].url).toContain("conferenceDataVersion=1");
   });
 });

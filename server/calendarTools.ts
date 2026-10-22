@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Db } from "./store.ts";
-import { buildFreeBusyWindow, checkFreeBusy, createEvent, listCalendars } from "./integrations/googleCalendarNative.ts";
+import { buildFreeBusyWindow, checkFreeBusy, createEvent, listCalendars, suggestMeetingSlots } from "./integrations/googleCalendarNative.ts";
 
 // Ferramentas de agenda nativas (Google Calendar via REST direto), compartilhadas pelos dois executores
 // (Claude e Codex), no mesmo molde de `sheetsTools`. Existem para que o owner não perca a agenda quando o
@@ -38,7 +38,11 @@ export const calendarTools: CalendarTool[] = [
       return { calendario: i.calendario, janela: window.body, ocupado: busy };
     }),
 
-  define("agenda_criar_evento", "Cria um evento na agenda (com link do Meet se pedido). Sempre pede OK do owner antes de rodar. Só confirma criado quando a Google Agenda devolve ID, início/fim e link válidos.",
+  define("agenda_sugerir_horarios", "Encontra automaticamente até 3 horários livres nos próximos dias úteis, entre 9h e 18h, usando o fuso e a duração padrão da Google Agenda. Use para marcar reunião sem perguntar data, horário ou duração. Se informar e-mail do convidado, tenta consultar a disponibilidade compartilhada dele; sem acesso, o estado fica desconhecido.",
+    { calendario: calendario.optional().default("primary"), convidado_email: z.string().email().optional(), dias: z.number().int().min(1).max(14).optional().default(7) },
+    async (_db, i) => suggestMeetingSlots(i.calendario, i.convidado_email, i.dias)),
+
+  define("agenda_criar_evento", "Cria um evento na agenda com Google Meet por padrão e envia o convite aos convidados. Use o horário, fuso e duração de agenda_sugerir_horarios quando o usuário não definir. Sempre pede OK do owner antes de rodar.",
     {
       calendario,
       titulo: z.string().min(1).max(200),
@@ -48,7 +52,7 @@ export const calendarTools: CalendarTool[] = [
       local: z.string().max(300).optional(),
       descricao: z.string().max(2000).optional(),
       convidados: z.array(z.string().email()).max(20).optional().describe("E-mails dos convidados; a Google Agenda envia o convite."),
-      com_meet: z.boolean().optional().describe("Pedir link do Google Meet."),
+      com_meet: z.boolean().optional().default(true).describe("Google Meet por padrão; false se o usuário pedir encontro presencial ou sem videoconferência."),
     },
     async (_db, i) => createEvent({
       calendarId: i.calendario,
