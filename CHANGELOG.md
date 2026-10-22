@@ -7,7 +7,7 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 ## 22/10/2026 — contingência Google e Meta Ads pelo MCP oficial
 
 - **Google no fallback:** Gmail e Google Agenda ganharam ferramentas próprias do servidor, registradas para Claude e Codex. Elas reutilizam o mesmo OAuth já usado pelo Drive/Sheets; o modo de conexão e o coletor atual do Google não foram alterados.
-- **Meta Ads:** as três ferramentas de leitura agora passam pelo MCP oficial. O owner conecta pelo painel em **Sistema > Conexões > Entrar com Facebook**; não copia token e não precisa criar aplicativo Meta quando o cadastro dinâmico do MCP é aceito.
+- **Meta Ads:** as três ferramentas de leitura passam pelo MCP oficial. A Meta recusou o cadastro OAuth dinâmico para a Maia; a conexão agora usa `META_MCP_CLIENT_ID` de um app do Meta for Developers. O callback de produção precisa estar cadastrado no app.
 - **Segurança:** OAuth com PKCE, estado de uso único e expiração de 10 minutos. A sessão Meta fica criptografada com INTEGRACAO_VAULT_KEY; navegador e modelo nunca recebem o token. O painel permite testar tools/list e desconectar.
 - **Custo:** quando conectado, a coleta Meta tenta o MCP diretamente, sem executar modelo. Enquanto o teste ao vivo não for concluído, o conector Meta da conta Claude permanece como contingência.
 - **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.
