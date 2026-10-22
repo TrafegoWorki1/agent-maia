@@ -15,6 +15,7 @@ import { RULE_CATALOG, validateRules } from "../../server/ruleCatalog.ts";
 import { readFileSync } from "node:fs";
 import { missingStructures, scanSource, scanUsage } from "../../scripts/db/usage.ts";
 import {executeDepartmentCommand} from "../../server/departmentWork.ts";
+import { registerMissionTests } from "./missions.integration.ts";
 
 let local: LocalDb;
 before(async () => {
@@ -26,6 +27,7 @@ after(async () => {
 
 const q = async (sql: string, params: unknown[] = []) => (await local.db.query<Record<string, unknown>>(sql, params)).rows;
 const rejects = (promise: Promise<unknown>, pattern: RegExp) => assert.rejects(promise, pattern);
+registerMissionTests(() => local);
 
 describe("integração departamental: mesma carteira, autorização e auditoria",()=>{
  let owner:string,member:string,other:string,clientA:string,clientB:string,team:string,authId:string;

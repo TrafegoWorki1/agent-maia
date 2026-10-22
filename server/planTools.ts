@@ -8,7 +8,7 @@ export const PLAN_CREATE_DESCRIPTION =
   "Grava o plano de um pedido do dono com VÁRIAS etapas (ex.: criar grupo, mandar o link, dar boas-vindas quando alguém entrar, ler um arquivo). Use quando o dono descrever uma sequência; escreva as etapas com as palavras dele, sem inventar etapas. Devolve o número do plano: passe-o em `plano` ao pedir a criação de grupo (grupo_criar) para a etapa seguinte retomar sozinha depois do OK. Pedido de uma etapa só não precisa de plano.";
 
 export const PLAN_UPDATE_DESCRIPTION =
-  "Atualiza um plano: marca etapas concluídas, define o próximo gatilho e anota dados úteis. Retomadas automáticas disponíveis: aprovação da criação de grupo, entrada no grupo, arquivo no grupo e horário ISO futuro (no máximo sete dias). Arquivo/resposta no privado ainda não são gatilhos. Cancelar impede etapas futuras, sem desfazer efeitos já realizados.";
+  "Atualiza um plano de etapas: aprovação de grupo, entrada/arquivo no grupo ou horário ISO futuro (até sete dias). Para conversar e continuar com um contato, agendar reunião ou esperar mensagem de grupo use missao_criar; controle essas missões por missao_controlar. Cancelar impede etapas futuras sem desfazer efeitos realizados.";
 
 export async function runPlanCreate(db: Db, args: { titulo: string; pedido?: string; etapas: string[] }, taskId?: number): Promise<string> {
   const id = await createPlan(db, { title: args.titulo, request: args.pedido ?? "", steps: args.etapas, taskId: taskId ?? null });

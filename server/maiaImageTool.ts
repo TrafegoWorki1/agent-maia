@@ -35,6 +35,7 @@ import { activateIntegration, callIntegration, listIntegrations, parseJsonObject
 import { participantsWithOwner, requestCreateGroup } from "./groups.ts";
 import { withCountryCode } from "./evolutionWebhook.ts";
 import { PLAN_CREATE_DESCRIPTION, PLAN_UPDATE_DESCRIPTION, runPlanCreate, runPlansList, runPlanUpdate } from "./planTools.ts";
+import { missionTools, runMissionTool } from "./missionTools.ts";
 import { proposeSkill } from "./skills.ts";
 import { criarPlanilha } from "./planilha.ts";
 import { deleteGroupMessage, everyMemberNumbers, readGroupPolls, resolveGroup, resolveMentions, scheduleAction, sendGroupPoll, sendGroupText, validatePoll, validateRunAt, validateText } from "./groupTools.ts";
@@ -67,11 +68,17 @@ function zernioErrorText(error: unknown): string {
   return error instanceof ZernioError ? error.message : error instanceof Error ? error.message : String(error);
 }
 
-export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false, allowOwnerMemory = false, requesterNumber = "") {
+export function createImageServer(channel: "whatsapp" | "painel", taskId?: number, allowImageGeneration = false, isOwner = false, allowPreferenceProposal = false, allowOwnerMemory = false, requesterNumber = "", ownerRequest = "") {
   return createSdkMcpServer({
     name: "maia",
     version: "1.0.0",
     tools: [
+      ...missionTools.map(t => tool(t.name, t.description, t.schema.shape, async args => {
+        try {
+          if (channel !== "whatsapp" || !isOwner || !allowOwnerMemory) throw new Error("Missões só no privado do proprietário; o painel tem controles próprios.");
+          return { content: [{ type: "text" as const, text: JSON.stringify(await runMissionTool(getDb(), t.name, args, requesterNumber, taskId, ownerRequest)) }] };
+        } catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Missão indisponível" }], isError: true }; }
+      })),
       tool(
         "trabalho_arte_enfileirar",
         "Enfileira uma ou várias artes como trabalho retomável. Use esta ferramenta para pedidos de criação de imagem, especialmente séries e Stories. Cada arte é processada separadamente pelo worker; cada resultado é guardado e enviado em privado ao owner para revisão. Nunca publica automaticamente.",

@@ -36,6 +36,7 @@ import { criarPlanilha } from "./planilha.ts";
 import { organizationTools } from "./organization.ts";
 import { githubTools } from "./githubTools.ts";
 import { siteTools } from "./siteTools.ts";
+import { missionTools, runMissionTool } from "./missionTools.ts";
 import { sheetsTools } from "./sheetsTools.ts";
 import { decideDriveToolAccess } from "./resourceAccess.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
@@ -140,6 +141,13 @@ const server = new McpServer({ name: "maia", version: "1.0.0" });
 for (const t of organizationTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of missionTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) => {
+    if (channel !== "whatsapp" || inGroup || requester().role !== "owner") return result("Missões exclusivas do owner no privado.", true);
+    return guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await runMissionTool(getDb(), t.name, args, requester().number, taskId, process.env.MAIA_CODEX_OWNER_REQUEST ?? "")));
+  });
 }
 
 for (const t of githubTools) {

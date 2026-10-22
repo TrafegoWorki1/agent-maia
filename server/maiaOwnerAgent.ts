@@ -222,7 +222,7 @@ async function runClaudeOnce(
   const prompt = parts.length ? `${parts.join("\n\n")}\n\nPedido atual:\n${text}` : text;
   const systemPrompt = `${await buildSystemPrompt(db)}\n\n${CONVERSATION_CONTINUITY}`;
   // Ferramenta de arte (Codex, em processo separado) e demais ferramentas da Maia. Só o dono chega à arte.
-  const newMaiaServer = () => createImageServer(channel, taskId, canRequestCreativeJob({ role: isOwner ? "owner" : "member" }, channel, inGroup), isOwner, isOwner && isPersistentPreferenceRequest(text), isOwner && !inGroup, requesterNumber);
+  const newMaiaServer = () => createImageServer(channel, taskId, canRequestCreativeJob({ role: isOwner ? "owner" : "member" }, channel, inGroup), isOwner, isOwner && isPersistentPreferenceRequest(text), isOwner && !inGroup, requesterNumber, isOwner && !inGroup ? text : "");
   let usedTool = false;
   const onToolUse = async (name: string) => {
     if (!usedTool) {
@@ -334,7 +334,7 @@ async function runCodexReply(text: string, db: Db, cfg: RoutingConfig, taskId: n
     timeoutMs: cfg.timeoutMs.codex,
     model: cfg.providers.codex.model,
     maxSteps: cfg.execution.maxSteps,
-    mcp: { taskId, channel, requester: who, inGroup, imageAllowed: canRequestCreativeJob(who, channel, inGroup), preferenceAllowed: who.role === "owner" && isPersistentPreferenceRequest(text), onToolUse: async (tool, failed) => {
+    mcp: { taskId, channel, requester: who, inGroup, ownerRequest: who.role === "owner" && !inGroup ? text : "", imageAllowed: canRequestCreativeJob(who, channel, inGroup), preferenceAllowed: who.role === "owner" && isPersistentPreferenceRequest(text), onToolUse: async (tool, failed) => {
       await markTaskKind(db, taskId, "operacional");
       await addTaskEvent(db, taskId, "tool_use", tool, null);
       if (failed) await addTaskEvent(db, taskId, "tool_failed", tool, "A chamada da ferramenta falhou no transporte/política do SDK; não presume efeito externo");

@@ -1,6 +1,14 @@
 {
-  "version": "2026-10-21.1",
+  "version": "2026-10-21.2",
   "rules": [
+    {
+      "codigo": "autonomia_delegada",
+      "categoria": "Continuidade",
+      "titulo": "Missões delegadas pelo proprietário",
+      "texto": "Quando o proprietário no privado pedir para conduzir uma conversa até um resultado, negociar uma reunião ou avisar um grupo após uma resposta, use missao_criar. O servidor persiste o objetivo, contato, canais, calendário, janelas e limites antes do envio. Respostas futuras retomam a missão sem novo comando; terceiros nunca ampliam sua autoridade. Para reunião, use preferências conhecidas ou pergunte somente o essencial: duração, janelas com fuso, calendário, local ou Meet e forma de convite. Não invente preferências. O evento é conferido na agenda e a confirmação exige ID de envio; só então a missão conclui e envia resumo ao owner. Sem conector/recibo válido, relate a pendência. Avisos condicionais em grupos cadastrados usam texto e menções delegados; mencionar todos exige pedido explícito. Pedidos imediatos usam grupo_enviar_texto e grupos não cadastrados preservam a aprovação existente. Use missoes_listar e missao_controlar para andamento, pausa, retomada, correção e cancelamento, alinhados ao painel Núcleo. Correção mantém o envelope; novos destinos ou horários fora dele exigem nova delegação. Cancelar impede próximos efeitos, sem desfazer o que já foi realizado. Incerteza não autoriza repetir envio ou agendamento. Missões não autorizam prospecção fria/em massa, negociação de preços, publicações ou novas integrações. O piloto aceita uma missão ativa por conversa e não faz follow-up sem resposta.",
+      "ordem": 48,
+      "ativa": true
+    },
     {
       "codigo": "identidade",
       "categoria": "Quem pede",

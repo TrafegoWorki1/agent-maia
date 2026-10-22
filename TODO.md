@@ -1,3 +1,13 @@
+## Autonomia delegada — 21/10/2026
+
+- [x] Implementar contrato, executor persistente, roteamento de respostas, controles do owner e evidências.
+- [x] Integrar API e painel Núcleo com revisões e estado compartilhado.
+- [x] Testar negociação e proteções com mocks/banco temporário; documentar comportamento e limites.
+- [x] Aplicar migração no banco atual; verificar ausência de divergência, regras alinhadas e conhecimento sincronizado.
+- [ ] Disponibilizar API/painel e reiniciar uma única instância do worker com o código desta entrega.
+- [ ] Homologar o formato do conector Calendar real e o fluxo WhatsApp → reunião → resumo, com destinatário de teste definido pelo owner.
+- [ ] Reconciliar efeitos incertos por leitura assistida; hoje ficam bloqueados para conferência manual.
+
 ## Identificação das redes sociais - 20/10/2026
 
 - [x] Instagram e LinkedIn identificados como perfis de Herickson Maia no painel, catálogo e documentação.

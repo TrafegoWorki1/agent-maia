@@ -1,5 +1,9 @@
 # Integração das áreas do painel
 
+## Missões delegadas — 21/10/2026
+
+O Núcleo inclui `MissionPanel`, com atualização a cada quinze segundos, estado, limites, avisos e recibos. `/api/nucleus` devolve missões e evidências ao owner autenticado; `mission_control` usa a revisão corrente para pausar, retomar, corrigir ou cancelar. A mesma RPC atende controles do WhatsApp. Durante requisições, os botões ficam indisponíveis e erros aparecem na tela. A migração deve preceder o código dependente. Situação de implantação em `autonomia-delegada-maia.md`; o escopo histórico abaixo corresponde à entrega anterior.
+
 ## Escopo desta entrega
 
 Branch `feat/integrated-workspace`, base `97c6d65`. Implementação e testes locais; sem autorização nesta etapa para aplicar banco remoto, publicar, enviar mensagens ou reiniciar o worker.

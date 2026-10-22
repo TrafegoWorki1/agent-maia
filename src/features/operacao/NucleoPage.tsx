@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Panel } from "../../components/ui";
+import { MissionPanel } from "./MissionPanel";
 import { nucleusCommand, nucleusRequest, searchNucleusSession, type NucleusCommand, type NucleusData } from "../../lib/nucleusApi";
 
 export function NucleoPage() {
@@ -16,7 +17,7 @@ export function NucleoPage() {
   const [historySession, setHistorySession] = useState("");
   const [historyResults, setHistoryResults] = useState<Array<{ id: number; at: string; author: string; text: string; source: string }>>([]);
   const refresh = useCallback(async () => { try { setData(await nucleusRequest()); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "Núcleo indisponível"); } }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); const timer = setInterval(() => { if (!document.hidden) void refresh(); }, 15000); return () => clearInterval(timer); }, [refresh]);
   const act = async (command: NucleusCommand) => {
     setBusy(true);
     try { await nucleusCommand(command); await refresh(); }
@@ -40,8 +41,9 @@ export function NucleoPage() {
       <Panel title="Skills" caption="Propostas só são ativadas após aprovação explícita do owner.">
         {data.skills.length ? data.skills.map((row) => <p key={row.id}><strong>{row.slug}</strong> v{row.version} · {row.status} · {row.description} {row.status === "proposal" && <button type="button" disabled={busy} onClick={() => void act({ action: "skill_activate", id: row.id })}>Aprovar e ativar</button>}</p>) : <p>Nenhuma skill registrada. As iniciais são propostas na sincronização configurada do worker.</p>}
       </Panel>
+      <MissionPanel plans={data.plans} receipts={data.missionEffects ?? []} busy={busy} act={act} />
       <Panel title="Planos e subagentes" caption="Estados incertos exigem revisão; não significam conclusão.">
-        {data.plans.length ? data.plans.map((row) => <p key={row.id}>Plano #{row.id} · {row.title} · {row.status}</p>) : <p>Nenhum plano registrado.</p>}
+        {data.plans.filter(row => !row.kind || row.kind === "general").map((row) => <p key={row.id}>Plano #{row.id} · {row.title} · {row.status}</p>)}
         <form onSubmit={(event) => { event.preventDefault(); void act({ action: "delegate", kind: "analysis", objectives: [objective], context: analysisContext }); }}>
           <label>Objetivo de análise <input value={objective} onChange={(event) => setObjective(event.target.value)} required minLength={5} maxLength={1000} /></label>
           <label>Contexto fornecido <input value={analysisContext} onChange={(event) => setAnalysisContext(event.target.value)} maxLength={4000} /></label>

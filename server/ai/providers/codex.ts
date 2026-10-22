@@ -43,6 +43,7 @@ export interface CodexMcpContext {
   inGroup: boolean;
   imageAllowed?: boolean;
   preferenceAllowed?: boolean;
+  ownerRequest?: string;
   onToolUse?: (tool: string, failed?: boolean) => Promise<void>;
 }
 
@@ -85,6 +86,7 @@ export async function runCodexText(input: { prompt: string; timeoutMs: number; m
     MAIA_CODEX_GROUP: input.mcp.inGroup ? "1" : "0",
     MAIA_CODEX_IMAGE_ALLOWED: input.mcp.imageAllowed === true && canRequestCreativeJob(input.mcp.requester, input.mcp.channel, input.mcp.inGroup) ? "1" : "0",
     MAIA_CODEX_PREFERENCE_ALLOWED: input.mcp.preferenceAllowed === true ? "1" : "0",
+    MAIA_CODEX_OWNER_REQUEST: input.mcp.ownerRequest ?? "",
     MAIA_CODEX_REQUESTER: JSON.stringify({ ...input.mcp.requester, permissions: [...input.mcp.requester.permissions] }),
   } : null;
   try {
