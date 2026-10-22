@@ -4,14 +4,21 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-22 — OAuth Google recusava Calendar/Gmail no cliente novo
+
+- **Causas:** o token antigo tinha apenas `drive`; o cliente novo pertence ao projeto `Zap Agente AI`, que ainda não tinha Calendar, Drive, Sheets e Gmail APIs habilitadas. O consentimento também exigia incluir a conta do owner como testadora no público desse projeto.
+- **Correção:** cliente e segredo do JSON local instalados em `.env` (sem versionar credenciais); novo refresh token emitido e validado com `drive`, `calendar`, `gmail.readonly` e `gmail.send`. As quatro APIs foram habilitadas no projeto. Worker reiniciado para carregar `.env` atualizado.
+- **Verificação real:** Calendar respondeu com calendário principal e preferências (fuso `America/Fortaleza`, duração padrão 45 minutos); Gmail aceitou leitura; Drive retornou HTTP 200; Sheets API respondeu HTTP 404 para ID sintético, confirmando que a API está habilitada e que o recurso de teste não existe. Nenhum evento foi criado nem e-mail enviado.
+- **Limite:** a atualização foi feita apenas no `.env` deste ambiente; variáveis de outros ambientes não foram alteradas. Se o app OAuth estiver em modo externo de teste, os refresh tokens podem expirar após sete dias e exigir nova autorização.
+
 ## 2026-10-22 — agendamento perguntava informações disponíveis na Agenda
 
 - **Causa:** a ferramenta de disponibilidade só devolvia horários ocupados numa janela que a Maia precisava montar, enquanto a de criação exigia início, fim e fuso explícitos e deixava o Meet optativo. A regra não orientava consultar a duração padrão nem escolher um horário livre antes de perguntar.
 - **Correção:** `agenda_sugerir_horarios` lê as preferências do Google Calendar, encontra horários úteis livres nos próximos dias e, quando possível, compara com a disponibilidade compartilhada do convidado. `agenda_criar_evento` pede Meet por padrão e envia os convites. A regra manda localizar o e-mail primeiro e perguntar só se ele não estiver disponível com segurança.
 - **Limite:** convite enviado não prova aceite; sem compartilhamento, a disponibilidade do convidado permanece desconhecida. A criação continua sujeita ao OK do owner. Migration `20261022150000_agenda_smart_scheduling_rule.sql`; catálogo `2026-10-22.6`.
 - **Verificação:** migration aplicada ao Supabase vinculado após dry run. `rules:verify` alinhou as 49 regras e `knowledge:sync` atualizou um documento; typecheck, 815 testes de aplicação, 81 de banco, build e verificações de migração passaram.
-- **Pendência real:** a chamada de leitura à Google Agenda com o OAuth atual foi recusada (401/403). O owner precisa reautorizar o refresh token com escopo `calendar`; até lá não é possível validar agendamento real pela integração nativa do Codex. `db:drift` confirmou que os 2.154 objetos do banco remoto correspondem às migrações.
-- **Ativação do código:** PR #51 integrado à `main` (`165aaea`), CI e preview aprovados. O launcher reiniciou o único worker local às 15:17 UTC; ele voltou a aguardar a fila. Não houve teste de criação real por causa do escopo OAuth pendente.
+- **Situação inicial:** a chamada de leitura à Google Agenda retornava 401/403 porque o token tinha somente `drive`. A pendência de autorização foi resolvida depois no ambiente local, com leitura real de Calendar e Gmail; veja a entrada “OAuth Google recusava Calendar/Gmail” acima. `db:drift` confirmou que os 2.154 objetos do banco remoto correspondem às migrações.
+- **Ativação do código:** PR #51 integrado à `main` (`165aaea`), CI e preview aprovados. O launcher reiniciou o worker novamente após atualizar o `.env`. Nenhum evento foi criado durante a validação.
 
 ## 2026-10-22 — Meta Ads conectado pela API Zernio
 
@@ -34,7 +41,7 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 - **Causa/motivação:** o roteador Claude↔Codex (`server/ai/router.ts`) já cai pro Codex quando o Claude está indisponível, mas Meta Ads, Gmail e Google Calendar continuavam amarrados ao conector `mcp__claude_ai_*`, que só existe na sessão do Claude; sob o Codex essas três capacidades desapareciam. Zernio (Instagram/LinkedIn) e Google Drive/Sheets já resolviam isso com integração própria do servidor.
 - **Correção:** `server/integrations/googleCalendarNative.ts` (REST direto na Calendar API v3, reusa o OAuth do Drive) + `server/calendarTools.ts` (`agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores. Validação de evidência bruta (ID, início/fim, link do Google) antes de confirmar qualquer criação de evento, igual ao `missionCalendar.ts`. Regra nova `agenda` no catálogo (não existia nenhuma antes — mesmo buraco do incidente do Meta Ads), migração `20261022092312_agenda_native_rule.sql`.
 - **Verificações:** `pnpm typecheck`, `pnpm test` (791 testes, incluindo `tests/googleCalendarNative.test.ts`), `pnpm build`, `pnpm db:validate` (69 migrações) passaram.
-- **Pendência:** migrações ainda não aplicadas em produção e o `GOOGLE_OAUTH_REFRESH_TOKEN` real ainda precisa dos escopos `calendar`, `gmail.readonly` e `gmail.send`. As fases nativas de Gmail e Meta Ads foram concluídas na entrada acima.
+- **Situação à época:** migrações e escopos estavam pendentes durante a implementação. A migration e a autorização local foram concluídas depois; outras variáveis de ambiente não foram alteradas.
 
 ## 2026-10-21 — lições registradas (por que a Maia negava o Meta Ads)
 
