@@ -49,6 +49,16 @@ async function request(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path
   return { status: response.status, json };
 }
 
+/** GET dedicado às integrações que consomem a mesma credencial Zernio. */
+export async function zernioGet(path: string, query: Record<string, string | number | undefined> = {}): Promise<unknown> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value !== undefined) params.set(key, String(value));
+  const suffix = params.size ? `?${params.toString()}` : "";
+  const { status, json } = await request("GET", `${path}${suffix}`);
+  if (!ok(status)) throw new ZernioError(describeFailure(status, json), status);
+  return json;
+}
+
 function ok(status: number): boolean {
   return status >= 200 && status < 300;
 }
