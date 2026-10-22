@@ -4,6 +4,25 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 22/10/2026 — contingência Google e Meta Ads pelo MCP oficial
+
+- **Google no fallback:** Gmail e Google Agenda ganharam ferramentas próprias do servidor, registradas para Claude e Codex. Elas reutilizam o mesmo OAuth já usado pelo Drive/Sheets; o modo de conexão e o coletor atual do Google não foram alterados.
+- **Meta Ads:** as três ferramentas de leitura agora passam pelo MCP oficial. O owner conecta pelo painel em **Sistema > Conexões > Entrar com Facebook**; não copia token e não precisa criar aplicativo Meta quando o cadastro dinâmico do MCP é aceito.
+- **Segurança:** OAuth com PKCE, estado de uso único e expiração de 10 minutos. A sessão Meta fica criptografada com INTEGRACAO_VAULT_KEY; navegador e modelo nunca recebem o token. O painel permite testar tools/list e desconectar.
+- **Custo:** quando conectado, a coleta Meta tenta o MCP diretamente, sem executar modelo. Enquanto o teste ao vivo não for concluído, o conector Meta da conta Claude permanece como contingência.
+- **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.
+- **Banco/regras:** catálogo 2026-10-22.4, migration da regra Meta atualizada e nova migration 20261022100534_oauth_connection_states.sql para o estado efêmero do login.
+- **Ledger corrigido:** restaurada a migration 20261021211144 que ja estava no Supabase e criada a compensatoria 20261022104612 para remover somente a regra orfa autonomia_delegada; as tabelas e o historico sao preservados.
+- **Pendente para teste real:** publicar a migration, abrir o painel em uma URL HTTPS e concluir o login do Facebook; depois clicar em **Testar MCP**. O Google ainda exige reautorizar o refresh token existente com calendar, gmail.readonly e gmail.send.
+
+## 22/10/2026 — agenda nativa: Google Calendar também funciona sob o Codex
+
+- **O que mudou:** `server/integrations/googleCalendarNative.ts` + `server/calendarTools.ts` (ferramentas `agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores (`maiaImageTool.ts` e `codexMaiaMcp.ts`), no mesmo molde de `sheetsTools`. Usa o mesmo token OAuth do Drive/Sheets (`GOOGLE_OAUTH_REFRESH_TOKEN`), com o escopo `calendar` ampliado nele. Nunca aceita o texto do modelo como prova de evento criado: exige ID, início/fim válidos e link do domínio do Google, igual ao `missionCalendar.ts`.
+- **Por quê:** o conector `mcp__claude_ai_Google_Calendar__*` só existe dentro da sessão do Claude; quando o Claude cai e o roteador (`server/ai/router.ts`) passa a conversa pro Codex, a Agenda ficava indisponível. Zernio e Google Drive/Sheets já tinham o mesmo problema resolvido com integração própria; esta migração aplica o mesmo padrão à Agenda.
+- **Regra nova:** `agenda` no catálogo (`config/maia-rules.json`, migração `20261022092312_agenda_native_rule.sql`) — não existia regra nenhuma para Calendar antes, o mesmo buraco que causou o incidente do Meta Ads em 21/10.
+- **Pendência:** o `GOOGLE_OAUTH_REFRESH_TOKEN` em produção ainda só tem o escopo `drive`; precisa ser reautorizado com `calendar` (e, na mesma reautorização, `gmail.readonly`/`gmail.send` para a próxima fase) antes de funcionar com dados reais. Até lá, as chamadas reais falham com 401/403; código e testes (mockados) já sobem funcionando.
+- **Verificações:** `pnpm typecheck`, `pnpm test` (791 testes), `pnpm build` e `pnpm db:validate` (69 migrações) passaram.
+
 ## 21/10/2026 — lições registradas no CLAUDE.md para o erro não se repetir
 
 - **O que aconteceu:** a Maia negou 7 vezes ter o Meta Ads. Causas empilhadas: (1) sem regra de capacidade no catálogo, (2) recusas gravadas no histórico reforçando o erro, (3) `--restricted` no executor CLI zerando os conectores, (4) `isReadTool()` nunca reconhecendo ferramentas de conector, (5) credenciais corrigidas só em um dos dois `.env`, (6) workers duplicados via `Iniciar Maia.bat`, (7) `MAIA_CLAUDE_BIN` corrompido por escaping de shell. Tudo corrigido e aplicado nas entradas de 21/10/2026 acima.

@@ -37,6 +37,9 @@ import { organizationTools } from "./organization.ts";
 import { githubTools } from "./githubTools.ts";
 import { siteTools } from "./siteTools.ts";
 import { sheetsTools } from "./sheetsTools.ts";
+import { calendarTools } from "./calendarTools.ts";
+import { gmailTools } from "./gmailTools.ts";
+import { metaAdsTools } from "./metaAdsTools.ts";
 import { decideDriveToolAccess } from "./resourceAccess.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { decideAccess, resolveRequester, type Requester } from "./access.ts";
@@ -153,6 +156,21 @@ for (const t of siteTools) {
 }
 
 for (const t of sheetsTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of calendarTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of gmailTools) {
+  server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
+    guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
+}
+
+for (const t of metaAdsTools) {
   server.registerTool(t.name, { description: t.description, inputSchema: t.schema.shape }, async (args: Record<string, unknown>) =>
     guarded(`mcp__maia__${t.name}`, args, async () => JSON.stringify(await t.run(getDb(), args))));
 }

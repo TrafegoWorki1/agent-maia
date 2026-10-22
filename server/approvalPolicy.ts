@@ -31,6 +31,9 @@ const NEEDS_APPROVAL: RegExp[] = [
   /^mcp__claude_ai_Meta_ADS__.*delete/,
   // Compartilhar arquivo com outras pessoas
   /^mcp__claude_ai_Google_Drive__share_file$/,
+  // Agenda nativa (Google Calendar via REST direto, disponível também sob o Codex): criar evento gera convite externo.
+  /^mcp__maia__agenda_criar_evento$/,
+  /^mcp__maia__email_(enviar|responder)$/,
 ];
 
 export function requiresApproval(toolName: string): boolean {
@@ -43,7 +46,7 @@ export function requiresApproval(toolName: string): boolean {
 // 21/10/2026). O verbo agora é um prefixo (get_, list_, search_, ads_get_ etc.), opcionalmente seguido
 // de mais palavras com "_"; requiresApproval() continua barrando create/update/delete/share/send/etc.
 // independente disso, então ampliar o prefixo não libera nenhuma ação de escrita.
-const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(?:get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(?:list|get|check)|ads_account_get)(?:_[A-Za-z0-9]+)*|mcp__maia__(mensagem_status|sheets_(info|ler)|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs))$/;
+const READ_TOOL = /^(?:mcp__claude_ai_[A-Za-z_]+__(?:get|list|search|read|download|suggest|ads_get|ads_insights|ads_library|ads_experiment_(?:list|get|check)|ads_account_get)(?:_[A-Za-z0-9]+)*|mcp__maia__(mensagem_status|sheets_(info|ler)|github_(repos_listar|prs_listar|issues_listar|ci_status)|instagram_desempenho|artes_recentes|arte_buscar|linkedin_contas|linkedin_organizacoes|linkedin_desempenho|integracao_listar|instagram_stories|instagram_stories_metricas|instagram_musica_buscar|instagram_musica_detalhar|instagram_seguidor_status|instagram_conversas_listar|instagram_conversa_mensagens|instagram_automacoes_listar|instagram_automacao_detalhar|instagram_automacao_logs|agenda_calendarios|agenda_disponibilidade|email_nao_lidos|email_buscar|meta_ads_contas|meta_ads_campanhas|meta_ads_insights))$/;
 
 export function isReadTool(toolName: string): boolean {
   return READ_TOOL.test(toolName);
