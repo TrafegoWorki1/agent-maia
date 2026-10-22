@@ -1,4 +1,6 @@
 import { pathToFileURL } from "node:url";
+import { handleMissionControlText, routeMissionMessage } from "./missions.ts";
+import { runMissionCycle } from "./missionRuntime.ts";
 import { loadLocalEnv } from "./loadEnv.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { MEDIA_DIR, MEDIA_TTL_MS, MEDIA_EXT, MAX_BYTES, MEMBER_MEDIA_DIR, MEMBER_MEDIA_TTL_MS, purgeOldMedia, saveMedia } from "./media.ts";
@@ -101,6 +103,8 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordMessage(db, { channel: "whatsapp", author: "owner", text: item.payload }, now);
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "owner", outcome: "handled" }, now);
     // Entra no lote da conversa: o despacho é feito pelo laço de lotes, nunca aqui.
+    const missionControl = await handleMissionControlText(db, item.payload);
+    if (missionControl) { await notifyOwner(missionControl); return; }
     const ownerAnswered = await handleApproverText({ db, notifyOwner, resumePlan: (prompt) => handleOwnerMessage(prompt) }, item.payload).catch(() => false);
     if (ownerAnswered) return;
     await addOwnerText(db, item.id, item.payload);
@@ -130,6 +134,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordEvent(db, { event: "messages.upsert", kind: "message", sender: "member" as Sender, outcome: "handled" }, now);
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: req.name, text: req.text, keyId: item.key_id, at: now }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
     await upsertContact(db, { number: digits, name: req.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
+    if (await routeMissionMessage(db, { conversation: `dm:${digits}`, participant: digits, text: req.text, key: item.key_id ?? `inbox:${item.id}`, at: item.received_at ?? now.toISOString() })) return;
     await relayIfContacted(db, digits, req.name, req.text.slice(0, 500));
     void handleMemberMessage(memberRequest).catch((error) => console.error("[worker] privado de membro:", error instanceof Error ? error.message : error));
     return;
@@ -174,6 +179,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
       // Memória do grupo (7 dias, com autoria) e agenda de contatos. Falha aqui não impede a resposta.
       await recordConvMessage(db, { conv: request.jid, participant: request.participant, name: request.name, text: request.text, keyId: item.key_id, at: new Date(request.receivedAt) }).catch((error) => console.error("[worker] conversa:", error instanceof Error ? error.message : error));
       await upsertContact(db, { number: request.participant, name: request.name, conv: request.jid, source: "grupo" }).catch(() => {});
+      if (await routeMissionMessage(db, { conversation: request.jid, participant: request.participant, text: request.text, key: item.key_id ?? `inbox:${item.id}`, at: request.receivedAt })) return;
       if (request.addressed === false && !mentionsMaiaByTag(request.text)) return;
     }
     markRead(request.jid, item.key_id);
@@ -214,6 +220,7 @@ export async function processItem(db: Db, item: InboxItem, now = new Date()): Pr
     await recordConvMessage(db, { conv: `dm:${digits}`, participant: digits, name: reply.name, text: reply.text, keyId: item.key_id, at: now }).catch(() => {});
     await upsertContact(db, { number: digits, name: reply.name, conv: `dm:${digits}`, source: "mensagem" }).catch(() => {});
     // Lead de prospecção: roteia para triagem autônoma (handleProspectMessage verifica skill ativa).
+    if (await routeMissionMessage(db, { conversation: `dm:${digits}`, participant: digits, text: reply.text, key: item.key_id ?? `inbox:${item.id}`, at: item.received_at ?? now.toISOString() })) return;
     const { data: prospectRow } = await db.from("maia_prospects").select("id").eq("number", digits).eq("status", "sent").limit(1).maybeSingle();
     if (prospectRow) {
       void handleProspectMessage({ from: digits, name: reply.name, text: reply.text, keyId: item.key_id ?? undefined }).catch((error) => console.error("[worker] triagem de prospect:", error instanceof Error ? error.message : error));
@@ -327,6 +334,17 @@ async function main(): Promise<void> {
   loadLocalEnv();
   const db = getDb();
   let planTimersBusy = false;
+  let missionsBusy = false;
+  const missions = () => {
+    if (missionsBusy) return;
+    missionsBusy = true;
+    void runMissionCycle(db).catch(error => console.error("[missões]", error instanceof Error ? error.message : error)).finally(() => { missionsBusy = false; });
+  };
+  setTimeout(missions, 1000);
+  setInterval(missions, 5000);
+  const purgeMissionContent = () => { void db.rpc("purge_maia_mission_content").then(({ error }) => { if (error) console.error("[missões] retenção:", error.message); }); };
+  setTimeout(purgeMissionContent, 2000);
+  setInterval(purgeMissionContent, 30 * 60_000);
   setInterval(() => {
     if (planTimersBusy) return;
     planTimersBusy = true;

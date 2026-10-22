@@ -1,3 +1,7 @@
+## Missões delegadas — 21/10/2026
+
+`20261021211144_maia_delegated_missions.sql` estende `maia_plans`, cria eventos/efeitos/reservas e RPCs de execução, controle, finalização atômica e retenção. Novas tabelas com RLS e acesso de serviço; nenhum acesso direto de anon/authenticated. Insere `autonomia_delegada` com guarda contra regra concorrente. Não altera migrações já aplicadas. Validada desde banco vazio e com testes de concorrência e permissões. Estado remoto e ativação em `autonomia-delegada-maia.md`. Reversão por pausa das missões e, se necessário, migração compensatória preservando recibos.
+
 ## Regra meta_ads — 21/10/2026
 
 A migração 20261021120000 insere a regra `meta_ads` (catálogo 2026-10-21.1, 47 regras) com `ON CONFLICT DO UPDATE`. Não cria nem altera tabelas, permissões ou aprovações; `meta.ler` já existe desde a primeira migração de permissões. Aplicada em 21/10/2026 por `supabase db push --linked --yes` após dry-run que listou somente esta versão; `rules:verify` alinhado (2026-10-21.1, 47 regras). Reversão: migração compensatória (`ativa = false`).

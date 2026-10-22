@@ -1,3 +1,11 @@
+# Autonomia delegada — 21/10/2026
+
+**Causa:** planos genéricos não vinculavam toda resposta do contato ao pedido do owner e não executavam uma negociação durável com contrato de conclusão.
+
+**Correção:** contrato restrito em `maia_plans`, entradas deduplicadas, reserva de execução/horário, efeitos com recibos e executor de decisões estruturadas. Nova missão retoma pelo contato correto, respeita pausa/cancelamento e só conclui reunião após reler o evento criado. Resultado incerto bloqueia repetição. Painel Núcleo e ferramentas Claude/Codex usam o mesmo estado e controle por revisão.
+
+**Verificação:** testes com mocks e banco temporário incluem negociação, concorrência, falhas, SAIR, grupos, revisões e RLS; build e regras aprovados. **Pendências e estado remoto:** consultar `docs/autonomia-delegada-maia.md`; o conector real não foi homologado e nenhum envio real foi usado nos testes.
+
 # Contatos compartilhados
 
 Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai nome e telefones do vCard, preserva as permissões existentes e não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.

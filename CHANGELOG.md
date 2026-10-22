@@ -1,3 +1,11 @@
+# Autonomia delegada — 21/10/2026
+
+Pedidos de conversa e agendamento passam a ter contrato persistente, retomada pela resposta do contato, limites, controle do owner e evidências de efeitos externos. Antes, respostas recebidas podiam cair no atendimento genérico sem vínculo com o objetivo original. O novo executor restringe destinatários e ações, negocia dentro das janelas, reserva horário, cria e confere o evento pelo conector Calendar e prepara confirmação e resumo. Ações com resultado incerto aguardam conferência, sem repetição automática.
+
+O Núcleo e a API usam as mesmas missões, com revisões para pausa, retomada, correção e cancelamento. Ferramentas registradas em Claude/Codex; catálogo 2026-10-21.2 e documentos gerados atualizados. A migração `20261021211144_maia_delegated_missions.sql` acrescenta tabelas/RPCs com RLS e ativa a regra `autonomia_delegada`.
+
+Validação: 779 testes de aplicação aprovados antes da revisão final; depois, 50 testes direcionados e 91 de banco aprovados. Build, regras e 69 migrações em banco temporário aprovados. Migração aplicada no banco atual, 2.134 objetos comparados sem divergência, 48 regras alinhadas e conhecimento sincronizado sem erro. Evidências em `docs/autonomia-delegada-maia.md`. Pendente: homologação do conector real e disponibilização do código no worker/API/painel; não houve mensagens ou eventos externos de teste.
+
 # Contatos compartilhados pelo WhatsApp
 
 A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, encaminhando-os como dados de conversa sob as mesmas regras de remetente e grupo. Não cadastra automaticamente. Passaram 720 testes e build; implantação requer webhook e worker atualizados, sem migração de banco.

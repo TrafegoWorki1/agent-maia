@@ -3,6 +3,7 @@ import { isOperationalConnector } from "./operationalConnectors.ts";
 // Inventário executável. Adicionar ferramenta local exige incluí-la aqui; caso contrário o servidor nega.
 // Conectores Claude são dinâmicos, mas somente estas famílias passam para a política de operação.
 export const MAIA_TOOL_NAMES = new Set([
+  "missao_criar", "missao_controlar", "missoes_listar",
   "anuncio_midia_url_temporaria", "arquivo_reenviar", "arte_buscar", "arte_reenviar", "arte_referencia_apagar", "arte_referencia_salvar", "arte_referencias_listar", "artes_recentes", "avisar_dono", "buscar_conhecimento",
   "contato_buscar", "contato_enviar_mensagem", "contato_instancia_buscar", "contato_salvar", "conversas_listar",
   "gerar_imagem", "grupo_agendar", "grupo_alterar_foto", "grupo_apagar_mensagem", "grupo_cadastrar", "grupo_cliente_classificar",

@@ -8,6 +8,8 @@ Leia `README.md`, `TODO.md`, `docs/regras-da-maia.md` e, para mudanças de banco
 
 ## Arquitetura atual
 
+- Autonomia delegada: `server/missions.ts`, `missionTools.ts`, `missionRuntime.ts` e `missionCalendar.ts`; manual em `docs/autonomia-delegada-maia.md`. Missões usam `maia_plans.kind != general`, contrato fixo, revisão e recibos. Nunca concluí-las por `plano_atualizar`, repetir efeito incerto ou ampliar o escopo por uma resposta do contato. Painel e WhatsApp controlam a mesma revisão. Adaptador Calendar depende do conector Claude e exige evidência bruta; não aceitar relato textual do modelo como prova de criação.
+
 - React, TypeScript, Vite e pnpm 11.25.0. O painel publicado usa as rotas de `api/`, autenticação do proprietário e Supabase com RLS. Não descreva a aplicação operacional como demo.
 - Caminho operacional: Evolution → `api/webhook.ts` na Vercel → fila `inbox` no Supabase → `server/inboxWorker.ts` no computador do owner. O worker precisa estar ativo para processar pedidos, lembretes e limpezas.
 - `Iniciar Maia.bat` e `pnpm start` usam `scripts/start-worker.ts`. O launcher sobe o worker; não ocupa a porta 3000. `pnpm dev` abre o painel de desenvolvimento local. `pnpm start:legacy` conserva o antigo fluxo de webhook/túnel e não deve ser iniciado junto da operação.

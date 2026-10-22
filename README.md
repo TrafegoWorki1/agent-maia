@@ -1,5 +1,9 @@
 # Agent · Maia
 
+## Autonomia delegada
+
+Missões persistentes para conversar com um contato, negociar reunião e avisar grupos dentro do pedido do owner. O painel Núcleo acompanha o mesmo estado e permite pausar, retomar, corrigir e cancelar. Consulte [comportamento, limites e ativação](docs/autonomia-delegada-maia.md).
+
 ## Contas sociais
 
 Instagram e LinkedIn identificados no painel e nas ferramentas pertencem a **Herickson Maia**, conforme correção do proprietário em 20/10/2026. A integração usa Zernio; a seleção de conta por ID e as aprovações permanecem as existentes.

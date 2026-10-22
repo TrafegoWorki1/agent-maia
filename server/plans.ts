@@ -25,6 +25,7 @@ export interface Plan {
   status: "active" | "done" | "cancelled";
   waiting: Waiting | null;
   context: Record<string, unknown>;
+  kind?: string;
 }
 
 // Plano parado há mais que isso não retoma sozinho: o pedido pode já não valer.
@@ -74,6 +75,7 @@ const asPlan = (row: Record<string, unknown>): Plan => ({
   status: row.status as Plan["status"],
   waiting: (row.waiting as Waiting | null) ?? null,
   context: (row.context as Record<string, unknown>) ?? {},
+  kind: String(row.kind ?? "general"),
 });
 
 export async function createPlan(db: Db, input: { title: string; request: string; steps: string[]; taskId?: number | null }): Promise<number> {
@@ -103,6 +105,7 @@ export interface ExpiredPlanNotice { id: number; title: string; waiting: string;
 export async function expireStalePlans(db: Db, now = new Date()): Promise<ExpiredPlanNotice[]> {
   const notices: ExpiredPlanNotice[] = [];
   for (const plan of await activePlans(db)) {
+    if (plan.kind && plan.kind !== "general") continue;
     if (now.getTime() - Date.parse(plan.created_at) <= PLAN_MAX_AGE_MS) continue;
     const lastCompleted = [...plan.steps].reverse().find((step) => step.done)?.text ?? null;
     const context = { ...plan.context, expiration: { at: now.toISOString(), reason: "limite de sete dias", waiting: plan.waiting, lastCompletedStep: lastCompleted } };
@@ -124,6 +127,7 @@ export interface PlanPatch {
 export async function updatePlan(db: Db, id: number, patch: PlanPatch): Promise<{ ok: true; plan: Plan } | { ok: false; error: string }> {
   const plan = await getPlan(db, id);
   if (!plan) return { ok: false, error: `não existe o plano #${id}` };
+  if (plan.kind && plan.kind !== "general") return { ok: false, error: "Use missao_controlar; missões exigem evidências para concluir." };
   if (plan.status !== "active") return { ok: false, error: `o plano #${id} já está ${plan.status === "done" ? "concluído" : "cancelado"}` };
   if (patch.waiting?.type === "time") {
     const target = Date.parse(patch.waiting.at);

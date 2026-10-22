@@ -1,4 +1,5 @@
 import { downloadAudio, downloadMedia, sendOwnerText } from "./evolutionSend.ts";
+import { handleMissionControlText, routeMissionMessage } from "./missions.ts";
 import type { AudioRef, MediaRef } from "./evolutionWebhook.ts";
 import { buildMediaPrompt, classifyDocument, docxToText, extractVideoParts, MAX_BYTES, MEDIA_EXT, MAX_TRANSCRIBE_SECONDS, MAX_VIDEO_SECONDS, MEMBER_MEDIA_DIR, saveMedia, videoDuration, xlsxToText, type MediaKind } from "./media.ts";
 import { transcriberFromEnv } from "./transcribe.ts";
@@ -31,6 +32,8 @@ export async function notifyOwner(text: string): Promise<void> {
 
 export async function routeOwnerText(text: string): Promise<number | null> {
   const db = getDb();
+  const missionControl = await handleMissionControlText(db, text);
+  if (missionControl) { await notifyOwner(missionControl); return null; }
   const deps = { db, notifyOwner };
   const preferenceReply = await handleOwnerPreferenceCommand(db, text);
   if (preferenceReply) {
@@ -233,6 +236,7 @@ export async function handleMemberAudio(ref: MemberAudioRef): Promise<void> {
       return;
     }
     await recordConvMessage(getDb(), { conv: `dm:${digits}`, participant: digits, name: ref.name, text }).catch(() => {});
+    if (await routeMissionMessage(getDb(), { conversation: `dm:${digits}`, participant: digits, text, key: String(ref.key.id ?? ""), at: new Date().toISOString() })) return;
     await handleMemberMessage({ from: ref.from, name: ref.name, text });
   } catch (error) {
     console.error("[audio-membro]", error instanceof Error ? error.message : error);
@@ -296,6 +300,7 @@ export async function handleGroupAudio(ref: GroupAudioRef): Promise<void> {
 // Texto do áudio de grupo já transcrito: entra na memória do grupo e só vira pedido se a Maia foi chamada.
 async function processGroupAudioText(ref: { jid: string; participant: string; name: string; addressed: boolean; receivedAt?: string; keyId?: string }, text: string): Promise<void> {
   await recordConvMessage(getDb(), { conv: ref.jid, participant: ref.participant, name: ref.name, text, ...(ref.receivedAt ? { at: new Date(ref.receivedAt) } : {}) }).catch((error) => console.error("[audio-grupo] conversa:", error instanceof Error ? error.message : error));
+  if (await routeMissionMessage(getDb(), { conversation: ref.jid, participant: ref.participant, text, key: ref.keyId ?? "", at: ref.receivedAt ?? new Date().toISOString() })) return;
   if (!ref.addressed && !CALLS_MAIA.test(text)) return;
   await handleGroupMessage({ jid: ref.jid, participant: ref.participant, name: ref.name, text, receivedAt: ref.receivedAt, ...(ref.keyId ? { keyId: ref.keyId } : {}) });
 }

@@ -40,6 +40,8 @@ export interface ClaudeCliInput {
   tools?: string[];
   permission: Permission;
   onToolUse: (tool: string) => Promise<void>;
+  // Recibos estruturados de conectores, sem usar a resposta narrativa como prova.
+  onStreamEvent?: (event: Record<string, unknown>) => Promise<void>;
   spawnImpl?: typeof spawn;
 }
 
@@ -221,7 +223,10 @@ export async function runClaudeCli(input: ClaudeCliInput, env: NodeJS.ProcessEnv
     const feed = (line: string) => {
       chain = chain.then(async () => {
         if (failure) return;
-        try { for (const tool of readStreamLine(line, state)) await input.onToolUse(tool); } catch (error) { failure = error; }
+        try {
+          if (input.onStreamEvent && line.startsWith("{")) await input.onStreamEvent(JSON.parse(line));
+          for (const tool of readStreamLine(line, state)) await input.onToolUse(tool);
+        } catch (error) { failure = error; }
       });
     };
     child.stdout.on("data", (chunk: Buffer) => {
