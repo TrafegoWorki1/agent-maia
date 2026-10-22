@@ -58,6 +58,7 @@ const SPECIFIC: Record<string, (input: Record<string, unknown>) => string> = {
   "mcp__claude_ai_instamany__send_message": () => "mandar uma mensagem direta no Instagram",
   "mcp__claude_ai_instamany__set_flow_status": () => "ativar ou desativar um fluxo do Instagram",
   "mcp__claude_ai_Google_Drive__share_file": () => "compartilhar um arquivo do Drive",
+  "mcp__maia__agenda_criar_evento": (i) => `criar o evento "${str(i, "titulo") ?? "?"}" na agenda${str(i, "inicio") ? `, em ${str(i, "inicio")}` : ""}${Array.isArray(i.convidados) && i.convidados.length ? ` (convida ${i.convidados.length} pessoa(s))` : ""}${i.com_meet ? ", com link do Meet" : ""}`,
 };
 
 const PATTERNS: [RegExp, string][] = [

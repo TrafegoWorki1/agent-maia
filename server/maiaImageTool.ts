@@ -25,6 +25,7 @@ import { organizationTools } from "./organization.ts";
 import { githubTools } from "./githubTools.ts";
 import { siteTools } from "./siteTools.ts";
 import { sheetsTools } from "./sheetsTools.ts";
+import { calendarTools } from "./calendarTools.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { resolveRequester } from "./access.ts";
 import { addTaskEvent, getDb, recordMessage } from "./store.ts";
@@ -105,6 +106,10 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ...sheetsTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
         catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha na planilha." }], isError: true }; }
+      })),
+      ...calendarTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
+        catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha na agenda." }], isError: true }; }
       })),
       ...memberAccessTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try {

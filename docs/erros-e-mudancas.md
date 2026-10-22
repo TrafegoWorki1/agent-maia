@@ -4,6 +4,13 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-22 — agenda nativa (Google Calendar) para funcionar também sob o Codex
+
+- **Causa/motivação:** o roteador Claude↔Codex (`server/ai/router.ts`) já cai pro Codex quando o Claude está indisponível, mas Meta Ads, Gmail e Google Calendar continuavam amarrados ao conector `mcp__claude_ai_*`, que só existe na sessão do Claude; sob o Codex essas três capacidades desapareciam. Zernio (Instagram/LinkedIn) e Google Drive/Sheets já resolviam isso com integração própria do servidor.
+- **Correção:** `server/integrations/googleCalendarNative.ts` (REST direto na Calendar API v3, reusa o OAuth do Drive) + `server/calendarTools.ts` (`agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores. Validação de evidência bruta (ID, início/fim, link do Google) antes de confirmar qualquer criação de evento, igual ao `missionCalendar.ts`. Regra nova `agenda` no catálogo (não existia nenhuma antes — mesmo buraco do incidente do Meta Ads), migração `20261022092312_agenda_native_rule.sql`.
+- **Verificações:** `pnpm typecheck`, `pnpm test` (791 testes, incluindo `tests/googleCalendarNative.test.ts`), `pnpm build`, `pnpm db:validate` (69 migrações) passaram.
+- **Pendência:** migração ainda não aplicada em produção (`db push` pendente de autorização) e `GOOGLE_OAUTH_REFRESH_TOKEN` real ainda só tem o escopo `drive` — precisa ser reautorizado com `calendar` (e, na mesma leva, `gmail.readonly`/`gmail.send`) antes de funcionar com dados reais. Gmail e Meta Ads nativos ficam para as próximas fases do mesmo plano.
+
 ## 2026-10-21 — lições registradas (por que a Maia negava o Meta Ads)
 
 - **Causa raiz:** capacidade existente no código sem regra de capacidade no catálogo; a Maia só sabe o que está nas regras. A recusa se autoalimentou pelo histórico de conversa (7 respostas iguais), e problemas técnicos (`--restricted`, `isReadTool()`, `.env` divergentes, worker duplicado, `MAIA_CLAUDE_BIN` corrompido) mascaravam o diagnóstico.

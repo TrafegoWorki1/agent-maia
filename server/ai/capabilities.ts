@@ -1,7 +1,9 @@
 import type { Category, Complexity, ModelTier, ProviderId } from "./types.ts";
 
 // O que cada provedor consegue fazer. Não presumir que os dois têm as mesmas ferramentas:
-// o Codex NÃO herda os conectores (Gmail, Meta Ads, Sheets, Agenda) nem as aprovações do Claude.
+// o Codex NÃO herda os conectores exclusivos da conta Claude.ai (hoje: Gmail e Meta Ads). Sheets e Agenda
+// (Calendar) têm integração própria do servidor (server/sheetsTools.ts, server/calendarTools.ts) e por
+// isso já funcionam nos dois executores, com as mesmas aprovações.
 export const CAPABILITIES: Record<ProviderId, { tools: "mcp" | "nenhuma"; categories: Category[]; observacao: string }> = {
   claude: {
     tools: "mcp",
