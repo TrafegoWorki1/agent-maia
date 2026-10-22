@@ -4,10 +4,16 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
-## 22/10/2026 — contingência Google e Meta Ads pelo MCP oficial
+## 22/10/2026 — Meta Ads pela API Zernio
+
+- **Meta Ads:** as ferramentas de contas, campanhas e métricas agora usam diretamente a API REST do Zernio, com `ZERNIO_API_KEY` mantida no servidor e a conexão Meta Ads já autorizada no painel Zernio. O painel da Maia consulta o estado e a quantidade de contas acessíveis; a autenticação OAuth própria da Meta foi retirada do fluxo.
+- **Segurança e escopo:** ferramentas seguem somente leitura; nenhum token é enviado ao modelo. Campanhas e métricas exigem uma conta `act_...` retornada pela listagem de contas. O coletor do painel tenta Zernio sem executar modelo.
+- **Regras:** catálogo `2026-10-22.5`; migration atualiza a regra `meta_ads`. Escrita de anúncios continua fora do escopo.
+
+## 22/10/2026 — contingência Google e Meta Ads
 
 - **Google no fallback:** Gmail e Google Agenda ganharam ferramentas próprias do servidor, registradas para Claude e Codex. Elas reutilizam o mesmo OAuth já usado pelo Drive/Sheets; o modo de conexão e o coletor atual do Google não foram alterados.
-- **Meta Ads:** as três ferramentas de leitura passam pelo MCP oficial. A Meta recusou o cadastro OAuth dinâmico para a Maia; a conexão agora usa `META_MCP_CLIENT_ID` de um app do Meta for Developers. O callback de produção precisa estar cadastrado no app.
+- **Meta Ads (substituído pela entrada acima):** inicialmente planejado pelo MCP oficial da Meta; a conexão foi trocada para Zernio após a autorização da conta no painel deles.
 - **Segurança:** OAuth com PKCE, estado de uso único e expiração de 10 minutos. A sessão Meta fica criptografada com INTEGRACAO_VAULT_KEY; navegador e modelo nunca recebem o token. O painel permite testar tools/list e desconectar.
 - **Custo:** quando conectado, a coleta Meta tenta o MCP diretamente, sem executar modelo. Enquanto o teste ao vivo não for concluído, o conector Meta da conta Claude permanece como contingência.
 - **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.

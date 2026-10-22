@@ -4,11 +4,18 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
-## 2026-10-22 — contingência Google e Meta Ads pelo MCP oficial
+## 2026-10-22 — Meta Ads conectado pela API Zernio
+
+- **Decisão:** usar a conexão Meta Ads já autorizada pelo owner no Zernio, sem criar app Meta nem copiar token de acesso da Meta.
+- **Implementação:** as ferramentas existentes de contas, campanhas e insights chamam `https://zernio.com/api/v1` com `ZERNIO_API_KEY` guardada no servidor; contas são vinculadas ao identificador da conexão Zernio. O painel verifica a conexão e quantas contas de anúncio estão acessíveis. O escopo permanece somente leitura.
+- **Regra:** catálogo `2026-10-22.5`; a migration atualiza a regra `meta_ads`. Nada foi aplicado ao banco remoto neste trabalho.
+- **Verificação da conexão atual:** API Zernio respondeu com sucesso e listou 60 contas de anúncios acessíveis (duas não selecionáveis). As consultas de campanhas e métricas ainda precisam de teste real por conta.
+
+## 2026-10-22 — contingência Google e Meta Ads
 
 - **Problema:** Gmail, Agenda e Meta Ads existiam como conectores da conta Claude.ai e desapareciam quando o roteador passava a conversa ao Codex.
 - **Google:** ferramentas REST próprias para Gmail e Agenda foram adicionadas aos dois executores, reutilizando o OAuth existente do Drive/Sheets. A forma atual de conectar e coletar Google permanece igual; a mudança serve à contingência do Codex.
-- **Meta Ads:** a integração direta por token manual foi substituída pelo MCP oficial da Meta. O endpoint recusou cadastro OAuth dinâmico para a Maia; o fluxo agora usa `META_MCP_CLIENT_ID` de um app do Meta for Developers e callback cadastrado no app. O owner inicia OAuth no painel, com PKCE e estado de uso único; a sessão é criptografada no cofre. As ferramentas locais estáveis chamam o MCP e estão limitadas a leitura nesta primeira etapa.
+- **Meta Ads (plano anterior):** inicialmente foi implementado OAuth do MCP oficial da Meta. Após a conexão Zernio ser autorizada pelo owner, a integração ativa passou para a API Zernio; o fluxo OAuth anterior deixou de ser usado.
 - **Custo e continuidade:** a coleta Meta tenta o MCP sem modelo e conserva o conector Claude como contingência durante a validação. O botão **Testar MCP** confirma a conexão por tools/list.
 - **Banco/regras:** catálogo 2026-10-22.4; migration da regra Meta e migration 20261022100534_oauth_connection_states.sql. Nada foi aplicado ao banco remoto neste trabalho.
 - **Pendente:** testar o login real em HTTPS e conferir os esquemas devolvidos pelo MCP antes de habilitar qualquer escrita.
