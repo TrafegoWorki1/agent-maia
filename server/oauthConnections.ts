@@ -6,7 +6,6 @@ import {decryptSecret, encryptSecret, readSecret, storeSecret, deleteSecret} fro
 export type OAuthProvider="meta_ads";
 const META_SECRET="INTEGRACAO_META_MCP_OAUTH";
 const META_RESOURCE="https://mcp.facebook.com/ads";
-const META_REGISTER="https://mcp.facebook.com/.well-known/register/ads";
 const META_AUTHORIZE="https://www.facebook.com/v26.0/dialog/oauth";
 const META_TOKEN="https://graph.facebook.com/v26.0/oauth/access_token";
 const META_SCOPES=["ads_read","business_management","ads_mcp_management"];
@@ -29,18 +28,12 @@ function publicBase(req:IncomingMessage):string{
 }
 export function oauthCallbackUrl(req:IncomingMessage):string{return new URL("/api/integration-connections?callback=1",publicBase(req)).toString();}
 
-async function registerMetaClient(redirectUri:string):Promise<string>{
- const response=await fetch(META_REGISTER,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_name:"Maia - Worki Digital",redirect_uris:[redirectUri],grant_types:["authorization_code","refresh_token"],response_types:["code"],token_endpoint_auth_method:"none",application_type:"web"}),signal:AbortSignal.timeout(20_000)});
- const raw=await response.json().catch(()=>({})) as {client_id?:unknown;error_description?:unknown};
- if(!response.ok||typeof raw.client_id!=="string")throw new Error(`Cadastro do cliente MCP da Meta falhou (HTTP ${response.status})${raw.error_description?`: ${String(raw.error_description).slice(0,160)}`:""}`);
- return raw.client_id;
-}
-
 export async function beginOAuth(db:Db,provider:OAuthProvider,ownerPersonId:string,req:IncomingMessage):Promise<{authorizationUrl:string;callbackUrl:string}>{
  const callbackUrl=oauthCallbackUrl(req),state=base64url(randomBytes(32)),verifier=base64url(randomBytes(48));
  const verifierEnc=encryptSecret(verifier);
  if(!verifierEnc)throw new Error("Falta INTEGRACAO_VAULT_KEY valida para proteger o login");
- const clientId=await registerMetaClient(callbackUrl);
+ const clientId=process.env.META_MCP_CLIENT_ID?.trim();
+ if(!clientId)throw new Error("Falta META_MCP_CLIENT_ID: crie um app no Meta for Developers e configure o ID do app no servidor");
  await db.from("maia_oauth_states").delete().lt("expires_at",new Date().toISOString());
  const stored=await db.from("maia_oauth_states").insert({state_hash:sha256(state),provider,verifier_enc:verifierEnc,redirect_uri:callbackUrl,client_id:clientId,owner_person_id:ownerPersonId});
  if(stored.error)throw new Error("Nao consegui guardar o estado seguro do login");

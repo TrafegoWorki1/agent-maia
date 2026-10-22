@@ -8,7 +8,7 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 - **Problema:** Gmail, Agenda e Meta Ads existiam como conectores da conta Claude.ai e desapareciam quando o roteador passava a conversa ao Codex.
 - **Google:** ferramentas REST próprias para Gmail e Agenda foram adicionadas aos dois executores, reutilizando o OAuth existente do Drive/Sheets. A forma atual de conectar e coletar Google permanece igual; a mudança serve à contingência do Codex.
-- **Meta Ads:** a integração direta por token manual foi substituída pelo MCP oficial da Meta. O owner inicia OAuth no painel, com PKCE e estado de uso único; a sessão é criptografada no cofre. As ferramentas locais estáveis chamam o MCP e estão limitadas a leitura nesta primeira etapa.
+- **Meta Ads:** a integração direta por token manual foi substituída pelo MCP oficial da Meta. O endpoint recusou cadastro OAuth dinâmico para a Maia; o fluxo agora usa `META_MCP_CLIENT_ID` de um app do Meta for Developers e callback cadastrado no app. O owner inicia OAuth no painel, com PKCE e estado de uso único; a sessão é criptografada no cofre. As ferramentas locais estáveis chamam o MCP e estão limitadas a leitura nesta primeira etapa.
 - **Custo e continuidade:** a coleta Meta tenta o MCP sem modelo e conserva o conector Claude como contingência durante a validação. O botão **Testar MCP** confirma a conexão por tools/list.
 - **Banco/regras:** catálogo 2026-10-22.4; migration da regra Meta e migration 20261022100534_oauth_connection_states.sql. Nada foi aplicado ao banco remoto neste trabalho.
 - **Pendente:** testar o login real em HTTPS e conferir os esquemas devolvidos pelo MCP antes de habilitar qualquer escrita.
