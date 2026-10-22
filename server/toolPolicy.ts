@@ -26,6 +26,8 @@ export const MAIA_TOOL_NAMES = new Set([
   "sheets_info", "sheets_ler", "sheets_escrever", "sheets_criar", "sheets_adicionar_aba", "sheets_inserir_coluna",
   "sheets_apagar_coluna", "sheets_apagar_aba",
   "agenda_calendarios", "agenda_disponibilidade", "agenda_criar_evento",
+  "email_nao_lidos", "email_buscar", "email_enviar", "email_responder",
+  "meta_ads_contas", "meta_ads_campanhas", "meta_ads_insights",
 ]);
 
 const CONNECTOR_FAMILY = /^mcp__claude_ai_(Gmail|Meta_ADS|Google_Drive|Google_Calendar|instamany)__/;

@@ -4,6 +4,16 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 22/10/2026 — contingência Google e Meta Ads pelo MCP oficial
+
+- **Google no fallback:** Gmail e Google Agenda ganharam ferramentas próprias do servidor, registradas para Claude e Codex. Elas reutilizam o mesmo OAuth já usado pelo Drive/Sheets; o modo de conexão e o coletor atual do Google não foram alterados.
+- **Meta Ads:** as três ferramentas de leitura agora passam pelo MCP oficial. O owner conecta pelo painel em **Sistema > Conexões > Entrar com Facebook**; não copia token e não precisa criar aplicativo Meta quando o cadastro dinâmico do MCP é aceito.
+- **Segurança:** OAuth com PKCE, estado de uso único e expiração de 10 minutos. A sessão Meta fica criptografada com INTEGRACAO_VAULT_KEY; navegador e modelo nunca recebem o token. O painel permite testar tools/list e desconectar.
+- **Custo:** quando conectado, a coleta Meta tenta o MCP diretamente, sem executar modelo. Enquanto o teste ao vivo não for concluído, o conector Meta da conta Claude permanece como contingência.
+- **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.
+- **Banco/regras:** catálogo 2026-10-22.4, migration da regra Meta atualizada e nova migration 20261022100534_oauth_connection_states.sql para o estado efêmero do login.
+- **Pendente para teste real:** publicar a migration, abrir o painel em uma URL HTTPS e concluir o login do Facebook; depois clicar em **Testar MCP**. O Google ainda exige reautorizar o refresh token existente com calendar, gmail.readonly e gmail.send.
+
 ## 22/10/2026 — agenda nativa: Google Calendar também funciona sob o Codex
 
 - **O que mudou:** `server/integrations/googleCalendarNative.ts` + `server/calendarTools.ts` (ferramentas `agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores (`maiaImageTool.ts` e `codexMaiaMcp.ts`), no mesmo molde de `sheetsTools`. Usa o mesmo token OAuth do Drive/Sheets (`GOOGLE_OAUTH_REFRESH_TOKEN`), com o escopo `calendar` ampliado nele. Nunca aceita o texto do modelo como prova de evento criado: exige ID, início/fim válidos e link do domínio do Google, igual ao `missionCalendar.ts`.

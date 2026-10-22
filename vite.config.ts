@@ -14,6 +14,7 @@ import nucleusHandler from "./api/nucleus.ts";
 import collaborationHandler from "./api/collaboration.ts";
 import panelCollaborationHandler from "./api/panel-collaboration.ts";
 import panelOperationsHandler from "./api/panel-operations.ts";
+import integrationConnectionsHandler from "./api/integration-connections.ts";
 
 // Só o próprio computador lê o painel: o painel mostra dados pessoais de contas reais.
 function isLocalRequest(host: string | undefined): boolean {
@@ -44,6 +45,7 @@ function maiaAgentApi(): Plugin {
       server.middlewares.use("/api/collaboration",(req,res)=>{void collaborationHandler(req,res);});
       server.middlewares.use("/api/panel-collaboration",(req,res)=>{void panelCollaborationHandler(req,res);});
       server.middlewares.use("/api/panel-operations",(req,res)=>{void panelOperationsHandler(req,res);});
+      server.middlewares.use("/api/integration-connections",(req,res)=>{void integrationConnectionsHandler(req,res);});
       // Tarefas da conversa do painel que estavam em andamento antes deste processo: viram "incerta".
       void recoverStaleTasks(db, "painel").catch((error) => console.error("[painel] recuperação de tarefas:", error instanceof Error ? error.message : error));
       // Atualização periódica das fontes (Gmail, Meta Ads, Sheets), só neste processo local.

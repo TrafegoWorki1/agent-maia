@@ -1,4 +1,5 @@
 import {getAccessToken} from "./integrations/googleDrive.ts";
+import {listMcpAdAccounts} from "./integrations/metaAdsMcpAdapter.ts";
 import {saveSnapshot,type Db,type SourceId} from "./store.ts";
 import {collectConfiguredSources} from "./panelSources.ts";
 import {runClaudeSimple} from "./ai/providers/claudeSimple.ts";
@@ -27,11 +28,25 @@ async function collectViaClaude(source:Exclude<SourceId,"sheets">):Promise<unkno
  if(typeof parsed.error==="string")throw new Error(parsed.error);
  return validate(parsed);
 }
+function metaAccountRows(raw:unknown):Array<{name:string;spend_7d:null;currency:string|null}>{
+ const visit=(value:unknown):Record<string,unknown>[]=>{
+  if(Array.isArray(value))return value.flatMap(visit);
+  if(!value||typeof value!=="object")return [];
+  const item=value as Record<string,unknown>;
+  if(typeof item.name==="string"&&(item.id!==undefined||item.account_id!==undefined))return [item];
+  if(typeof item.text==="string")try{return visit(JSON.parse(item.text));}catch{return [];}
+  return ["accounts","ad_accounts","data","content","results"].flatMap(key=>visit(item[key]));
+ };
+ const seen=new Set<string>();return visit(raw).flatMap(item=>{const name=String(item.name??"").trim(),id=String(item.id??item.account_id??name);if(!name||seen.has(id))return [];seen.add(id);return [{name,spend_7d:null,currency:typeof item.currency==="string"?item.currency:null}];});
+}
 export async function collectSourceHealth(db:Db,source:SourceId){
  const attempt=new Date().toISOString();let data:unknown,error:string|null=null;
  try{
   if(source==="sheets"){const r=await googleGet("drive/v3/files?q="+encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false")+"&pageSize=5&orderBy=modifiedTime%20desc&fields=files(name,modifiedTime)");data={sheets:(r.files??[]).map((v:any)=>({name:v.name,modified_at:v.modifiedTime}))};}
-  else data=await collectViaClaude(source);
+  else if(source==="meta"){
+   try{data={accounts:metaAccountRows(await listMcpAdAccounts(db))};}
+   catch{data=await collectViaClaude("meta");}
+  }else data=await collectViaClaude(source);
  }catch(e){error=e instanceof Error?e.message:"Falha ao ler fonte";}
  const result=await db.from("panel_source_health").upsert({source,last_attempt_at:attempt,...(error===null?{last_success_at:new Date().toISOString()}:{}),error},{onConflict:"source"});
  if(result.error)throw new Error(result.error.message);

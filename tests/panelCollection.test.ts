@@ -6,6 +6,13 @@ vi.mock("../server/ai/providers/claudeSimple.ts", () => ({ runClaudeSimple: clau
 const drive = vi.hoisted(() => ({ getAccessToken: vi.fn().mockResolvedValue("token") }));
 vi.mock("../server/integrations/googleDrive.ts", () => ({ getAccessToken: drive.getAccessToken }));
 
+const calendar=vi.hoisted(()=>({listCalendars:vi.fn().mockResolvedValue([{id:"primary",name:"Principal",primary:true}])}));
+vi.mock("../server/integrations/googleCalendarNative.ts",()=>({listCalendars:calendar.listCalendars}));
+const gmail=vi.hoisted(()=>({unreadCount:vi.fn().mockResolvedValue(3),searchMessages:vi.fn().mockResolvedValue([{id:"m1"}])}));
+vi.mock("../server/integrations/gmailNative.ts",()=>({unreadCount:gmail.unreadCount,searchMessages:gmail.searchMessages}));
+const meta=vi.hoisted(()=>({listMcpAdAccounts:vi.fn().mockRejectedValue(new Error("MCP ainda não conectado"))}));
+vi.mock("../server/integrations/metaAdsMcpAdapter.ts",()=>({listMcpAdAccounts:meta.listMcpAdAccounts}));
+
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 

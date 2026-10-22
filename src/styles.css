@@ -513,6 +513,17 @@ tr:last-child td { border-bottom: 0; }
 .connector-off i { width: 5px; height: 5px; background: #9a968c; box-shadow: none; }
 .connector-note { display: flex; align-items: flex-start; gap: 6px; margin: 12px 0 0; color: #8c877d; font-size: 10px; line-height: 1.5; }
 .connector-note svg { flex: 0 0 auto; color: #9a7940; }
+.oauth-connection-card { display:flex; align-items:center; gap:14px; padding:16px; border:1px solid #e8e4da; border-radius:12px; background:linear-gradient(135deg,#fff 0%,#fbfaf6 100%); }
+.oauth-connection-icon { display:grid; width:44px; height:44px; flex:0 0 44px; place-items:center; color:#766f63; border-radius:12px; background:#efede7; }
+.oauth-connection-icon-on { color:#287052; background:#e5f3eb; }
+.oauth-connection-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:3px; }
+.oauth-connection-copy strong { color:#37342e; font-size:13px; }
+.oauth-connection-copy span { color:#68645b; font-size:11px; line-height:1.45; }
+.oauth-connection-copy small { color:#989287; font-size:10px; }
+.oauth-connection-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.oauth-connection-actions .button { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.spin { animation:oauth-spin .8s linear infinite; }
+@keyframes oauth-spin { to { transform:rotate(360deg); } }
 .ops-footer { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 2px 20px; color: #99958a; font-size: 10px; }
 .ops-footer span { display: inline-flex; align-items: center; gap: 5px; }
 .ops-footer svg { color: #66886c; }

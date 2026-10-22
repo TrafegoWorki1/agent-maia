@@ -97,9 +97,11 @@ export function neededPermission(toolName: string, readOnly: boolean, input:Reco
     if (toolName.startsWith("mcp__claude_ai_Google_Drive__")) return "sheets.ler";
     if (toolName.startsWith("mcp__claude_ai_Google_Calendar__")) return "agenda.ler";
     if (/^mcp__maia__agenda_(calendarios|disponibilidade)$/.test(toolName)) return "agenda.ler";
+    if (/^mcp__maia__email_(nao_lidos|buscar)$/.test(toolName)) return "gmail.ler";
+    if (/^mcp__maia__meta_ads_(contas|campanhas|insights)$/.test(toolName)) return "meta.ler";
     return null;
   }
-  if (/^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_gerenciar_participantes|grupo_enviar_convite|grupo_alterar_foto|contato_enviar_mensagem)$/.test(toolName) || /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/.test(toolName)) return "mensagem.enviar";
+  if (/^mcp__maia__(grupo_enviar_texto|grupo_enviar_enquete|grupo_agendar|grupo_gerenciar_participantes|grupo_enviar_convite|grupo_alterar_foto|contato_enviar_mensagem|email_enviar|email_responder)$/.test(toolName) || /^mcp__claude_ai_Gmail__(send_message|reply|forward)$/.test(toolName)) return "mensagem.enviar";
   return "escrita.pedir";
 }
 
@@ -128,6 +130,8 @@ function readPermission(toolName: string): string | null {
   if (toolName.startsWith("mcp__claude_ai_Google_Drive__")) return "sheets.ler";
   if (toolName.startsWith("mcp__claude_ai_Google_Calendar__")) return "agenda.ler";
   if (/^mcp__maia__agenda_(calendarios|disponibilidade)$/.test(toolName)) return "agenda.ler";
+  if (/^mcp__maia__email_(nao_lidos|buscar)$/.test(toolName)) return "gmail.ler";
+  if (/^mcp__maia__meta_ads_(contas|campanhas|insights)$/.test(toolName)) return "meta.ler";
   return null;
 }
 

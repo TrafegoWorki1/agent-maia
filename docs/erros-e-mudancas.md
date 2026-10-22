@@ -4,12 +4,21 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-22 — contingência Google e Meta Ads pelo MCP oficial
+
+- **Problema:** Gmail, Agenda e Meta Ads existiam como conectores da conta Claude.ai e desapareciam quando o roteador passava a conversa ao Codex.
+- **Google:** ferramentas REST próprias para Gmail e Agenda foram adicionadas aos dois executores, reutilizando o OAuth existente do Drive/Sheets. A forma atual de conectar e coletar Google permanece igual; a mudança serve à contingência do Codex.
+- **Meta Ads:** a integração direta por token manual foi substituída pelo MCP oficial da Meta. O owner inicia OAuth no painel, com PKCE e estado de uso único; a sessão é criptografada no cofre. As ferramentas locais estáveis chamam o MCP e estão limitadas a leitura nesta primeira etapa.
+- **Custo e continuidade:** a coleta Meta tenta o MCP sem modelo e conserva o conector Claude como contingência durante a validação. O botão **Testar MCP** confirma a conexão por tools/list.
+- **Banco/regras:** catálogo 2026-10-22.4; migration da regra Meta e migration 20261022100534_oauth_connection_states.sql. Nada foi aplicado ao banco remoto neste trabalho.
+- **Pendente:** testar o login real em HTTPS e conferir os esquemas devolvidos pelo MCP antes de habilitar qualquer escrita.
+
 ## 2026-10-22 — agenda nativa (Google Calendar) para funcionar também sob o Codex
 
 - **Causa/motivação:** o roteador Claude↔Codex (`server/ai/router.ts`) já cai pro Codex quando o Claude está indisponível, mas Meta Ads, Gmail e Google Calendar continuavam amarrados ao conector `mcp__claude_ai_*`, que só existe na sessão do Claude; sob o Codex essas três capacidades desapareciam. Zernio (Instagram/LinkedIn) e Google Drive/Sheets já resolviam isso com integração própria do servidor.
 - **Correção:** `server/integrations/googleCalendarNative.ts` (REST direto na Calendar API v3, reusa o OAuth do Drive) + `server/calendarTools.ts` (`agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores. Validação de evidência bruta (ID, início/fim, link do Google) antes de confirmar qualquer criação de evento, igual ao `missionCalendar.ts`. Regra nova `agenda` no catálogo (não existia nenhuma antes — mesmo buraco do incidente do Meta Ads), migração `20261022092312_agenda_native_rule.sql`.
 - **Verificações:** `pnpm typecheck`, `pnpm test` (791 testes, incluindo `tests/googleCalendarNative.test.ts`), `pnpm build`, `pnpm db:validate` (69 migrações) passaram.
-- **Pendência:** migração ainda não aplicada em produção (`db push` pendente de autorização) e `GOOGLE_OAUTH_REFRESH_TOKEN` real ainda só tem o escopo `drive` — precisa ser reautorizado com `calendar` (e, na mesma leva, `gmail.readonly`/`gmail.send`) antes de funcionar com dados reais. Gmail e Meta Ads nativos ficam para as próximas fases do mesmo plano.
+- **Pendência:** migrações ainda não aplicadas em produção e o `GOOGLE_OAUTH_REFRESH_TOKEN` real ainda precisa dos escopos `calendar`, `gmail.readonly` e `gmail.send`. As fases nativas de Gmail e Meta Ads foram concluídas na entrada acima.
 
 ## 2026-10-21 — lições registradas (por que a Maia negava o Meta Ads)
 

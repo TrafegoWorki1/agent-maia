@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {Cable, CheckCircle2, ExternalLink, LoaderCircle, Unplug} from "lucide-react";
 import { PageHeader, Panel, StatusPill } from "../../components/ui";
 import { formatWhen, requestRefresh } from "../../lib/snapshotApi";
 import { useSnapshot } from "../../lib/useSnapshot";
+import {disconnectMeta,fetchIntegrationConnections,startMetaConnection,testMetaConnection,type IntegrationConnections} from "../../lib/integrationConnectionsApi";
 
 const SOURCE_LABELS = { gmail: "Gmail", meta: "Meta Ads", sheets: "Google Sheets", calendar: "Google Agenda" } as const;
 
@@ -18,7 +20,37 @@ export function ConnectionsPage() {
   const { snapshot, error: loadError, reload: load } = useSnapshot();
   const [collecting,setCollecting]=useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [connections,setConnections]=useState<IntegrationConnections|null>(null);
+  const [connectionBusy,setConnectionBusy]=useState<"connect"|"disconnect"|"test"|null>(null);
   const refreshing = collecting || (snapshot?.refreshing ?? false);
+
+  async function loadConnections(){
+    try{setConnections(await fetchIntegrationConnections());}
+    catch(error){setNotice(error instanceof Error?error.message:"Falha ao consultar a conexão da Meta");}
+  }
+  useEffect(()=>{
+    void loadConnections();
+    const params=new URLSearchParams(window.location.search),oauth=params.get("oauth");
+    if(oauth){setNotice(oauth==="meta_ads"?"Meta Ads conectado. Use “Testar MCP” para confirmar as ferramentas disponíveis.":`A Meta não concluiu o login${params.get("detail")?`: ${params.get("detail")}`:""}.`);window.history.replaceState(null,"",window.location.pathname+window.location.hash);}
+  },[]);
+
+  async function connectMeta(){
+    setConnectionBusy("connect");setNotice(null);
+    try{window.location.assign(await startMetaConnection());}
+    catch(error){setNotice(error instanceof Error?error.message:"Falha ao iniciar o login da Meta");setConnectionBusy(null);}
+  }
+  async function removeMeta(){
+    setConnectionBusy("disconnect");setNotice(null);
+    try{await disconnectMeta();await loadConnections();setNotice("Conexão do Meta Ads removida deste servidor.");}
+    catch(error){setNotice(error instanceof Error?error.message:"Falha ao remover a conexão");}
+    finally{setConnectionBusy(null);}
+  }
+  async function testMeta(){
+    setConnectionBusy("test");setNotice(null);
+    try{const result=await testMetaConnection();setNotice(`MCP da Meta respondeu com ${result.toolCount} ferramenta(s) disponível(is)${result.tools.length?`: ${result.tools.slice(0,6).join(", ")}`:""}.`);}
+    catch(error){setNotice(error instanceof Error?error.message:"O MCP da Meta não respondeu");}
+    finally{setConnectionBusy(null);}
+  }
 
   async function refreshNow() {
     if(refreshing)return;
@@ -40,6 +72,15 @@ export function ConnectionsPage() {
       <p className="empty-note">Coleta direta de leitura, sem executar a IA. O coletor independente consulta as fontes a cada 30 minutos quando ativo.</p>
       {loadError && <p role="alert" className="empty-note">Não foi possível atualizar o estado: {loadError}{snapshot ? " Exibindo a última leitura disponível." : ""}</p>}
       {notice && <p role="status" className="empty-note">{notice}</p>}
+      <Panel title="Meta Ads · MCP oficial" caption="Conecte a conta pelo Facebook. A Maia guarda a sessão criptografada; você não precisa copiar token nem criar um aplicativo da Meta.">
+        <div className="oauth-connection-card">
+          <span className={`oauth-connection-icon ${connections?.meta_ads.connected?"oauth-connection-icon-on":""}`} aria-hidden="true">{connections?.meta_ads.connected?<CheckCircle2 size={21}/>:<Cable size={21}/>}</span>
+          <div className="oauth-connection-copy"><strong>{connections?.meta_ads.connected?"Meta Ads conectado":"Meta Ads ainda não conectado"}</strong><span>{connections?.meta_ads.detail??"Consultando o estado da conexão…"}</span><small>Permissões iniciais: leitura de contas, campanhas e métricas.</small></div>
+          <div className="oauth-connection-actions">
+            {connections?.meta_ads.connected?<><button type="button" className="button button-outline" disabled={connectionBusy!==null} onClick={()=>void testMeta()}>{connectionBusy==="test"?<LoaderCircle className="spin" size={15}/>:<ExternalLink size={15}/>} Testar MCP</button><button type="button" className="button button-outline" disabled={connectionBusy!==null} onClick={()=>void removeMeta()}><Unplug size={15}/> Desconectar</button></>:<button type="button" className="button button-dark" disabled={connectionBusy!==null||connections===null} onClick={()=>void connectMeta()}>{connectionBusy==="connect"?<LoaderCircle className="spin" size={15}/>:<ExternalLink size={15}/>} Entrar com Facebook</button>}
+          </div>
+        </div>
+      </Panel>
       {!snapshot && !loadError && <p className="empty-note">Carregando conexões…</p>}
       {snapshot && <>
         <Panel title="Serviços da Maia" caption={`Estado consultado em ${formatWhen(snapshot.generatedAt)}. Uma execução bem-sucedida não confirma a entrega no WhatsApp.`}>
