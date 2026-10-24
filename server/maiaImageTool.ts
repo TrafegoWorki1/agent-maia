@@ -608,7 +608,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "integracao_propor",
-        "Registra uma integração nova como PENDENTE (só o dono). Nunca recebe nem guarda token: informe só o NOME da variável (INTEGRACAO_...) que o dono vai colocar no servidor. Não vale até o dono ativar.",
+        "Registra uma operação de API nova como PENDENTE (só o dono). Pesquise a documentação antes de propor. Nunca recebe token: informe só o NOME INTEGRACAO_...; o dono guarda o valor com cofre NOME | valor no privado. Não vale até o dono ativar.",
         {
           slug: z.string().min(3).max(41).describe("Identificador em minúsculas, números e _."),
           titulo: z.string().min(1).max(80),
@@ -618,7 +618,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           corpo: z.string().max(4000).optional().describe('Corpo como texto JSON, com marcadores {{parametro}}, ex.: {"number":"{{numero}}"}.'),
           auth: z.enum(["nenhum", "apikey_header", "bearer"]),
           cabecalho: z.string().max(40).optional().describe("Nome do cabeçalho quando auth = apikey_header."),
-          segredo: z.string().max(60).optional().describe("Nome da variável de ambiente (INTEGRACAO_...). Nunca o valor."),
+          segredo: z.string().max(60).optional().describe("Nome INTEGRACAO_... para o cofre. Nunca o valor do token."),
           risco: z.enum(["leitura", "interna", "externa"]),
         },
         async (args) => {

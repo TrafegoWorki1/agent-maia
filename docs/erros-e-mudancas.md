@@ -1157,3 +1157,9 @@ A tarefa com prazo já criava aviso automático, mas outro aviso manual podia se
 ## 22/10/2026 — timeout na geração de imagem criativa
 
 O trabalho criativo #5 levou o processo Codex ao limite de 240 segundos. O PNG foi salvo poucos segundos antes do timeout, mas o handler marcou o item como `uncertain` sem verificar o artefato local. Assim, não persistiu `artifact_path` e não chamou o envio da prévia. A correção em `server/imagegen.ts` valida assinatura e marcador final do arquivo após timeout; imagem completa segue para envio, imagem incompleta continua incerta e não é regenerada automaticamente. `server/creativeJobs.ts` registra o recibo de aceite das prévias. Passaram 812 testes de aplicação, 81 de banco, typecheck, build e CI; Vercel publicada. PR #49 integrado na `main` pelo commit `9b4c48b`; launcher reiniciado às 14:27 UTC e uma instância ativa confirmada. O #5 foi recuperado sem nova geração: a Evolution aceitou a prévia com ID `3EB0ADD15C4750C99C6E31`, o item ficou `ready_for_review`, o trabalho `review` e o recibo `accepted`; entrega e leitura não foram confirmadas.
+## 2026-10-24 — Maia recusava APIs novas apesar do catálogo
+
+- **Causa:** a regra `limites` dizia à Maia para declarar que não tinha a ferramenta quando o pedido não constava do catálogo, embora `integracao_propor`, `integracao_ativar` e o cofre já existissem.
+- **Correção:** a regra agora descreve pesquisa, proposta pendente por operação, guarda do token pelo proprietário no privado e ativação com OK. A descrição da ferramenta no Claude foi alinhada. A migração atualiza somente a regra `limites` e interrompe se o texto anterior não for o esperado.
+- **Limite:** a pesquisa usa WebSearch quando disponível; sem documentação suficiente, a Maia pede o link ou os trechos. O token nunca é enviado à ferramenta de proposta.
+

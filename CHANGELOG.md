@@ -4,6 +4,12 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 24/10/2026 — novas APIs solicitadas pelo proprietário
+
+- A regra `limites` agora orienta a Maia a consultar o catálogo, pesquisar a documentação disponível e propor operações de APIs novas como pendentes quando o proprietário pedir no privado.
+- O token continua fora da IA: o proprietário o guarda pelo comando `cofre NOME | valor` no privado. Ativar a operação exige OK; chamadas externas conservam a aprovação por uso.
+- Catálogo `2026-10-23.1` e migração `20261024003511_maia_api_autonomia_rule.sql`. A descrição da ferramenta do Claude foi alinhada ao fluxo do cofre. Se a busca não confirmar a API, a Maia pede a documentação necessária.
+
 ## 22/10/2026 — agendamento com menos perguntas
 
 - A Maia agora pode sugerir até três horários úteis usando a duração e o fuso configurados na Google Agenda, sem pedir esses dados de novo. A consulta tenta verificar também a agenda compartilhada do convidado quando há e-mail; se não houver acesso, informa que a disponibilidade dele é desconhecida.
