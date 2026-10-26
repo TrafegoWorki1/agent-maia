@@ -31,6 +31,9 @@ export function classifyError(input: unknown): ClassifiedError {
   // A ordem importa: erros de tarefa vêm antes dos de provedor.
   if (/error_max_budget|max.?budget/.test(t)) kind = "budget";
   else if (/error_max_turns|max.?turns/.test(t)) kind = "max_turns";
+  // O Claude Code pode estar explicitamente desativado pela organização enquanto o Codex continua disponível.
+  // Isso é indisponibilidade deste provedor, não uma permissão da Maia nem uma falha de autenticação das ferramentas.
+  else if (/organization has disabled claude subscription access for claude code/.test(t)) kind = "unavailable";
   else if (/unauthorized|\b401\b|not logged in|invalid api key|login required|authentication/.test(t)) kind = "auth";
   else if (/\b403\b|permission denied|not allowed|recusad|sem aprovação/.test(t)) kind = "permission";
   else if (/tool.*not found|unknown tool|no such tool/.test(t)) kind = "tool_missing";
