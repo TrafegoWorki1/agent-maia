@@ -4,6 +4,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 26/10/2026 — WappTrack (CRM/automação de WhatsApp) ligado à Maia
+
+- Novo MCP próprio do WappTrack (empresa autenticada pelo token, motor Disparom): `server/integrations/wapptrack.ts` (cliente JSON-RPC via fetch, sem initialize/sessão, confirmado contra o servidor real) e `server/wapptrackTools.ts` (ferramentas `wapptrack_consultar`, só leitura, e `wapptrack_editar`, escrita), registradas nos dois executores (`maiaImageTool.ts` e `codexMaiaMcp.ts`).
+- `WAPPTRACK_MCP_URL` e `WAPPTRACK_MCP_TOKEN` no `.env` do servidor. Decisão do owner (26/10/2026): leitura e escrita liberadas; a escrita sempre pede OK do owner (inclusive dele mesmo), por agir fora da Maia de verdade (`approvalPolicy.ts`). Leitura: owner livre; membro precisa de `wapptrack.ler`, sem ela pede aprovação pontual (`access.ts`, `memberAccessTools.ts`).
+- Regra de capacidade nova no catálogo (`config/maia-rules.json`, versão `2026-10-26.1`, 50 regras) e migrações `20261026230418_wapptrack_permission.sql` (permissão `wapptrack.ler`) e `20261026230419_wapptrack_rule.sql` (regra `wapptrack`), ainda não aplicadas em produção.
+- Typecheck, build, `db:validate` e `db:guard` passaram; `pnpm test` com 808/815 (os 7 restantes são falhas pré-existentes e não relacionadas: datas fixas vencidas em `googleCalendarNative.test.ts` e descompasso anterior entre uma migração não commitada e a regra `limites` em `webSearch.test.ts`).
+- Pendente: aplicar as duas migrações em produção com autorização do owner, `rules:verify`, `knowledge:sync`, reiniciar o worker e testar uma consulta e uma escrita reais pelo WhatsApp.
+
 ## 22/10/2026 — Google OAuth atualizado para o cliente próprio
 
 - As credenciais do cliente OAuth do projeto `Zap Agente AI` foram instaladas no `.env` local e reautorizadas com `drive`, `calendar`, `gmail.readonly` e `gmail.send`. Segredos e tokens não foram adicionados ao Git.

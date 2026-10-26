@@ -25,6 +25,8 @@ Inventário operacional do código. A decisão efetiva fica em `server/access.ts
 | `mcp__maia__email_nao_lidos`, `email_buscar` | read | high | `gmail.ler` | no | if capability is absent | mailbox do owner | Claude/Codex |
 | `mcp__maia__email_enviar`, `email_responder` | write | high | `mensagem.enviar` | no | yes, inclusive owner | destinatários/thread informados | Claude/Codex |
 | `mcp__maia__meta_ads_contas`, `meta_ads_campanhas`, `meta_ads_insights` | read | high | `meta.ler` | no | if capability is absent | conta de anúncios | Claude/Codex |
+| `mcp__maia__wapptrack_consultar` | read | high | `wapptrack.ler` | no | if capability is absent | WappTrack (empresa autenticada pelo token) | Claude/Codex |
+| `mcp__maia__wapptrack_editar` | write | high | none (approval is the gate) | no | yes, inclusive owner | WappTrack (empresa autenticada pelo token) | Claude/Codex |
 | `mcp__maia__site_subir_github` | write | high | `site.publicar` (membro) | no | yes, inclusive owner | repositório informado (privado ou público) | privado; negado em grupo |
 | `mcp__maia__site_publicar_vercel` | write | high | `site.publicar` (membro) | no | no (deploy automático) | repositório informado, só se o HTML não vier no pedido | privado; negado em grupo |
 | `mcp__maia__buscar_conhecimento`, `contato_buscar`, `artes_recentes` | read | low | explicit internal read | no | no | requester context | Claude/Codex |

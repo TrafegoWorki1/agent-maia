@@ -4,6 +4,13 @@ Mensagens contactMessage e contactsArrayMessage eram ignoradas. A triagem extrai
 
 # Erros e mudanças — resumo do projeto
 
+## 2026-10-26 — WappTrack ligado à Maia (CRM/automação de WhatsApp)
+
+- **Causa/pedido:** o owner pediu para ligar o MCP do WappTrack (empresa autenticada por bearer token, motor Disparom) com leitura e escrita, e os valores em variável de ambiente. O primeiro token colado estava revogado/errado (o próprio servidor recusou com HTTP 401 "Token inválido ou ausente"); um segundo token funcionou e devolveu a conta certa ("Worki Digital").
+- **Correção:** `server/integrations/wapptrack.ts` (cliente JSON-RPC via fetch, protocolo stateless confirmado contra o servidor real) e `server/wapptrackTools.ts` (ferramentas `wapptrack_consultar` só leitura e `wapptrack_editar` escrita), ligadas nos dois executores (Claude e Codex), com permissão `wapptrack.ler` para leitura por membro e aprovação pontual obrigatória em toda escrita, mesmo para o owner. Regra de capacidade nova no catálogo (lição de 21/10/2026: conector sem regra leva a Maia a negar a própria ferramenta).
+- **Verificação:** typecheck, build, `db:validate` e `db:guard` passaram; `pnpm test` 808/815 (os 7 restantes já falhavam antes desta mudança, por datas fixas vencidas em `googleCalendarNative.test.ts` e um descompasso anterior entre uma migração não commitada e a regra `limites`, sem relação com o WappTrack).
+- **Limite/pendência:** as migrações `20261026230418_wapptrack_permission.sql` e `20261026230419_wapptrack_rule.sql` ainda não foram aplicadas em produção; faltam `rules:verify`, `knowledge:sync`, reinício do worker e um teste real de leitura e de escrita pelo WhatsApp.
+
 ## 2026-10-22 — OAuth Google recusava Calendar/Gmail no cliente novo
 
 - **Causas:** o token antigo tinha apenas `drive`; o cliente novo pertence ao projeto `Zap Agente AI`, que ainda não tinha Calendar, Drive, Sheets e Gmail APIs habilitadas. O consentimento também exigia incluir a conta do owner como testadora no público desse projeto.
