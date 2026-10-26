@@ -28,6 +28,7 @@ import { sheetsTools } from "./sheetsTools.ts";
 import { calendarTools } from "./calendarTools.ts";
 import { gmailTools } from "./gmailTools.ts";
 import { metaAdsTools } from "./metaAdsTools.ts";
+import { wapptrackTools } from "./wapptrackTools.ts";
 import { memberAccessTools, runMemberAccessTool } from "./memberAccessTools.ts";
 import { resolveRequester } from "./access.ts";
 import { addTaskEvent, getDb, recordMessage } from "./store.ts";
@@ -120,6 +121,13 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ...metaAdsTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try { return { content: [{ type: "text" as const, text: JSON.stringify(await t.run(getDb(), args)) }] }; }
         catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no Meta Ads." }], isError: true }; }
+      })),
+      ...wapptrackTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
+        try {
+          const text = String(await t.run(getDb(), args));
+          if (taskId) await addTaskEvent(getDb(), taskId, "integration_called", `wapptrack:${(args as { ferramenta?: string }).ferramenta ?? ""}`, text.slice(0, 200)).catch(() => {});
+          return { content: [{ type: "text" as const, text }] };
+        } catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : "Falha no WappTrack." }], isError: true }; }
       })),
       ...memberAccessTools.map((t) => tool(t.name, t.description, t.schema.shape, async (args) => {
         try {
@@ -608,7 +616,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
       ),
       tool(
         "integracao_propor",
-        "Registra uma integração nova como PENDENTE (só o dono). Nunca recebe nem guarda token: informe só o NOME da variável (INTEGRACAO_...) que o dono vai colocar no servidor. Não vale até o dono ativar.",
+        "Registra uma operação de API nova como PENDENTE (só o dono). Pesquise a documentação antes de propor. Nunca recebe token: informe só o NOME INTEGRACAO_...; o dono guarda o valor com cofre NOME | valor no privado. Não vale até o dono ativar.",
         {
           slug: z.string().min(3).max(41).describe("Identificador em minúsculas, números e _."),
           titulo: z.string().min(1).max(80),
@@ -618,7 +626,7 @@ export function createImageServer(channel: "whatsapp" | "painel", taskId?: numbe
           corpo: z.string().max(4000).optional().describe('Corpo como texto JSON, com marcadores {{parametro}}, ex.: {"number":"{{numero}}"}.'),
           auth: z.enum(["nenhum", "apikey_header", "bearer"]),
           cabecalho: z.string().max(40).optional().describe("Nome do cabeçalho quando auth = apikey_header."),
-          segredo: z.string().max(60).optional().describe("Nome da variável de ambiente (INTEGRACAO_...). Nunca o valor."),
+          segredo: z.string().max(60).optional().describe("Nome INTEGRACAO_... para o cofre. Nunca o valor do token."),
           risco: z.enum(["leitura", "interna", "externa"]),
         },
         async (args) => {

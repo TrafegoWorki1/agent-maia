@@ -4,13 +4,27 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 
 # Changelog
 
+## 26/10/2026 — WappTrack (CRM/automação de WhatsApp) ligado à Maia
+
+- Novo MCP próprio do WappTrack (empresa autenticada pelo token, motor Disparom): `server/integrations/wapptrack.ts` (cliente JSON-RPC via fetch, sem initialize/sessão, confirmado contra o servidor real) e `server/wapptrackTools.ts` (ferramentas `wapptrack_consultar`, só leitura, e `wapptrack_editar`, escrita), registradas nos dois executores (`maiaImageTool.ts` e `codexMaiaMcp.ts`).
+- `WAPPTRACK_MCP_URL` e `WAPPTRACK_MCP_TOKEN` no `.env` do servidor. Decisão do owner (26/10/2026): leitura e escrita liberadas; a escrita sempre pede OK do owner (inclusive dele mesmo), por agir fora da Maia de verdade (`approvalPolicy.ts`). Leitura: owner livre; membro precisa de `wapptrack.ler`, sem ela pede aprovação pontual (`access.ts`, `memberAccessTools.ts`).
+- Regra de capacidade nova no catálogo (`config/maia-rules.json`, versão `2026-10-26.1`, 50 regras) e migrações `20261026230418_wapptrack_permission.sql` (permissão `wapptrack.ler`) e `20261026230419_wapptrack_rule.sql` (regra `wapptrack`), ainda não aplicadas em produção.
+- Typecheck, build, `db:validate` e `db:guard` passaram; `pnpm test` com 808/815 (os 7 restantes são falhas pré-existentes e não relacionadas: datas fixas vencidas em `googleCalendarNative.test.ts` e descompasso anterior entre uma migração não commitada e a regra `limites` em `webSearch.test.ts`).
+- Pendente: aplicar as duas migrações em produção com autorização do owner, `rules:verify`, `knowledge:sync`, reiniciar o worker e testar uma consulta e uma escrita reais pelo WhatsApp.
+
+## 22/10/2026 — Google OAuth atualizado para o cliente próprio
+
+- As credenciais do cliente OAuth do projeto `Zap Agente AI` foram instaladas no `.env` local e reautorizadas com `drive`, `calendar`, `gmail.readonly` e `gmail.send`. Segredos e tokens não foram adicionados ao Git.
+- APIs Calendar, Drive, Sheets e Gmail habilitadas nesse projeto. Leituras reais passaram: Calendar (um calendário principal; fuso `America/Fortaleza`; duração padrão de 45 min), Gmail, Drive (HTTP 200) e probe da Sheets API (HTTP 404 esperado para ID sintético, sem erro de API desabilitada).
+- O worker local foi reiniciado para carregar as credenciais. Nenhum evento foi criado e nenhum e-mail foi enviado. Variáveis de ambientes externos não foram alteradas.
+
 ## 22/10/2026 — agendamento com menos perguntas
 
 - A Maia agora pode sugerir até três horários úteis usando a duração e o fuso configurados na Google Agenda, sem pedir esses dados de novo. A consulta tenta verificar também a agenda compartilhada do convidado quando há e-mail; se não houver acesso, informa que a disponibilidade dele é desconhecida.
 - Reuniões criadas pela ferramenta nativa usam Google Meet por padrão e enviam o convite aos participantes. A regra orienta buscar o e-mail nos contatos e fazer uma única pergunta objetiva apenas se ele não puder ser identificado. O OK do owner para criar o evento continua obrigatório.
 - Catálogo de regras `2026-10-22.6`, migration `20261022150000_agenda_smart_scheduling_rule.sql` e testes da preferência, seleção de horários e envio de convites.
 - Migration aplicada ao Supabase vinculado; `rules:verify` confirmou as 49 regras alinhadas e `knowledge:sync` atualizou um documento. Typecheck, 815 testes de aplicação, 81 testes de banco, build, `db:validate`, `db:guard` e `rules:check` passaram.
-- `db:drift` confirmou 2.154 objetos iguais entre migrações e banco real. A leitura ao vivo da Google Agenda retornou recusa de autenticação (401/403); o refresh token existente ainda precisa do escopo `calendar` antes do teste real de agendamento.
+- `db:drift` confirmou 2.154 objetos iguais entre migrações e banco real. A leitura ao vivo inicialmente retornou 401/403 por escopos ausentes; a autorização e o teste de leitura foram concluídos depois, conforme a entrada “Google OAuth atualizado” acima.
 - PR #51 integrado à `main` em `165aaea` após CI e preview da Vercel aprovados. O único worker local foi reiniciado pelo launcher às 15:17 UTC e voltou a aguardar a fila com o código novo; nenhuma reunião real foi criada no teste.
 
 ## 22/10/2026 — arte pronta descartada por timeout
@@ -36,14 +50,14 @@ A triagem extrai nome e telefones de cartões vCard individuais ou múltiplos, e
 - **Escopo inicial:** Meta Ads é somente leitura. Criar, ativar, pausar ou excluir anúncios não foi exposto nesta etapa.
 - **Banco/regras:** catálogo 2026-10-22.4, migration da regra Meta atualizada e nova migration 20261022100534_oauth_connection_states.sql para o estado efêmero do login.
 - **Ledger corrigido:** restaurada a migration 20261021211144 que ja estava no Supabase e criada a compensatoria 20261022104612 para remover somente a regra orfa autonomia_delegada; as tabelas e o historico sao preservados.
-- **Pendente para teste real:** publicar a migration, abrir o painel em uma URL HTTPS e concluir o login do Facebook; depois clicar em **Testar MCP**. O Google ainda exige reautorizar o refresh token existente com calendar, gmail.readonly e gmail.send.
+- **Pendente para teste real:** publicar a migration, abrir o painel em uma URL HTTPS e concluir o login do Facebook; depois clicar em **Testar MCP**. A pendência de escopos Google foi resolvida depois; veja a entrada “Google OAuth atualizado” acima.
 
 ## 22/10/2026 — agenda nativa: Google Calendar também funciona sob o Codex
 
 - **O que mudou:** `server/integrations/googleCalendarNative.ts` + `server/calendarTools.ts` (ferramentas `agenda_calendarios`, `agenda_disponibilidade`, `agenda_criar_evento`), registradas nos dois executores (`maiaImageTool.ts` e `codexMaiaMcp.ts`), no mesmo molde de `sheetsTools`. Usa o mesmo token OAuth do Drive/Sheets (`GOOGLE_OAUTH_REFRESH_TOKEN`), com o escopo `calendar` ampliado nele. Nunca aceita o texto do modelo como prova de evento criado: exige ID, início/fim válidos e link do domínio do Google, igual ao `missionCalendar.ts`.
 - **Por quê:** o conector `mcp__claude_ai_Google_Calendar__*` só existe dentro da sessão do Claude; quando o Claude cai e o roteador (`server/ai/router.ts`) passa a conversa pro Codex, a Agenda ficava indisponível. Zernio e Google Drive/Sheets já tinham o mesmo problema resolvido com integração própria; esta migração aplica o mesmo padrão à Agenda.
 - **Regra nova:** `agenda` no catálogo (`config/maia-rules.json`, migração `20261022092312_agenda_native_rule.sql`) — não existia regra nenhuma para Calendar antes, o mesmo buraco que causou o incidente do Meta Ads em 21/10.
-- **Pendência:** o `GOOGLE_OAUTH_REFRESH_TOKEN` em produção ainda só tem o escopo `drive`; precisa ser reautorizado com `calendar` (e, na mesma reautorização, `gmail.readonly`/`gmail.send` para a próxima fase) antes de funcionar com dados reais. Até lá, as chamadas reais falham com 401/403; código e testes (mockados) já sobem funcionando.
+- **Situação inicial:** o `GOOGLE_OAUTH_REFRESH_TOKEN` tinha apenas o escopo `drive`, então as chamadas nativas falhavam com 401/403. A autorização foi concluída e verificada depois no ambiente local; veja a entrada “Google OAuth atualizado” acima. Outros ambientes não foram alterados.
 - **Verificações:** `pnpm typecheck`, `pnpm test` (791 testes), `pnpm build` e `pnpm db:validate` (69 migrações) passaram.
 
 ## 21/10/2026 — lições registradas no CLAUDE.md para o erro não se repetir

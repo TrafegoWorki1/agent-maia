@@ -28,6 +28,7 @@ export const MAIA_TOOL_NAMES = new Set([
   "agenda_calendarios", "agenda_disponibilidade", "agenda_sugerir_horarios", "agenda_criar_evento",
   "email_nao_lidos", "email_buscar", "email_enviar", "email_responder",
   "meta_ads_contas", "meta_ads_campanhas", "meta_ads_insights",
+  "wapptrack_consultar", "wapptrack_editar",
 ]);
 
 const CONNECTOR_FAMILY = /^mcp__claude_ai_(Gmail|Meta_ADS|Google_Drive|Google_Calendar|instamany)__/;
